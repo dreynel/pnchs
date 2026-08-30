@@ -2,7 +2,6 @@ import os
 import mysql.connector
 from mysql.connector import Error, pooling
 from contextlib import contextmanager
-
 DB_CONFIG = {
     "host":     os.getenv("DB_HOST", "localhost"),
     "database": os.getenv("DB_NAME", "dbpnchs"),
@@ -10,6 +9,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", "007622"),
     "charset":  "utf8mb4",
     "autocommit": False,
+    "use_pure": True,
 }
 
 # Create a connection pool for local MySQL database

@@ -8,8 +8,7 @@ try:
 except ImportError:
     ZKFP2 = None
 
-CLOUD_API_URL = os.environ.get('CLOUD_API_URL', 'https://pn-chs.onrender.com')
-
+CLOUD_API_URL = os.environ.get('CLOUD_API_URL', 'http://187.52.121.22:8080')
 MATCH_THRESHOLD = 55
 
 state_lock = threading.RLock()
@@ -27,7 +26,25 @@ _thread_handle = None
 _running = False
 
 def sync_fingerprints_from_cloud():
-    """Fetch all fingerprints directly from the live database."""
+    """Fetch all fingerprints from Hostinger Cloud API or direct DB."""
+    # 1. Try Cloud HTTP API
+    try:
+        resp = requests.get(f"{CLOUD_API_URL}/api/fingerprint/kiosk_sync", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json().get('fingerprints', [])
+            users = []
+            for r in data:
+                try:
+                    template_bytes = base64.b64decode(r['fingerprint_template'])
+                    users.append((r['id'], r['employee_id'], r['user_name'], template_bytes))
+                except Exception:
+                    pass
+            print(f"[SYNC] Loaded {len(users)} fingerprint templates from Cloud ({CLOUD_API_URL}).")
+            return users
+    except Exception as api_err:
+        print(f"[SYNC] Cloud API sync notice: {api_err}. Trying direct DB...")
+
+    # 2. Try direct MySQL connection
     try:
         from db import db_cursor
         with db_cursor() as (conn, cur):
@@ -40,6 +57,7 @@ def sync_fingerprints_from_cloud():
                     users.append((r['id'], r['employee_id'], r['user_name'], template_bytes))
                 except Exception:
                     pass
+            print(f"[SYNC] Loaded {len(users)} fingerprint templates from local DB.")
             return users
     except Exception as e:
         print(f"Failed to sync fingerprints: {e}")

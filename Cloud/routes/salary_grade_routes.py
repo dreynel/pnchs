@@ -40,13 +40,45 @@ DEFAULT_THIRD_TRANCHE = [
     (33, None, 449157, 462329, 0, 0, 0, 0, 0, 0)
 ]
 
+@salary_grade_bp.route('', methods=['GET'])
 @salary_grade_bp.route('/', methods=['GET'])
 def get_all_salary_grades():
-    """Retrieve full salary grade schedule (Grades 1-33)."""
+    """Retrieve full salary grade schedule (Grades 1-33), auto-seeding if empty."""
     try:
         with db_cursor() as (conn, cur):
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS tblsalary_grades (
+                id            INT            NOT NULL AUTO_INCREMENT,
+                salary_grade  INT            NOT NULL UNIQUE,
+                position_title VARCHAR(120)  NULL,
+                step_1        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                step_2        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                step_3        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                step_4        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                step_5        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                step_6        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                step_7        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                step_8        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+                updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """)
+            
             cur.execute("SELECT * FROM tblsalary_grades ORDER BY salary_grade ASC")
             records = cur.fetchall()
+            
+            if not records:
+                for row in DEFAULT_THIRD_TRANCHE:
+                    cur.execute(
+                        "INSERT INTO tblsalary_grades (salary_grade, position_title, step_1, step_2, step_3, step_4, step_5, step_6, step_7, step_8) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                        "ON DUPLICATE KEY UPDATE position_title=VALUES(position_title), step_1=VALUES(step_1), step_2=VALUES(step_2), step_3=VALUES(step_3), step_4=VALUES(step_4), step_5=VALUES(step_5), step_6=VALUES(step_6), step_7=VALUES(step_7), step_8=VALUES(step_8)",
+                        row
+                    )
+                conn.commit()
+                cur.execute("SELECT * FROM tblsalary_grades ORDER BY salary_grade ASC")
+                records = cur.fetchall()
+
             return jsonify(records)
     except Error as e:
         return jsonify({'error': str(e)}), 500
@@ -78,19 +110,21 @@ def update_salary_grade(sg):
                 return jsonify({'error': f'Salary Grade {sg} does not exist.'}), 404
 
             sql = """
-                UPDATE tblsalary_grades 
-                SET position_title=%s, step_1=%s, step_2=%s, step_3=%s, step_4=%s, step_5=%s, step_6=%s, step_7=%s, step_8=%s
-                WHERE salary_grade=%s
+                UPDATE tblsalary_grades
+                SET position_title = %s,
+                    step_1 = %s, step_2 = %s, step_3 = %s, step_4 = %s,
+                    step_5 = %s, step_6 = %s, step_7 = %s, step_8 = %s
+                WHERE salary_grade = %s
             """
             cur.execute(sql, (position_title, *steps, sg))
             conn.commit()
-            return jsonify({'success': True, 'message': f'Salary Grade {sg} updated successfully.'})
+            return jsonify({'success': True, 'message': f'Salary Grade {sg} successfully updated.'})
     except Error as e:
         return jsonify({'error': str(e)}), 500
 
 @salary_grade_bp.route('/lookup', methods=['GET', 'POST'])
-def lookup_salary_grade():
-    """Lookup basic salary based on salary_grade and step."""
+def lookup_rate():
+    """Look up computed daily, hourly, and per-minute rates for a given SG and Step."""
     if request.method == 'POST':
         data = request.json or {}
         sg = int(data.get('salary_grade') or 0)

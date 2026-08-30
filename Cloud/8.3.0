@@ -1,6 +1,0 @@
-Collecting mysql-connector-python
-  Downloading mysql_connector_python-9.6.0-cp311-cp311-win_amd64.whl.metadata (11 kB)
-Downloading mysql_connector_python-9.6.0-cp311-cp311-win_amd64.whl (16.5 MB)
-   ---------------------------------------- 16.5/16.5 MB 56.0 kB/s  0:04:17
-Installing collected packages: mysql-connector-python
-Successfully installed mysql-connector-python-9.6.0

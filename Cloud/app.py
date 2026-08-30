@@ -4,6 +4,14 @@ import os
 
 app = Flask(__name__)
 app.secret_key = 'paycore-secret-2026'
+app.url_map.strict_slashes = False
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+    return response
 
 # Register blueprints
 app.register_blueprint(employee_bp)

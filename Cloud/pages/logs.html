@@ -82,6 +82,16 @@
   .empty-state-title { font-weight: 600; color: var(--navy); font-size: 14px; margin-bottom: 4px; }
   .empty-state-sub { font-size: 12px; }
 
+  @media (max-width: 768px) {
+    .bl-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+    .bl-toolbar .btn { width: 100%; justify-content: center; }
+    .bl-body { padding: 12px 10px; }
+    .bl-card-header { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+    .bl-search-box { width: 100%; }
+    .bl-date-filter { width: 100%; }
+    .bl-date-filter input { width: 100%; }
+    th, td { padding: 10px 12px; font-size: 12px; }
+  }
 </style>
 
 <div class="bl-page">
@@ -190,45 +200,33 @@
     tbody.html(html);
   }
 
-  function loadBiometricLogs() {
+  function loadBiometricLogs(silent = false) {
     const dFilter = $('#logDateFilter').val();
     const url = dFilter ? '/api/attendance/logs/data?date=' + dFilter : '/api/attendance/logs/data';
     
     const tbody = $('#bioLogsTbody');
-    tbody.html(`
-      <tr>
-        <td colspan="4">
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" style="animation: spin 1s linear infinite;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <div class="empty-state-title" style="margin-top:10px;">Refreshing...</div>
-          </div>
-        </td>
-      </tr>
-    `);
+    if (!silent && !rawLogs.length) {
+      tbody.html(`
+        <tr>
+          <td colspan="4">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" style="animation: spin 1s linear infinite;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <div class="empty-state-title" style="margin-top:10px;">Refreshing...</div>
+            </div>
+          </td>
+        </tr>
+      `);
+    }
     
     $.get(url, function(res) {
       if (res.error) {
-        Swal.fire({ icon: 'error', title: 'Error', text: res.error });
-        tbody.html('<tr><td colspan="4"><div class="empty-state">Failed to load logs.</div></td></tr>');
+        if (!silent) Swal.fire({ icon: 'error', title: 'Error', text: res.error });
         return;
       }
       
       rawLogs = res;
       renderBiometricLogs($('#logSearchInput').val());
       
-    }).fail(function() {
-      Swal.fire({ icon: 'error', title: 'Connection Error', text: 'Could not connect to the API to fetch biometric logs.' });
-      tbody.html(`
-        <tr>
-          <td colspan="4">
-            <div class="empty-state" style="color:var(--red);">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <div class="empty-state-title" style="color:var(--red);">Server Error</div>
-              <div class="empty-state-sub">Could not connect to the API.</div>
-            </div>
-          </td>
-        </tr>
-      `);
     });
   }
 
@@ -251,5 +249,18 @@
   const d = String(today.getDate()).padStart(2, '0');
   $('#logDateFilter').val(`${y}-${m}-${d}`);
   loadBiometricLogs();
+
+  // Real-time live background polling every 4 seconds
+  const logsInterval = setInterval(function() {
+    if (document.getElementById('bioLogsTbody')) {
+      loadBiometricLogs(true);
+    } else {
+      clearInterval(logsInterval);
+    }
+  }, 4000);
+
+  window.addEventListener('pnchs:data-change', function() {
+    if (document.getElementById('bioLogsTbody')) loadBiometricLogs(true);
+  });
 })();
 </script>

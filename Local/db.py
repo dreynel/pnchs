@@ -1,9 +1,7 @@
-import mysql.connector
-from mysql.connector import Error
-from mysql.connector import pooling
-from contextlib import contextmanager
-
 import os
+import mysql.connector
+from mysql.connector import Error, pooling
+from contextlib import contextmanager
 
 DB_CONFIG = {
     "host":     os.getenv("DB_HOST", "localhost"),
@@ -12,45 +10,49 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", "007622"),
     "charset":  "utf8mb4",
     "autocommit": False,
+    "use_pure": True,
 }
 
-# Create a connection pool to avoid slow handshakes on every payload
-db_pool = mysql.connector.pooling.MySQLConnectionPool(
-    pool_name="local_scanner_pool",
-    pool_size=15,
-    pool_reset_session=True,
-    **DB_CONFIG
-)
+# Create connection pool gracefully if local MySQL is reachable
+db_pool = None
+try:
+    db_pool = pooling.MySQLConnectionPool(
+        pool_name="local_scanner_pool",
+        pool_size=10,
+        pool_reset_session=True,
+        **DB_CONFIG
+    )
+    print("[OK] Connected to local MySQL connection pool.")
+except Exception as e:
+    print(f"[INFO] Local MySQL not active or unreachable ({e}). Running in Cloud Mode.")
+    db_pool = None
 
 def get_connection():
-    """Returns a connection from the connection pool instantly."""
-    return db_pool.get_connection()
-
+    """Returns a MySQL connection from pool or direct connect."""
+    if db_pool:
+        return db_pool.get_connection()
+    return mysql.connector.connect(**DB_CONFIG)
 
 @contextmanager
 def db_cursor(commit=False):
     """
     Context manager that yields (conn, cursor).
     Automatically commits or rolls back, then closes.
-
-    Usage:
-        with db_cursor(commit=True) as (conn, cur):
-            cur.execute("INSERT ...")
     """
     conn = None
-    cur  = None
+    cur = None
     try:
         conn = get_connection()
-        cur  = conn.cursor(dictionary=True)
+        cur = conn.cursor(dictionary=True)
         yield conn, cur
         if commit:
             conn.commit()
-    except Error as e:
+    except Exception as e:
         if conn:
             conn.rollback()
         raise e
     finally:
         if cur:
             cur.close()
-        if conn and conn.is_connected():
+        if conn and hasattr(conn, 'is_connected') and conn.is_connected():
             conn.close()

@@ -57,6 +57,19 @@
     gap:8px; background:var(--surface2); }
   .err-msg { font-size:11.5px; color:var(--red); background:var(--red-dim); padding:8px 12px;
     border-radius:7px; display:none; }
+
+  .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+
+  @media (max-width: 768px) {
+    .lv-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+    .lv-toolbar .btn { width: 100%; justify-content: center; }
+    .lv-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+    .lv-body { padding: 14px 12px; }
+    .modal-box { width: 94vw !important; max-width: 94vw !important; margin: 10px; border-radius: 12px; }
+  }
+  @media (max-width: 480px) {
+    .lv-cards { grid-template-columns: 1fr; }
+  }
 </style>
 
 <div class="lv-page">
@@ -109,7 +122,7 @@
       <div class="ftab" data-status="audit">Leave Credit Audit History</div>
     </div>
 
-    <div id="leaveRequestsWrap">
+    <div id="leaveRequestsWrap" class="table-responsive">
       <table>
         <thead>
           <tr>
@@ -128,7 +141,7 @@
       </table>
     </div>
 
-    <div id="leaveBalancesWrap" style="display:none;">
+    <div id="leaveBalancesWrap" class="table-responsive" style="display:none;">
       <table>
         <thead>
           <tr>
@@ -146,7 +159,7 @@
       </table>
     </div>
 
-    <div id="leaveAuditWrap" style="display:none;">
+    <div id="leaveAuditWrap" class="table-responsive" style="display:none;">
       <table>
         <thead>
           <tr>
@@ -503,5 +516,11 @@
   });
 
   init();
+
+  window.addEventListener('pnchs:data-change', function() {
+    if (document.getElementById('lvBody') && !$('#fileModal').hasClass('open') && !$('#adjModal').hasClass('open')) {
+      loadLeaves();
+    }
+  });
 })();
 </script>

@@ -42,17 +42,18 @@ def login_required(f):
 @app.route('/')
 @app.route('/scanner')
 @app.route('/kiosk')
-def scanner_portal():
+def kiosk():
     """Biometric Fingerprint Scanner Kiosk Portal."""
     return render_template('kiosk.html')
 
+scanner_portal = kiosk
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user' in session:
-        if session['user'].get('role') == 'Employee':
-            return redirect(url_for('scanner_portal'))
-        return redirect(url_for('enrollment'))
+        if session['user'].get('role') in ['Admin', 'HR', 'HR Officer']:
+            return redirect(url_for('enrollment'))
+        return redirect(url_for('kiosk'))
 
     if request.method == 'POST':
         email    = request.form.get('email', '').strip()
@@ -69,6 +70,10 @@ def login():
             """, (email, password))
             emp = cur.fetchone()
             if emp:
+                if emp['role'] not in ['Admin', 'HR', 'HR Officer']:
+                    flash('Access Denied: Fingerprint setup is strictly restricted to Authorized Admin/HR personnel.', 'error')
+                    return render_template('login.html')
+
                 # Prioritize official HR registry name if mapped, else fallback
                 display_name = emp['fallback_name']
                 if emp['first_name'] and emp['last_name']:
@@ -80,11 +85,9 @@ def login():
                     'role': emp['role'],
                     'employee_id': emp['employee_id']
                 }
-                if emp['role'] == 'Employee':
-                    return redirect(url_for('scanner_portal'))
                 return redirect(url_for('enrollment'))
                 
-        flash('Invalid username or password.', 'error')
+        flash('Invalid admin credentials. Please verify your username and password.', 'error')
 
     return render_template('login.html')
 
@@ -116,80 +119,14 @@ def employees():
 @login_required
 def enrollment():
     if session['user'].get('role') not in ['Admin', 'HR', 'HR Officer']:
-        return redirect(url_for('dashboard'))
+        flash('Access Restricted: Authorized Admin or HR credentials required.', 'error')
+        return redirect(url_for('login'))
     return render_template('index.html', user=session['user'], initial_page='/pages/enrollment.html', title='Biometric Fingerprint Setup')
-
-
-
-@app.route('/payroll')
-@login_required
-def payroll():
-    if session['user'].get('role') not in ['Admin', 'Finance']:
-        return redirect(url_for('dashboard'))
-    return render_template('index.html', user=session['user'], initial_page='/pages/payroll.html', title='Payroll Processing')
-
-@app.route('/payroll_approvals')
-@login_required
-def payroll_approvals():
-    if session['user'].get('role') != 'Admin':
-        return redirect(url_for('dashboard'))
-    return render_template('index.html', user=session['user'], initial_page='/pages/payroll_approval.html', title='Payroll Approvals')
-
-
-@app.route('/holidays')
-@login_required
-def holidays():
-    if session['user'].get('role') not in ['Admin', 'Finance', 'HR']:
-        return redirect(url_for('dashboard'))
-    return render_template('index.html', user=session['user'], initial_page='/pages/holidays.html', title='Holiday Calendar')
-
-
-@app.route('/leaves')
-@login_required
-def leaves():
-    return render_template('index.html', user=session['user'], initial_page='/pages/leaves.html', title='Leave Management')
-
-
-@app.route('/dtr')
-@login_required
-def dtr():
-    return render_template('index.html', user=session['user'], initial_page='/pages/dtr.html', title='DTR')
-
-
-@app.route('/mypayslip')
-@login_required
-def mypayslip():
-    return render_template('index.html', user=session['user'], initial_page='/pages/mypayslip.html', title='My Payslip')
-
-
-@app.route('/payroll_report')
-@login_required
-def payroll_report():
-    return render_template('index.html', user=session['user'], initial_page='/pages/payroll_report.html', title='Payroll Report')
-
-
-@app.route('/registry')
-@login_required
-def registry():
-    if session['user'].get('role') not in ['Admin', 'Finance']:
-        return redirect(url_for('dashboard'))
-    return render_template('index.html', user=session['user'], initial_page='/pages/registry.html', title='Global Registry')
-
-
-@app.route('/api/auth/me')
-@login_required
-def auth_me():
-    from flask import jsonify
-    return jsonify(session.get('user', {}))
-
-@app.route('/kiosk')
-def kiosk():
-    return render_template('kiosk.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('login'))
+    return redirect(url_for('kiosk'))
 
 if __name__ == '__main__':
     from scanner_manager import start_device_thread

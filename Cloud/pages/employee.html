@@ -48,6 +48,76 @@
     .search-input:focus { border-color:var(--navy-mid); box-shadow:0 0 0 3px rgba(42,79,128,0.1); }
     .search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--muted2); pointer-events:none; }
 
+    /* Category Filter Pills */
+    .cat-tabs {
+      display: flex;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    .cat-pill {
+      flex: 1;
+      text-align: center;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted2);
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-family: inherit;
+    }
+    .cat-pill:hover {
+      border-color: var(--navy-mid);
+      color: var(--navy-mid);
+      background: #fff;
+    }
+    .cat-pill.active {
+      background: var(--navy);
+      color: #fff;
+      border-color: var(--navy);
+      box-shadow: 0 2px 6px rgba(30,58,95,0.2);
+    }
+    .cat-count {
+      font-size: 9.5px;
+      padding: 1px 5px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.06);
+    }
+    .cat-pill.active .cat-count {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+
+    /* Secondary Filter Row */
+    .filter-secondary-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .filter-select {
+      flex: 1;
+      padding: 5px 8px;
+      border-radius: 7px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      font-size: 10.5px;
+      color: var(--text);
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .filter-select:focus {
+      border-color: var(--navy-mid);
+      background: #fff;
+    }
+
     /* Employee list */
     .emp-list { flex:1; overflow-y:auto; }
     .emp-list::-webkit-scrollbar { width:3px; }
@@ -62,6 +132,51 @@
     }
     .emp-row:hover { background:var(--navy-hover); }
     .emp-row.active { background:var(--navy-light); border-left-color:var(--navy-mid); }
+
+    .emp-tags {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 3px;
+      flex-wrap: wrap;
+    }
+    .badge-tag {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .badge-tag.teaching {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+    .badge-tag.non-teaching {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+    .badge-tag.role {
+      background: #f3e8ff;
+      color: #7e22ce;
+      border: 1px solid #e9d5ff;
+    }
+    .badge-bio-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .badge-bio-dot.enrolled {
+      background: #10b981;
+      box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
+    }
+    .badge-bio-dot.not-enrolled {
+      background: #cbd5e1;
+    }
 
     .emp-avatar {
       width:36px; height:36px; min-width:36px;
@@ -351,9 +466,11 @@
 
     @media (max-width: 768px) {
       .split-layout { flex-direction: column !important; }
-      .panel-left { width: 100% !important; min-width: 0 !important; border-right: none; border-bottom: 1px solid var(--border); flex: 1 1 50%; max-height: 50%; }
-      .panel-right { flex: 1 1 50%; min-height: 50%; width: 100%; }
+      .panel-left { width: 100% !important; min-width: 0 !important; border-right: none; border-bottom: 1px solid var(--border); flex: 1 1 45%; max-height: 45%; }
+      .panel-right { flex: 1 1 55%; min-height: 55%; width: 100%; }
       .form-grid { grid-template-columns: 1fr !important; }
+      .info-grid { grid-template-columns: 1fr !important; }
+      .detail-body { padding: 12px; }
       .reg-modal, .reg-modal.lg, .reg-modal.md, .reg-modal.sm { 
         width: 100% !important; 
         max-width: 95vw !important; 
@@ -379,7 +496,36 @@
       </div>
       <div class="search-wrap">
         <svg class="search-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" class="search-input" id="searchInput" placeholder="Search name, ID, position…" oninput="filterList()">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search name, ID, position…" oninput="filterAndRender()">
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="cat-tabs">
+        <button type="button" class="cat-pill active" id="pillAll" onclick="setCategoryFilter('ALL')">
+          All <span class="cat-count" id="countAll">0</span>
+        </button>
+        <button type="button" class="cat-pill" id="pillTeaching" onclick="setCategoryFilter('TEACHING')">
+          Teaching <span class="cat-count" id="countTeaching">0</span>
+        </button>
+        <button type="button" class="cat-pill" id="pillNonTeaching" onclick="setCategoryFilter('NON_TEACHING')">
+          Non-Teaching <span class="cat-count" id="countNonTeaching">0</span>
+        </button>
+      </div>
+
+      <!-- Secondary Filters (Role & Biometric Status) -->
+      <div class="filter-secondary-row">
+        <select class="filter-select" id="roleFilter" onchange="filterAndRender()">
+          <option value="ALL">All Roles</option>
+          <option value="Principal">Principal / Admin</option>
+          <option value="HR Officer">HR Officer</option>
+          <option value="Finance Officer">Finance Officer</option>
+          <option value="Employee">Employee (Staff)</option>
+        </select>
+        <select class="filter-select" id="bioFilter" onchange="filterAndRender()">
+          <option value="ALL">All Biometrics</option>
+          <option value="ENROLLED">Enrolled (1-3)</option>
+          <option value="UNENROLLED">Not Enrolled</option>
+        </select>
       </div>
     </div>
 
@@ -712,10 +858,68 @@
     });
   }
 
+  let rawEmployeeList = [];
+  let currentCategory = 'ALL';
+
+  function setCategoryFilter(cat) {
+    currentCategory = cat;
+    $('.cat-pill').removeClass('active');
+    $(`#pill${cat === 'ALL' ? 'All' : (cat === 'TEACHING' ? 'Teaching' : 'NonTeaching')}`).addClass('active');
+    filterAndRender();
+  }
+
+  function filterAndRender() {
+    const q = ($('#searchInput').val() || '').toLowerCase().trim();
+    const role = $('#roleFilter').val() || 'ALL';
+    const bio = $('#bioFilter').val() || 'ALL';
+
+    // Update counts across the full raw list
+    const totalCount = rawEmployeeList.length;
+    const teachingCount = rawEmployeeList.filter(e => (e.employee_type || 'TEACHING').toUpperCase() === 'TEACHING').length;
+    const nonTeachingCount = rawEmployeeList.filter(e => (e.employee_type || '').toUpperCase() === 'NON_TEACHING').length;
+
+    $('#countAll').text(totalCount);
+    $('#countTeaching').text(teachingCount);
+    $('#countNonTeaching').text(nonTeachingCount);
+
+    // Filter list
+    const filtered = rawEmployeeList.filter(e => {
+      // Category filter
+      const empType = (e.employee_type || 'TEACHING').toUpperCase();
+      if (currentCategory !== 'ALL' && empType !== currentCategory) {
+        return false;
+      }
+
+      // Role filter
+      if (role !== 'ALL' && e.system_role !== role) {
+        return false;
+      }
+
+      // Biometrics filter
+      const enrolledCount = (e.enrolled_fingers || []).length;
+      if (bio === 'ENROLLED' && enrolledCount === 0) return false;
+      if (bio === 'UNENROLLED' && enrolledCount > 0) return false;
+
+      // Search text filter
+      if (q) {
+        const fullSearch = `${e.first_name || ''} ${e.last_name || ''} ${e.id || ''} ${e.designation || ''}`.toLowerCase();
+        if (!fullSearch.includes(q)) return false;
+      }
+
+      return true;
+    });
+
+    renderList(filtered);
+  }
+
   // ── Load employee list ────────────────────────────────────────────────────
-  function loadList(q = '') {
-    $.get(API + '/', { q: q }, function (list) {
-      renderList(list);
+  function loadList() {
+    $.get(API + '/', function (list) {
+      rawEmployeeList = list || [];
+      filterAndRender();
+      if (selectedId) {
+        $(`.emp-row[data-id="${selectedId}"]`).addClass('active');
+      }
     });
   }
 
@@ -729,17 +933,30 @@
       </div>`);
       return;
     }
-    $('#empList').html(list.map(e => `
+    $('#empList').html(list.map(e => {
+      const isTeaching = (e.employee_type || 'TEACHING').toUpperCase() === 'TEACHING';
+      const isElevatedRole = e.system_role && e.system_role !== 'Employee';
+      const isEnrolled = (e.enrolled_fingers || []).length > 0;
+      
+      return `
       <div class="emp-row ${e.id === selectedId ? 'active' : ''}" data-id="${e.id}">
         <div class="emp-avatar">${initials(e.first_name, e.last_name)}</div>
         <div class="emp-info">
-          <div class="emp-name">${e.first_name} ${e.last_name}</div>
+          <div style="display:flex; align-items:center; gap:5px;">
+            <span class="emp-name">${e.first_name} ${e.last_name}</span>
+            <span class="badge-bio-dot ${isEnrolled ? 'enrolled' : 'not-enrolled'}" title="${isEnrolled ? 'Biometrics Enrolled' : 'Not Enrolled'}"></span>
+          </div>
           <div class="emp-meta">${e.id} · ${e.designation}</div>
+          <div class="emp-tags">
+            <span class="badge-tag ${isTeaching ? 'teaching' : 'non-teaching'}">${isTeaching ? 'Teaching' : 'Non-Teaching'}</span>
+            ${isElevatedRole ? `<span class="badge-tag role">${e.system_role}</span>` : ''}
+          </div>
         </div>
         <svg class="row-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
         </svg>
-      </div>`).join(''));
+      </div>`;
+    }).join(''));
   }
 
   // Row click via delegation
@@ -1222,11 +1439,19 @@
   window.cancelEnrollment    = cancelEnrollment;
   window.onPositionTagChange = onPositionTagChange;
   window.onSGStepChange      = onSGStepChange;
+  window.setCategoryFilter   = setCategoryFilter;
+  window.filterAndRender     = filterAndRender;
 
 
   // ── Init ──────────────────────────────────────────────────────────────────
   console.log('Employee script initialized.');
   loadList();
+
+  window.addEventListener('pnchs:data-change', function() {
+    if (document.getElementById('empList') && !$('#formModal').hasClass('open')) {
+      loadList();
+    }
+  });
 
 })();
 </script>
