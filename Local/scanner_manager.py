@@ -128,7 +128,7 @@ def _scanner_loop():
                 zkfp = None
                 with state_lock:
                     KIOSK_STATE['status'] = 'disconnected'
-                time.sleep(2.0)
+                time.sleep(3.0)
                 continue
 
 

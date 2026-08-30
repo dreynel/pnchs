@@ -433,9 +433,8 @@
         <span>Polling USB biometric reader status...</span>
       </div>
 
-      <div style="display:flex; gap:12px; margin-top:24px; justify-content:center;">
-        <button class="btn-retry" onclick="pollBackend()">Check Connection Again</button>
-        <a href="/enrollment" class="btn-setup">Admin Setup</a>
+      <div style="margin-top:24px; text-align:center;">
+        <button class="btn-retry" onclick="pollBackend()" style="width:100%;">Check Connection Again</button>
       </div>
     </div>
   </div>
@@ -477,7 +476,7 @@
 
     function startScanner() {
       $.post('/api/attendance/start', function() {
-        pollInterval = setInterval(pollBackend, 2000);
+        pollInterval = setInterval(pollBackend, 3000);
       }).fail(function() {
 
 
