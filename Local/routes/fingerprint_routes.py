@@ -138,6 +138,7 @@ def enroll_complete():
 
 @fingerprint_bp.route('/clear/<emp_id>/<int:finger_index>', methods=['DELETE'])
 def clear_fingerprint(emp_id, finger_index):
+    import requests, os
     from flask import session
     if 'user' not in session or session['user'].get('role') not in ['Admin', 'HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized. Admin or HR login required.'}), 401
@@ -145,6 +146,13 @@ def clear_fingerprint(emp_id, finger_index):
     try:
         with db_cursor(commit=True) as (conn, cur):
             cur.execute("DELETE FROM fingerprints WHERE employee_id=%s AND finger_index=%s", (emp_id, finger_index))
+
+        cloud_url = os.environ.get('CLOUD_API_URL', 'http://187.52.121.22:8080')
+        try:
+            requests.delete(f"{cloud_url}/api/fingerprint/clear/{emp_id}/{finger_index}", timeout=5)
+        except Exception:
+            pass
+
         return jsonify({'message': 'Fingerprint cleared successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
