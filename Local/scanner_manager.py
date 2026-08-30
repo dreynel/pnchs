@@ -129,7 +129,6 @@ def _scanner_loop():
                 with state_lock:
                     KIOSK_STATE['status'] = 'disconnected'
                 time.sleep(3.0)
-                continue
 
 
         # ── 2. Active Scanner Operation Loop ──────────────────────────────────
