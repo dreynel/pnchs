@@ -1,6 +1,6 @@
 <style>
   /* ══════════════════════════════════════
-     BIOMETRIC LOGS STYLES
+     CATEGORIZED BIOMETRIC LOGS STYLES
   ══════════════════════════════════════ */
   .bl-page {
     height: 100%;
@@ -9,169 +9,379 @@
     overflow: hidden;
     position: relative;
     background: var(--bg);
+    padding: 24px;
+    gap: 20px;
   }
 
-  /* Toolbar */
-  .bl-toolbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 22px; background: var(--surface);
-    border-bottom: 1.5px solid var(--border); flex-shrink: 0;
-  }
-  .bl-toolbar-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--navy); }
-  .bl-toolbar-sub { font-size: 11px; color: var(--muted2); margin-top: 2px; }
-
-  /* Body */
-  .bl-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 22px; }
-  
-  .bl-card {
+  /* Header Card */
+  .bl-header-card {
     background: var(--surface);
     border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 16px rgba(30,58,95,0.03);
+    flex-shrink: 0;
+  }
+  .bl-header-title { font-family: 'Playfair Display', serif; font-size: 1.35rem; color: var(--navy); font-weight: 700; }
+  .bl-header-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  /* 4 Metric Cards for AM/PM Ins & Outs */
+  .bl-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .bl-stat-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
     border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 4px 12px rgba(30,58,95,0.02);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .bl-stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(30,58,95,0.05); }
+
+  .stat-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .stat-am-in  { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+  .stat-am-out { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+  .stat-pm-in  { background: #fefce8; color: #d97706; border: 1px solid #fef08a; }
+  .stat-pm-out { background: #faf5ff; color: #7c3aed; border: 1px solid #e9d5ff; }
+
+  .stat-val { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; color: var(--navy); line-height: 1.1; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-top: 2px; }
+  .stat-sub { font-size: 10.5px; color: var(--muted2); }
+
+  /* Main Card */
+  .bl-main-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 4px 16px rgba(30,58,95,0.03);
+    box-shadow: 0 4px 20px rgba(30,58,95,0.04);
   }
 
-  .bl-card-header {
-    display: flex; justify-content: space-between; align-items: center;
+  .bl-card-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 14px 20px;
-    border-bottom: 1.5px solid var(--border);
     background: var(--surface2);
+    border-bottom: 1.5px solid var(--border);
     gap: 12px;
+    flex-wrap: wrap;
   }
 
-  .bl-search-box { position: relative; display: flex; align-items: center; width: 260px; }
-  .bl-search-box svg { position: absolute; left: 12px; width: 14px; height: 14px; color: var(--muted2); pointer-events: none; }
-  .bl-search-box input { width: 100%; padding: 8px 12px 8px 34px; border-radius: 9px; border: 1.5px solid var(--border); background: var(--surface); font-size: 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; color: var(--text); }
-  .bl-search-box input:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 3px rgba(42,79,128,0.1); }
-  .bl-search-box input::placeholder { color: var(--muted2); }
+  /* View Switcher Tabs */
+  .bl-tab-group {
+    display: flex;
+    background: rgba(30,58,95,0.07);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .bl-tab-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .bl-tab-btn.active {
+    background: #fff;
+    color: var(--navy);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
 
-  .bl-date-filter { display: flex; align-items: center; }
-  .bl-date-filter input { padding: 7px 12px; border-radius: 9px; border: 1.5px solid var(--border); background: var(--surface); font-size: 12px; outline: none; transition: border-color 0.15s; color: var(--text); font-family: inherit; cursor: pointer; }
-  .bl-date-filter input:focus { border-color: var(--navy-mid); }
+  .search-box { position: relative; display: flex; align-items: center; width: 260px; }
+  .search-box svg { position: absolute; left: 12px; width: 14px; height: 14px; color: var(--muted2); pointer-events: none; }
+  .search-box input { width: 100%; padding: 8px 12px 8px 34px; border-radius: 9px; border: 1.5px solid var(--border); background: var(--surface); font-size: 12px; outline: none; transition: border-color 0.15s; color: var(--text); }
+  .search-box input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(30,58,95,0.08); }
+
+  .date-input {
+    padding: 7px 12px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* Filter Pills */
+  .pill-filters { display: flex; gap: 6px; align-items: center; }
+  .pill-btn {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pill-btn:hover { background: #f1f5f9; color: var(--navy); }
+  .pill-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
   /* Table */
-  .list-container { flex: 1; overflow-y: auto; padding: 0; }
-  .list-container::-webkit-scrollbar { width: 4px; }
-  .list-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .table-scroll { flex: 1; overflow-y: auto; }
+  .table-scroll::-webkit-scrollbar { width: 5px; }
+  .table-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
   table { width: 100%; border-collapse: separate; border-spacing: 0; }
-  th { position: sticky; top: 0; background: var(--surface2); z-index: 5; text-align: left; padding: 12px 20px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted2); border-bottom: 1.5px solid var(--border); font-weight: 700; }
-  td { padding: 14px 20px; background: var(--surface); border-bottom: 1px solid rgba(226,221,214,0.4); font-size: 13px; color: var(--text); }
-  tr:hover td { background: #fafaf8; }
-  tr:last-child td { border-bottom: none; }
+  th { position: sticky; top: 0; background: #f8fafc; z-index: 5; text-align: left; padding: 12px 18px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-bottom: 1.5px solid var(--border); font-weight: 700; }
+  td { padding: 12px 18px; background: var(--surface); border-bottom: 1px solid rgba(226,221,214,0.4); font-size: 13px; color: var(--text); vertical-align: middle; }
+  tr:hover td { background: #fcfcfb; }
 
-  /* Badges */
-  .log-badge {
-    display: inline-flex; align-items: center;
-    padding: 4px 10px; border-radius: 6px;
-    font-size: 10.5px; font-weight: 600;
-    font-family: inherit; letter-spacing: .02em;
+  /* Slot Badges */
+  .punch-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
-  .log-badge.in { background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; }
-  .log-badge.out { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
-
-  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; transition: all 0.15s; font-family: inherit; }
-  .btn-outline { background: var(--surface); border-color: var(--border); color: var(--muted); }
-  .btn-outline:hover { background: var(--navy-light); color: var(--navy-mid); border-color: #c5d8f5; }
+  .slot-am-in  { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .slot-am-out { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+  .slot-pm-in  { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+  .slot-pm-out { background: #faf5ff; color: #581c87; border: 1px solid #e9d5ff; }
+  .slot-empty  { color: #94a3b8; font-style: italic; font-weight: 400; font-size: 11.5px; }
 
   .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--muted2); }
-  .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5; }
-  .empty-state-title { font-weight: 600; color: var(--navy); font-size: 14px; margin-bottom: 4px; }
+  .empty-state svg { width: 44px; height: 44px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state-title { font-weight: 700; color: var(--navy); font-size: 14px; margin-bottom: 4px; }
   .empty-state-sub { font-size: 12px; }
-
-  @media (max-width: 768px) {
-    .bl-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
-    .bl-toolbar .btn { width: 100%; justify-content: center; }
-    .bl-body { padding: 12px 10px; }
-    .bl-card-header { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
-    .bl-search-box { width: 100%; }
-    .bl-date-filter { width: 100%; }
-    .bl-date-filter input { width: 100%; }
-    th, td { padding: 10px 12px; font-size: 12px; }
-  }
 </style>
 
 <div class="bl-page">
-  <!-- Toolbar -->
-  <div class="bl-toolbar">
-    <div class="bl-info">
-      <div class="bl-toolbar-title">Biometric Logs</div>
-      <div class="bl-toolbar-sub">Raw terminal punch data from the hardware scanner</div>
+
+  <!-- Header Card -->
+  <div class="bl-header-card">
+    <div>
+      <div class="bl-header-title">Daily Attendance Logs</div>
+      <div class="bl-header-sub">Categorized Morning (AM) & Afternoon (PM) biometric scans for today</div>
     </div>
-    <div style="flex:1;"></div>
-    <button class="btn btn-outline" id="btnRefreshLogs" onclick="loadBiometricLogs()">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
-      Refresh
-    </button>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <input type="date" id="logDatePicker" class="date-input" title="Filter date">
+      <button class="btn btn-sm btn-outline-secondary" onclick="loadTodayLogs()" style="border-radius:9px; font-weight:600; padding:6px 14px; display:inline-flex; align-items:center; gap:6px;">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Refresh
+      </button>
+    </div>
   </div>
 
-  <div class="bl-body">
-    <div class="bl-card">
-      <div class="bl-card-header">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div class="bl-date-filter">
-            <input type="date" id="logDateFilter" title="Filter by date">
-          </div>
-          <div class="bl-search-box">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input type="text" id="logSearchInput" placeholder="Search by name or ID...">
-          </div>
-        </div>
+  <!-- 4 Summary Metrics (AM IN, AM OUT, PM IN, PM OUT) -->
+  <div class="bl-stats-grid">
+    <!-- AM Time In -->
+    <div class="bl-stat-card">
+      <div class="stat-icon-wrap stat-am-in">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
       </div>
-      
-      <div class="list-container">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 70px;">Scan #</th>
-              <th>Employee Info</th>
-              <th>Punch Type</th>
-              <th>Timestamp</th>
-            </tr>
-          </thead>
-          <tbody id="bioLogsTbody">
-            <tr>
-              <td colspan="4">
-                <div class="empty-state">
-                  <div class="spinner-border spinner-border-sm" role="status" style="width: 20px; height: 20px; border-width: 2px;"></div>
-                  <div class="empty-state-title" style="margin-top:10px;">Loading Logs</div>
-                  <div class="empty-state-sub">Fetching raw logs from the database...</div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div>
+        <div class="stat-val" id="statAmIn">0</div>
+        <div class="stat-label" style="color:#059669;">AM Time In</div>
+        <div class="stat-sub">Morning Arrivals</div>
       </div>
     </div>
+
+    <!-- AM Time Out -->
+    <div class="bl-stat-card">
+      <div class="stat-icon-wrap stat-am-out">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </div>
+      <div>
+        <div class="stat-val" id="statAmOut">0</div>
+        <div class="stat-label" style="color:#2563eb;">AM Time Out</div>
+        <div class="stat-sub">Lunch Departures</div>
+      </div>
+    </div>
+
+    <!-- PM Time In -->
+    <div class="bl-stat-card">
+      <div class="stat-icon-wrap stat-pm-in">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+      </div>
+      <div>
+        <div class="stat-val" id="statPmIn">0</div>
+        <div class="stat-label" style="color:#d97706;">PM Time In</div>
+        <div class="stat-sub">Afternoon Return</div>
+      </div>
+    </div>
+
+    <!-- PM Time Out -->
+    <div class="bl-stat-card">
+      <div class="stat-icon-wrap stat-pm-out">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </div>
+      <div>
+        <div class="stat-val" id="statPmOut">0</div>
+        <div class="stat-label" style="color:#7c3aed;">PM Time Out</div>
+        <div class="stat-sub">Day-End Dismissal</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Card with Matrix & Raw Feed Tabs -->
+  <div class="bl-main-card">
+    <div class="bl-card-toolbar">
+      <div class="bl-tab-group">
+        <button class="bl-tab-btn active" id="tabMatrixBtn" onclick="switchTab('matrix')">Categorized Matrix</button>
+        <button class="bl-tab-btn" id="tabFeedBtn" onclick="switchTab('feed')">Live Punches Feed</button>
+      </div>
+
+      <div id="feedFilterContainer" class="pill-filters" style="display:none;">
+        <button class="pill-btn active" onclick="filterPunchType('all', this)">All Types</button>
+        <button class="pill-btn" onclick="filterPunchType('am_time_in', this)">AM In</button>
+        <button class="pill-btn" onclick="filterPunchType('am_time_out', this)">AM Out</button>
+        <button class="pill-btn" onclick="filterPunchType('pm_time_in', this)">PM In</button>
+        <button class="pill-btn" onclick="filterPunchType('pm_time_out', this)">PM Out</button>
+      </div>
+
+      <div class="search-box">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="logSearchInput" placeholder="Search employee or ID…" oninput="onSearchInput()">
+      </div>
+    </div>
+
+    <!-- View 1: Categorized Matrix Table (AM IN, AM OUT, PM IN, PM OUT) -->
+    <div id="matrixViewContainer" class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 110px;">ID</th>
+            <th>Employee Name</th>
+            <th>Department / Designation</th>
+            <th style="width: 140px;">🌅 AM Time In</th>
+            <th style="width: 140px;">☀️ AM Time Out</th>
+            <th style="width: 140px;">🌤️ PM Time In</th>
+            <th style="width: 140px;">🌙 PM Time Out</th>
+          </tr>
+        </thead>
+        <tbody id="matrixTableBody">
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                <div class="empty-state-title" style="margin-top:10px;">Loading today's attendance…</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- View 2: Chronological Live Feed Table -->
+    <div id="feedViewContainer" class="table-scroll" style="display:none;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 80px;">Scan #</th>
+            <th style="width: 110px;">ID</th>
+            <th>Employee Name</th>
+            <th style="width: 180px;">Categorized Punch</th>
+            <th style="width: 180px;">Time of Punch</th>
+          </tr>
+        </thead>
+        <tbody id="feedTableBody">
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">
+                <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                <div class="empty-state-title" style="margin-top:10px;">Loading punches…</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
   </div>
 
 </div>
 
 <script>
 (function() {
-  let rawLogs = [];
+  let todayData = { summary: {}, records: [], raw_punches: [] };
+  let currentTab = 'matrix';
+  let activePunchFilter = 'all';
 
-  function renderBiometricLogs(query = '') {
-    const tbody = $('#bioLogsTbody');
-    const filtered = query ? rawLogs.filter(log => 
-      log.name.toLowerCase().includes(query.toLowerCase()) || 
-      log.employee_id.toLowerCase().includes(query.toLowerCase()) ||
-      log.log_type_label.toLowerCase().includes(query.toLowerCase())
-    ) : rawLogs;
+  // Set default date to today
+  const todayIso = new Date().toISOString().split('T')[0];
+  $('#logDatePicker').val(todayIso);
 
-    if (filtered.length === 0) {
-      tbody.html(`
+  window.loadTodayLogs = function(silent = false) {
+    const selectedDate = $('#logDatePicker').val() || todayIso;
+    
+    $.getJSON('/api/attendance/today_categorized?date=' + selectedDate)
+      .done(function(res) {
+        todayData = res || { summary: {}, records: [], raw_punches: [] };
+        todayData.records = res.records || res.matrix || [];
+        updateSummaryStats(todayData.summary || {});
+        renderMatrixTable();
+        renderFeedTable();
+      })
+      .fail(function() {
+        if (!silent) {
+          $('#matrixTableBody').html(`
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-title text-danger">Failed to fetch attendance logs</div><div class="empty-state-sub">Ensure the backend database is connected.</div></div></td></tr>
+          `);
+        }
+      });
+  };
+
+  function updateSummaryStats(summary) {
+    $('#statAmIn').text(summary.am_time_in ?? summary.am_in ?? 0);
+    $('#statAmOut').text(summary.am_time_out ?? summary.am_out ?? 0);
+    $('#statPmIn').text(summary.pm_time_in ?? summary.pm_in ?? 0);
+    $('#statPmOut').text(summary.pm_time_out ?? summary.pm_out ?? 0);
+  }
+
+  function renderMatrixTable() {
+    const query = ($('#logSearchInput').val() || '').toLowerCase().trim();
+    const records = (todayData.records || []).filter(r => {
+      if (!query) return true;
+      return (r.name || '').toLowerCase().includes(query) ||
+             (r.employee_id || '').toLowerCase().includes(query) ||
+             (r.department || '').toLowerCase().includes(query) ||
+             (r.designation || '').toLowerCase().includes(query);
+    });
+
+    if (records.length === 0) {
+      $('#matrixTableBody').html(`
         <tr>
-          <td colspan="4">
+          <td colspan="7">
             <div class="empty-state">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-              <div class="empty-state-title">No matching records found</div>
-              <div class="empty-state-sub">Adjust your search or clear the filter.</div>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div class="empty-state-title">No attendance records for this date</div>
+              <div class="empty-state-sub">Punches recorded on the attendance kiosk will appear here automatically.</div>
             </div>
           </td>
         </tr>
@@ -179,88 +389,132 @@
       return;
     }
 
-    const html = filtered.map(log => {
-      let badgeClass = 'log-badge ';
-      if (log.log_type.includes('in')) badgeClass += 'in';
-      if (log.log_type.includes('out')) badgeClass += 'out';
-      
+    const rowsHtml = records.map(r => {
+      const amInVal  = r.am_time_in || r.am_in;
+      const amOutVal = r.am_time_out || r.am_out;
+      const pmInVal  = r.pm_time_in || r.pm_in;
+      const pmOutVal = r.pm_time_out || r.pm_out;
+
+      const amInBadge  = amInVal  ? `<span class="punch-slot slot-am-in">${amInVal}</span>`   : `<span class="slot-empty">—</span>`;
+      const amOutBadge = amOutVal ? `<span class="punch-slot slot-am-out">${amOutVal}</span>` : `<span class="slot-empty">—</span>`;
+      const pmInBadge  = pmInVal  ? `<span class="punch-slot slot-pm-in">${pmInVal}</span>`   : `<span class="slot-empty">—</span>`;
+      const pmOutBadge = pmOutVal ? `<span class="punch-slot slot-pm-out">${pmOutVal}</span>` : `<span class="slot-empty">—</span>`;
+
       return `
         <tr>
-          <td><span style="color:var(--muted2); font-size:11.5px; font-weight:600;">#${log.id}</span></td>
-          <td>
-            <div style="font-weight:600; color:var(--navy); font-size:13px;">${log.name}</div>
-            <div style="color:var(--muted2); font-size:10.5px; margin-top:2px;">${log.employee_id}</div>
-          </td>
-          <td><span class="${badgeClass}">${log.log_type_label}</span></td>
-          <td><span style="font-variant-numeric: tabular-nums; color:var(--text); font-size:12.5px;">${log.log_time}</span></td>
+          <td><span style="font-weight:700; color:var(--navy); font-size:12px;">${r.employee_id}</span></td>
+          <td><span style="font-weight:600; color:var(--text); font-size:13.5px;">${r.name}</span></td>
+          <td><span style="color:var(--muted); font-size:12px;">${r.department || r.employee_type || 'Faculty'} · ${r.designation}</span></td>
+          <td>${amInBadge}</td>
+          <td>${amOutBadge}</td>
+          <td>${pmInBadge}</td>
+          <td>${pmOutBadge}</td>
         </tr>
       `;
     }).join('');
 
-    tbody.html(html);
+    $('#matrixTableBody').html(rowsHtml);
   }
 
-  function loadBiometricLogs(silent = false) {
-    const dFilter = $('#logDateFilter').val();
-    const url = dFilter ? '/api/attendance/logs/data?date=' + dFilter : '/api/attendance/logs/data';
-    
-    const tbody = $('#bioLogsTbody');
-    if (!silent && !rawLogs.length) {
-      tbody.html(`
+  function renderFeedTable() {
+    const query = ($('#logSearchInput').val() || '').toLowerCase().trim();
+    let punches = todayData.raw_punches || [];
+
+    if (activePunchFilter !== 'all') {
+      punches = punches.filter(p => p.log_type === activePunchFilter);
+    }
+
+    if (query) {
+      punches = punches.filter(p => 
+        (p.name || '').toLowerCase().includes(query) ||
+        (p.employee_id || '').toLowerCase().includes(query) ||
+        (p.log_type_label || '').toLowerCase().includes(query)
+      );
+    }
+
+    if (punches.length === 0) {
+      $('#feedTableBody').html(`
         <tr>
-          <td colspan="4">
+          <td colspan="5">
             <div class="empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" style="animation: spin 1s linear infinite;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              <div class="empty-state-title" style="margin-top:10px;">Refreshing...</div>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <div class="empty-state-title">No matching scan events</div>
+              <div class="empty-state-sub">Try changing the category filter or search query.</div>
             </div>
           </td>
         </tr>
       `);
+      return;
     }
-    
-    $.get(url, function(res) {
-      if (res.error) {
-        if (!silent) Swal.fire({ icon: 'error', title: 'Error', text: res.error });
-        return;
-      }
-      
-      rawLogs = res;
-      renderBiometricLogs($('#logSearchInput').val());
-      
-    });
+
+    const rowsHtml = punches.map(p => {
+      let slotClass = 'slot-am-in';
+      if (p.log_type === 'am_time_out') slotClass = 'slot-am-out';
+      if (p.log_type === 'pm_time_in')  slotClass = 'slot-pm-in';
+      if (p.log_type === 'pm_time_out') slotClass = 'slot-pm-out';
+
+      const timeDisplay = p.time_str || p.log_time_fmt || p.log_time;
+      const dateDisplay = p.date_str ? `(${p.date_str})` : '';
+
+      return `
+        <tr>
+          <td><span style="color:var(--muted2); font-weight:600; font-size:11.5px;">#${p.id}</span></td>
+          <td><span style="font-weight:700; color:var(--navy); font-size:12px;">${p.employee_id}</span></td>
+          <td><span style="font-weight:600; color:var(--text); font-size:13.5px;">${p.name}</span></td>
+          <td><span class="punch-slot ${slotClass}">${p.log_type_label || p.log_type}</span></td>
+          <td><span style="font-weight:600; color:var(--navy); font-size:12.5px;">${timeDisplay}</span> <span style="color:var(--muted2); font-size:11px;">${dateDisplay}</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    $('#feedTableBody').html(rowsHtml);
   }
 
-  window.loadBiometricLogs = loadBiometricLogs;
-
-  // Bind change on date picker
-  $(document).off('change', '#logDateFilter').on('change', '#logDateFilter', function() {
-    loadBiometricLogs();
-  });
-
-  // Bind search input
-  $(document).off('input', '#logSearchInput').on('input', '#logSearchInput', function() {
-    renderBiometricLogs($(this).val());
-  });
-
-  // Init - Default to today's date in local timezone
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, '0');
-  const d = String(today.getDate()).padStart(2, '0');
-  $('#logDateFilter').val(`${y}-${m}-${d}`);
-  loadBiometricLogs();
-
-  // Real-time live background polling every 4 seconds
-  const logsInterval = setInterval(function() {
-    if (document.getElementById('bioLogsTbody')) {
-      loadBiometricLogs(true);
+  window.switchTab = function(tab) {
+    currentTab = tab;
+    if (tab === 'matrix') {
+      $('#tabMatrixBtn').addClass('active');
+      $('#tabFeedBtn').removeClass('active');
+      $('#matrixViewContainer').show();
+      $('#feedViewContainer').hide();
+      $('#feedFilterContainer').hide();
+      renderMatrixTable();
     } else {
-      clearInterval(logsInterval);
+      $('#tabFeedBtn').addClass('active');
+      $('#tabMatrixBtn').removeClass('active');
+      $('#matrixViewContainer').hide();
+      $('#feedViewContainer').show();
+      $('#feedFilterContainer').css('display', 'flex');
+      renderFeedTable();
     }
-  }, 4000);
+  };
 
-  window.addEventListener('pnchs:data-change', function() {
-    if (document.getElementById('bioLogsTbody')) loadBiometricLogs(true);
+  window.filterPunchType = function(type, el) {
+    activePunchFilter = type;
+    $('.pill-btn').removeClass('active');
+    $(el).addClass('active');
+    renderFeedTable();
+  };
+
+  window.onSearchInput = function() {
+    if (currentTab === 'matrix') renderMatrixTable();
+    else renderFeedTable();
+  };
+
+  $('#logDatePicker').on('change', function() {
+    loadTodayLogs();
   });
+
+  // Initial load
+  loadTodayLogs();
+
+  // Real-time live background polling every 3 seconds
+  const autoLogsInterval = setInterval(function() {
+    if (document.getElementById('matrixTableBody') || document.getElementById('feedTableBody')) {
+      loadTodayLogs(true);
+    } else {
+      clearInterval(autoLogsInterval);
+    }
+  }, 3000);
 })();
 </script>

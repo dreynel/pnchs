@@ -588,11 +588,14 @@
           url: '/api/attendance/log',
           type: 'POST',
           data: JSON.stringify({ employee_id: empId, log_type: currentLogType }),
-          success: function() {
+          success: function(res) {
              showToast('Success', `${empName} — ${typeLabels[currentLogType]}`);
           },
           error: function(xhr) {
-             showToast('Error', (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to record attendance', true);
+             const isDup = xhr.responseJSON && xhr.responseJSON.duplicate;
+             const title = isDup ? 'Already Recorded' : 'Error';
+             const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to record attendance';
+             showToast(title, msg, true);
           }
       });
     }

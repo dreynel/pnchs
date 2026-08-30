@@ -26,50 +26,42 @@ _thread_handle = None
 _running = False
 
 def sync_fingerprints_from_cloud():
-    """Fetch all fingerprints from Hostinger Cloud API and local DB, merged."""
+    """Fetch all fingerprints directly from the live Hostinger database."""
+    users_dict = {}
     try:
-        resp = requests.get(f"{CLOUD_API_URL}/api/fingerprint/kiosk_sync", timeout=5)
-        if resp.status_code == 200:
-            data = resp.json().get('fingerprints', [])
+        from db import db_cursor
+        with db_cursor() as (conn, cur):
+            cur.execute("SELECT id, employee_id, user_name, fingerprint_template, finger_index FROM fingerprints")
+            data = cur.fetchall()
             for r in data:
                 try:
                     template_bytes = base64.b64decode(r['fingerprint_template'])
                     key = (r['employee_id'], r.get('finger_index', 1))
                     users_dict[key] = (r['id'], r['employee_id'], r['user_name'], template_bytes)
                 except Exception:
-    except Exception as api_err:
-        print(f"[SYNC] Cloud API sync notice: {api_err}. Trying direct DB...")
-
-    # 2. Try direct MySQL connection and merge
-        from db import db_cursor
-        with db_cursor() as (conn, cur):
-            cur.execute("SELECT id, employee_id, user_name, fingerprint_template, finger_index FROM fingerprints")
-            data = cur.fetchall()
-                try:
-                    template_bytes = base64.b64decode(r['fingerprint_template'])
-                    key = (r['employee_id'], r.get('finger_index', 1))
-                    users_dict[key] = (r['id'], r['employee_id'], r['user_name'], template_bytes)
                     pass
-            print(f"[SYNC] Total combined templates active: {len(users_dict)}.")
+            print(f"[SYNC] Loaded {len(users_dict)} templates directly from live database.")
     except Exception as e:
-        print(f"[SYNC] Local DB sync notice: {e}")
+        print(f"[SYNC] Direct DB sync notice: {e}")
 
     return list(users_dict.values())
 
 
 
 def _scanner_loop():
+    global _running
 
     if ZKFP2 is None:
         print("[INFO] PyZKFP SDK native libraries not available.")
+        with state_lock:
             KIOSK_STATE['status'] = 'disconnected'
+            _running = False
         return
 
     zkfp = None
     device_open = False
     
     enroll_task = None
-    enroll_templates = []
     enroll_step = 0
     enroll_timeout = 0
     last_db_check = time.time()
@@ -90,6 +82,8 @@ def _scanner_loop():
                 if dev_count > 0:
                     zkfp.OpenDevice(0)
                     device_open = True
+                    with state_lock:
+                        KIOSK_STATE['status'] = 'running'
                     print("[SUCCESS] Physical USB Biometric Fingerprint Reader connected & active!")
                     
                     # Sync fingerprints from Database into reader RAM
@@ -101,21 +95,25 @@ def _scanner_loop():
                             id_map[row_id] = {'employee_id': emp_id, 'name': user_name}
                         except Exception as ex:
                             pass
-                            
-                    with state_lock:
-                        KIOSK_STATE['status'] = 'running'
                 else:
-                    raise Exception("No physical USB biometric reader detected (DeviceCount=0).")
+                    try:
+                        zkfp.Terminate()
+                    except Exception: pass
+                    zkfp = None
+                    time.sleep(2.0)
+                    continue
             except Exception as e:
                 device_open = False
                 try:
                     if zkfp:
+                        zkfp.CloseDevice()
                         zkfp.Terminate()
                 except Exception: pass
                 zkfp = None
                 with state_lock:
                     KIOSK_STATE['status'] = 'disconnected'
-                time.sleep(3.0)
+                time.sleep(2.0)
+                continue
 
 
         # ── 2. Active Scanner Operation Loop ──────────────────────────────────
@@ -123,24 +121,22 @@ def _scanner_loop():
             now = time.time()
 
             if not enroll_task and (now - last_task_poll >= 1.0):
-
                 last_task_poll = now
                 try:
                     from db import db_cursor
                     with db_cursor() as (conn, cur):
-                        cur.execute("SELECT id, employee_id, finger_index FROM tblenrollment_tasks WHERE status='pending' ORDER BY id ASC LIMIT 1")
+                        cur.execute("SELECT * FROM tblenrollment_tasks WHERE status='pending' ORDER BY id ASC LIMIT 1")
                         task = cur.fetchone()
                         if task:
                             enroll_task = task
                             enroll_templates = []
-                            enroll_step = 1
                             enroll_timeout = 0
                             last_db_check = time.time()
                             with state_lock:
                                 KIOSK_STATE['enroll_step'] = 1
                                 KIOSK_STATE['enroll_error'] = None
                             print(f"Discovered new enrollment task: {enroll_task}")
-                except Exception as e:
+                except Exception:
                     pass
 
             if enroll_task:
@@ -265,20 +261,21 @@ def _scanner_loop():
                                 """, (enroll_task['employee_id'], user_name, template_b64, enroll_task['finger_index']))
 
                                 cur.execute("UPDATE tblenrollment_tasks SET status='success' WHERE id=%s", (enroll_task['id'],))
-                            
-                            # Forward template to Cloud API so all other laptops/kiosks have it instantly
-                            try:
-                                cloud_payload = {
-                                    'task_id': enroll_task['id'],
-                                    'employee_id': enroll_task['employee_id'],
-                                    'finger_index': enroll_task['finger_index'],
-                                    'template': template_b64
-                                }
-                                requests.post(f"{CLOUD_API_URL}/api/fingerprint/enroll_complete", json=cloud_payload, timeout=6)
-                                print(f"[CLOUD SYNC] Uploaded template for {enroll_task['employee_id']} to Cloud.")
-                            except Exception as cloud_err:
-                                print(f"[CLOUD SYNC NOTICE] Cloud upload ({cloud_err}).")
 
+                            new_local_id = max(list(id_map.keys()) + [0]) + 1
+                            zkfp.DBAdd(new_local_id, template_bytes)
+                            id_map[new_local_id] = {'employee_id': enroll_task['employee_id'], 'name': user_name}
+                            print(f"[ENROLL SUCCESS] Fingerprint enrolled for {user_name} ({enroll_task['employee_id']}).")
+                        except Exception as e:
+                            print(f"Error completing enrollment: {e}")
+
+                    enroll_task = None
+                    with state_lock:
+                        KIOSK_STATE['enroll_step'] = 0
+
+            else:
+                # Normal Kiosk Attendance Scanning Mode
+                res = zkfp.AcquireFingerprint()
                 if res:
                     tmp, img = res
                     if len(id_map) > 0:

@@ -43,13 +43,27 @@ def _td_to_minutes(td):
     return int(td.total_seconds()) // 60
 
 def _time_str(t):
-    """Convert timedelta (MySQL TIME) or None to HH:MM string."""
+    """Convert timedelta (MySQL TIME), string, or None to 12-hour string (e.g. 7:30 AM)."""
     if t is None:
         return None
+    if isinstance(t, str):
+        s = t.strip()
+        for fmt in ['%H:%M:%S', '%H:%M', '%I:%M:%S %p', '%I:%M %p']:
+            try:
+                dt = datetime.strptime(s, fmt)
+                h = dt.hour
+                m = dt.minute
+                suffix = 'AM' if h < 12 else 'PM'
+                h12 = h % 12
+                if h12 == 0:
+                    h12 = 12
+                return f"{h12}:{m:02d} {suffix}"
+            except ValueError:
+                pass
+        return s
     total_seconds = int(t.total_seconds())
-    h = total_seconds // 3600
+    h = (total_seconds // 3600) % 24
     m = (total_seconds % 3600) // 60
-    return f"{h:02d}:{m:02d}"
 
 def _compute_status(row):
     """Derive attendance status from a log row."""

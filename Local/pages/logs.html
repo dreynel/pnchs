@@ -337,28 +337,31 @@
   const todayIso = new Date().toISOString().split('T')[0];
   $('#logDatePicker').val(todayIso);
 
-  window.loadTodayLogs = function() {
+  window.loadTodayLogs = function(silent = false) {
     const selectedDate = $('#logDatePicker').val() || todayIso;
     
     $.getJSON('/api/attendance/today_categorized?date=' + selectedDate)
       .done(function(res) {
         todayData = res || { summary: {}, records: [], raw_punches: [] };
+        todayData.records = res.records || res.matrix || [];
         updateSummaryStats(todayData.summary || {});
         renderMatrixTable();
         renderFeedTable();
       })
       .fail(function() {
-        $('#matrixTableBody').html(`
-          <tr><td colspan="7"><div class="empty-state"><div class="empty-state-title text-danger">Failed to fetch attendance logs</div><div class="empty-state-sub">Ensure the backend database is connected.</div></div></td></tr>
-        `);
+        if (!silent) {
+          $('#matrixTableBody').html(`
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-title text-danger">Failed to fetch attendance logs</div><div class="empty-state-sub">Ensure the backend database is connected.</div></div></td></tr>
+          `);
+        }
       });
   };
 
   function updateSummaryStats(summary) {
-    $('#statAmIn').text(summary.am_time_in || 0);
-    $('#statAmOut').text(summary.am_time_out || 0);
-    $('#statPmIn').text(summary.pm_time_in || 0);
-    $('#statPmOut').text(summary.pm_time_out || 0);
+    $('#statAmIn').text(summary.am_time_in ?? summary.am_in ?? 0);
+    $('#statAmOut').text(summary.am_time_out ?? summary.am_out ?? 0);
+    $('#statPmIn').text(summary.pm_time_in ?? summary.pm_in ?? 0);
+    $('#statPmOut').text(summary.pm_time_out ?? summary.pm_out ?? 0);
   }
 
   function renderMatrixTable() {
@@ -367,7 +370,8 @@
       if (!query) return true;
       return (r.name || '').toLowerCase().includes(query) ||
              (r.employee_id || '').toLowerCase().includes(query) ||
-             (r.department || '').toLowerCase().includes(query);
+             (r.department || '').toLowerCase().includes(query) ||
+             (r.designation || '').toLowerCase().includes(query);
     });
 
     if (records.length === 0) {
@@ -386,16 +390,21 @@
     }
 
     const rowsHtml = records.map(r => {
-      const amInBadge  = r.am_time_in  ? `<span class="punch-slot slot-am-in">${r.am_time_in}</span>`   : `<span class="slot-empty">—</span>`;
-      const amOutBadge = r.am_time_out ? `<span class="punch-slot slot-am-out">${r.am_time_out}</span>` : `<span class="slot-empty">—</span>`;
-      const pmInBadge  = r.pm_time_in  ? `<span class="punch-slot slot-pm-in">${r.pm_time_in}</span>`   : `<span class="slot-empty">—</span>`;
-      const pmOutBadge = r.pm_time_out ? `<span class="punch-slot slot-pm-out">${r.pm_time_out}</span>` : `<span class="slot-empty">—</span>`;
+      const amInVal  = r.am_time_in || r.am_in;
+      const amOutVal = r.am_time_out || r.am_out;
+      const pmInVal  = r.pm_time_in || r.pm_in;
+      const pmOutVal = r.pm_time_out || r.pm_out;
+
+      const amInBadge  = amInVal  ? `<span class="punch-slot slot-am-in">${amInVal}</span>`   : `<span class="slot-empty">—</span>`;
+      const amOutBadge = amOutVal ? `<span class="punch-slot slot-am-out">${amOutVal}</span>` : `<span class="slot-empty">—</span>`;
+      const pmInBadge  = pmInVal  ? `<span class="punch-slot slot-pm-in">${pmInVal}</span>`   : `<span class="slot-empty">—</span>`;
+      const pmOutBadge = pmOutVal ? `<span class="punch-slot slot-pm-out">${pmOutVal}</span>` : `<span class="slot-empty">—</span>`;
 
       return `
         <tr>
           <td><span style="font-weight:700; color:var(--navy); font-size:12px;">${r.employee_id}</span></td>
           <td><span style="font-weight:600; color:var(--text); font-size:13.5px;">${r.name}</span></td>
-          <td><span style="color:var(--muted); font-size:12px;">${r.department} · ${r.designation}</span></td>
+          <td><span style="color:var(--muted); font-size:12px;">${r.department || r.employee_type || 'Faculty'} · ${r.designation}</span></td>
           <td>${amInBadge}</td>
           <td>${amOutBadge}</td>
           <td>${pmInBadge}</td>
@@ -444,13 +453,16 @@
       if (p.log_type === 'pm_time_in')  slotClass = 'slot-pm-in';
       if (p.log_type === 'pm_time_out') slotClass = 'slot-pm-out';
 
+      const timeDisplay = p.time_str || p.log_time_fmt || p.log_time;
+      const dateDisplay = p.date_str ? `(${p.date_str})` : '';
+
       return `
         <tr>
           <td><span style="color:var(--muted2); font-weight:600; font-size:11.5px;">#${p.id}</span></td>
           <td><span style="font-weight:700; color:var(--navy); font-size:12px;">${p.employee_id}</span></td>
           <td><span style="font-weight:600; color:var(--text); font-size:13.5px;">${p.name}</span></td>
-          <td><span class="punch-slot ${slotClass}">${p.log_type_label}</span></td>
-          <td><span style="font-weight:600; color:var(--navy); font-size:12.5px;">${p.time_str}</span> <span style="color:var(--muted2); font-size:11px;">(${p.date_str})</span></td>
+          <td><span class="punch-slot ${slotClass}">${p.log_type_label || p.log_type}</span></td>
+          <td><span style="font-weight:600; color:var(--navy); font-size:12.5px;">${timeDisplay}</span> <span style="color:var(--muted2); font-size:11px;">${dateDisplay}</span></td>
         </tr>
       `;
     }).join('');
@@ -495,5 +507,14 @@
 
   // Initial load
   loadTodayLogs();
+
+  // Real-time live background polling every 3 seconds
+  const autoLogsInterval = setInterval(function() {
+    if (document.getElementById('matrixTableBody') || document.getElementById('feedTableBody')) {
+      loadTodayLogs(true);
+    } else {
+      clearInterval(autoLogsInterval);
+    }
+  }, 3000);
 })();
 </script>

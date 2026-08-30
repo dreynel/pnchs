@@ -3,27 +3,27 @@ import mysql.connector
 from mysql.connector import Error, pooling
 from contextlib import contextmanager
 DB_CONFIG = {
-    "host":     os.getenv("DB_HOST", "localhost"),
-    "database": os.getenv("DB_NAME", "dbpnchs"),
-    "user":     os.getenv("DB_USER", "root"),
-    "password": os.getenv("DB_PASSWORD", "007622"),
+    "host":     os.getenv("DB_HOST", "194.59.164.63"),
+    "database": os.getenv("DB_NAME", "u534933225_dbpwms"),
+    "user":     os.getenv("DB_USER", "u534933225_pwms"),
+    "password": os.getenv("DB_PASSWORD", "QIr0lbg5*"),
     "charset":  "utf8mb4",
     "autocommit": False,
     "use_pure": True,
 }
 
-# Create a connection pool for local MySQL database
+# Create a connection pool for live MySQL database
 connection_pool = None
 try:
     connection_pool = pooling.MySQLConnectionPool(
-        pool_name="local_pool",
+        pool_name="live_hostinger_pool",
         pool_size=15,
         pool_reset_session=True,
         **DB_CONFIG
     )
-    print("[OK] Connected to local MySQL connection pool.")
+    print("[OK] Connected to live Hostinger MySQL connection pool.")
 except Error as e:
-    print(f"Error initializing local database connection pool: {e}")
+    print(f"Error initializing live database connection pool: {e}")
     connection_pool = None
 
 def get_connection():
