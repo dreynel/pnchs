@@ -27,9 +27,6 @@ _running = False
 
 def sync_fingerprints_from_cloud():
     """Fetch all fingerprints from Hostinger Cloud API and local DB, merged."""
-    users_dict = {}
-
-    # 1. Try Cloud HTTP API
     try:
         resp = requests.get(f"{CLOUD_API_URL}/api/fingerprint/kiosk_sync", timeout=5)
         if resp.status_code == 200:
@@ -40,23 +37,18 @@ def sync_fingerprints_from_cloud():
                     key = (r['employee_id'], r.get('finger_index', 1))
                     users_dict[key] = (r['id'], r['employee_id'], r['user_name'], template_bytes)
                 except Exception:
-                    pass
-            print(f"[SYNC] Loaded {len(users_dict)} templates from Cloud ({CLOUD_API_URL}).")
     except Exception as api_err:
         print(f"[SYNC] Cloud API sync notice: {api_err}. Trying direct DB...")
 
     # 2. Try direct MySQL connection and merge
-    try:
         from db import db_cursor
         with db_cursor() as (conn, cur):
             cur.execute("SELECT id, employee_id, user_name, fingerprint_template, finger_index FROM fingerprints")
             data = cur.fetchall()
-            for r in data:
                 try:
                     template_bytes = base64.b64decode(r['fingerprint_template'])
                     key = (r['employee_id'], r.get('finger_index', 1))
                     users_dict[key] = (r['id'], r['employee_id'], r['user_name'], template_bytes)
-                except Exception:
                     pass
             print(f"[SYNC] Total combined templates active: {len(users_dict)}.")
     except Exception as e:
@@ -66,21 +58,15 @@ def sync_fingerprints_from_cloud():
 
 
 
-
-
 def _scanner_loop():
-    global _running
 
     if ZKFP2 is None:
         print("[INFO] PyZKFP SDK native libraries not available.")
-        with state_lock:
             KIOSK_STATE['status'] = 'disconnected'
-            _running = False
         return
 
     zkfp = None
     device_open = False
-    id_map = {}
     
     enroll_task = None
     enroll_templates = []
@@ -293,19 +279,6 @@ def _scanner_loop():
                             except Exception as cloud_err:
                                 print(f"[CLOUD SYNC NOTICE] Cloud upload ({cloud_err}).")
 
-                            new_local_id = max(list(id_map.keys()) + [0]) + 1
-                            zkfp.DBAdd(new_local_id, template_bytes)
-                            id_map[new_local_id] = {'employee_id': enroll_task['employee_id'], 'name': user_name}
-                        except Exception as e:
-                            print(f"Error completing enrollment: {e}")
-                    
-                    enroll_task = None
-                    with state_lock:
-                        KIOSK_STATE['enroll_step'] = 0
-
-            else:
-                # Normal Kiosk Attendance Scanning Mode
-                res = zkfp.AcquireFingerprint()
                 if res:
                     tmp, img = res
                     if len(id_map) > 0:

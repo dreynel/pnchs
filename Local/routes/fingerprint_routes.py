@@ -158,3 +158,45 @@ def clear_fingerprint(emp_id, finger_index):
         return jsonify({'error': str(e)}), 500
 
 
+@fingerprint_bp.route('/verify_admin', methods=['POST'])
+def verify_admin():
+    """Verify Admin/HR credentials for Kiosk authorization."""
+    data = request.json or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+
+    if not username or not password:
+        return jsonify({'success': False, 'error': 'Username and password required'}), 400
+
+    try:
+        with db_cursor() as (conn, cur):
+            cur.execute("""
+                SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name
+                FROM tblusers u
+                LEFT JOIN tblemployee e ON u.employee_id = e.employee_id
+                WHERE u.username=%s AND u.password=%s
+            """, (username, password))
+            emp = cur.fetchone()
+            if emp:
+                if emp['role'] not in ['Admin', 'HR', 'HR Officer']:
+                    return jsonify({'success': False, 'error': 'Access Denied: Admin or HR credentials required.'}), 403
+
+                display_name = emp['fallback_name']
+                if emp['first_name'] and emp['last_name']:
+                    display_name = f"{emp['first_name']} {emp['last_name']}"
+
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'email': emp['username'],
+                        'name': display_name,
+                        'role': emp['role'],
+                        'employee_id': emp['employee_id']
+                    }
+                })
+            else:
+                return jsonify({'success': False, 'error': 'Invalid admin credentials.'}), 401
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+

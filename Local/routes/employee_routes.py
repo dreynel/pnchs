@@ -148,7 +148,16 @@ def list_employees():
             "enrolled_fingers": fp_map.get(r["employee_id"], [])
         } for r in rows])
 
-    except Error as e:
+    except Exception as e:
+        print(f"[EMPLOYEES] Local DB query notice ({e}), fetching from Cloud API...")
+        try:
+            import requests, os
+            cloud_url = os.environ.get('CLOUD_API_URL', 'http://187.52.121.22:8080')
+            resp = requests.get(f"{cloud_url}/api/employees/", params=request.args, timeout=6)
+            if resp.status_code == 200:
+                return (resp.content, resp.status_code, resp.headers.items())
+        except Exception as cloud_err:
+            print(f"[EMPLOYEES] Cloud API fetch error: {cloud_err}")
         return jsonify({"error": str(e)}), 500
 
 

@@ -58,36 +58,66 @@ def login():
     if request.method == 'POST':
         email    = request.form.get('email', '').strip()
         password = request.form.get('password', '')
-        
-        # Check against tblusers
-        from db import db_cursor
-        with db_cursor() as (conn, cur):
-            cur.execute("""
-                SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name
-                FROM tblusers u
-                LEFT JOIN tblemployee e ON u.employee_id = e.employee_id
-                WHERE u.username=%s AND u.password=%s
-            """, (email, password))
-            emp = cur.fetchone()
-            if emp:
-                if emp['role'] not in ['Admin', 'HR', 'HR Officer']:
+
+        authenticated_user = None
+        auth_error = 'Invalid admin credentials. Please verify your username and password.'
+
+        # 1. Try Local MySQL DB first if reachable
+        try:
+            from db import db_cursor
+            with db_cursor() as (conn, cur):
+                cur.execute("""
+                    SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name
+                    FROM tblusers u
+                    LEFT JOIN tblemployee e ON u.employee_id = e.employee_id
+                    WHERE u.username=%s AND u.password=%s
+                """, (email, password))
+                emp = cur.fetchone()
+                if emp:
+                    if emp['role'] not in ['Admin', 'HR', 'HR Officer']:
+                        flash('Access Denied: Fingerprint setup is strictly restricted to Authorized Admin/HR personnel.', 'error')
+                        return render_template('login.html')
+
+                    display_name = emp['fallback_name']
+                    if emp['first_name'] and emp['last_name']:
+                        display_name = f"{emp['first_name']} {emp['last_name']}"
+
+                    authenticated_user = {
+                        'email': emp['username'],
+                        'name': display_name,
+                        'role': emp['role'],
+                        'employee_id': emp['employee_id']
+                    }
+        except Exception as local_db_err:
+            print(f"[AUTH] Local DB check notice ({local_db_err}), checking Cloud API...")
+
+        # 2. If not authenticated locally (e.g. on another laptop without MySQL), check Cloud API
+        if not authenticated_user:
+            try:
+                import requests
+                cloud_url = os.environ.get('CLOUD_API_URL', 'http://187.52.121.22:8080')
+                resp = requests.post(f"{cloud_url}/api/fingerprint/verify_admin", json={
+                    'username': email,
+                    'password': password
+                }, timeout=6)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get('success') and data.get('user'):
+                        authenticated_user = data['user']
+                elif resp.status_code == 403:
                     flash('Access Denied: Fingerprint setup is strictly restricted to Authorized Admin/HR personnel.', 'error')
                     return render_template('login.html')
+                elif resp.status_code == 401:
+                    auth_error = 'Invalid admin credentials. Please verify your username and password.'
+            except Exception as cloud_err:
+                print(f"[AUTH] Cloud verification notice: {cloud_err}")
 
-                # Prioritize official HR registry name if mapped, else fallback
-                display_name = emp['fallback_name']
-                if emp['first_name'] and emp['last_name']:
-                    display_name = f"{emp['first_name']} {emp['last_name']}"
+        if authenticated_user:
+            session['user'] = authenticated_user
+            return redirect(url_for('enrollment'))
 
-                session['user'] = {
-                    'email': emp['username'],
-                    'name': display_name,
-                    'role': emp['role'],
-                    'employee_id': emp['employee_id']
-                }
-                return redirect(url_for('enrollment'))
-                
-        flash('Invalid admin credentials. Please verify your username and password.', 'error')
+        flash(auth_error, 'error')
 
     return render_template('login.html')
 
