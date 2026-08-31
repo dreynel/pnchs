@@ -559,8 +559,8 @@
       </div>
       <div class="dtr-sum-row total-row">
         <div class="dtr-sum-row-lbl">Hours Dutied</div>
-        ${sumCell(h1s.hours_dutied + 'h', 'dtr-sum-hours', 'estimated')}
-        ${sumCell(h2s.hours_dutied + 'h', 'dtr-sum-hours', 'estimated')}
+        ${sumCell(h1s.hours_dutied + 'h', 'dtr-sum-hours', 'rendered')}
+        ${sumCell(h2s.hours_dutied + 'h', 'dtr-sum-hours', 'rendered')}
         ${sumCell(ovs.total_hours_dutied + 'h', 'dtr-sum-hours', 'total month')}
       </div>
     </div>`;
@@ -630,7 +630,7 @@
       <div class="dtr-table-card-header">
         <div>
           <div class="dtr-table-card-title">Attendance Log — ${period.label}</div>
-          <div class="dtr-table-card-sub">${days.length} days · ${summary.working_days} working days · VL Balance: ${emp.vl_balance_formatted || '4,800 mins'}</div>
+          <div class="dtr-table-card-sub">${days.length} days · ${summary.working_days} working days ${emp.vl_balance_formatted ? '· VL Balance: ' + emp.vl_balance_formatted : ''}</div>
         </div>
         <div class="dtr-legend">
           <div class="dtr-leg-item"><div class="dtr-leg-dot" style="background:var(--green);"></div> Present</div>

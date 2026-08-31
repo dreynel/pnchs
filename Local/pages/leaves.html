@@ -194,6 +194,7 @@
       <div>
         <label class="form-lbl">Leave Date *</label>
         <input type="date" class="form-inp" id="mLeaveDate">
+        <small style="font-size:10px;color:var(--navy-mid);display:block;margin-top:2px;">Minimum date is tomorrow (at least 1 day advance filing).</small>
       </div>
       <div>
         <label class="form-lbl">Leave Type *</label>
@@ -261,32 +262,39 @@
 (function() {
   const API_LEAVES = '/api/payroll/leaves';
   const API_ME     = '/api/auth/me';
-  const API_EMPS   = '/api/employees/list';
 
   let leaves=[], activeStatus='all', userRole='', userEmpId='';
 
   async function init() {
-    const me = await $.get(API_ME);
-    userRole  = me.role;
-    userEmpId = me.employee_id;
+    try {
+      const me = await $.get(API_ME);
+      userRole  = me.role;
+      userEmpId = me.employee_id;
 
-    if (userRole !== 'Employee') {
-      $('#empColHdr').show();
-      $('#btnAdjustCredits').show();
-      // HR/Admin: load employees for file & adjust modals
-      try {
-        const emps = await $.get('/api/employees/');
-        emps.forEach(e => {
-          $('#mEmpSelect').append(`<option value="${e.id}">${e.first_name} ${e.last_name} (${e.id})</option>`);
-          $('#aEmpSelect').append(`<option value="${e.id}">${e.first_name} ${e.last_name} (${e.id})</option>`);
-        });
-        $('#hrEmpRow').show();
-      } catch(e) {}
-    } else {
-      $('#empColHdr').hide();
-      $('#btnAdjustCredits').hide();
+      if (userRole !== 'Employee') {
+        $('#empColHdr').show();
+        $('#btnAdjustCredits').show();
+        $('#tabBalances').show();
+        // HR/Admin: load employees for file & adjust modals
+        try {
+          const emps = await $.get('/api/employees/');
+          emps.forEach(e => {
+            const eid = e.employee_id || e.id;
+            $('#mEmpSelect').append(`<option value="${eid}">${e.first_name} ${e.last_name} (${eid})</option>`);
+            $('#aEmpSelect').append(`<option value="${eid}">${e.first_name} ${e.last_name} (${eid})</option>`);
+          });
+          $('#hrEmpRow').show();
+        } catch(e) {}
+      } else {
+        $('#empColHdr').hide();
+        $('#btnAdjustCredits').hide();
+        $('#tabBalances').hide();
+        $('#hrEmpRow').hide();
+      }
+      loadLeaves();
+    } catch(err) {
+      console.error("Failed to initialize leave management:", err);
     }
-    loadLeaves();
   }
 
   async function loadLeaves() {
@@ -303,30 +311,30 @@
     try {
       const bals = await $.get('/api/payroll/leave_balances');
       if (bals && bals.length) {
-        // Render logged-in user balance (or first employee) in banner
         const userBal = bals.find(b => b.employee_id === userEmpId) || bals[0];
         $('#lblVlBalance').html(`${userBal.vl_minutes.toLocaleString()} mins <span style="font-size:0.9rem;color:var(--navy-mid);">(${userBal.vl_formatted})</span>`);
         $('#lblSlBalance').html(`${userBal.sl_minutes.toLocaleString()} mins <span style="font-size:0.9rem;color:var(--navy-mid);">(${userBal.sl_formatted})</span>`);
 
-        // Render All Employees Credit Balances Table
-        $('#balancesBody').html(bals.map(b => `
-          <tr>
-            <td><strong>${b.emp_name}</strong></td>
-            <td><small style="color:var(--navy-mid);font-weight:600;">${b.employee_id}</small></td>
-            <td>
-              <span style="font-weight:700;color:var(--navy);">${b.vl_formatted}</span>
-              <br><small style="color:var(--muted2);">${b.vl_minutes.toLocaleString()} mins</small>
-            </td>
-            <td>
-              <span style="font-weight:700;color:var(--navy);">${b.sl_formatted}</span>
-              <br><small style="color:var(--muted2);">${b.sl_minutes.toLocaleString()} mins</small>
-            </td>
-            <td><small style="color:var(--muted2);">${b.updated_at || '—'}</small></td>
-            <td style="text-align:right;">
-              ${userRole !== 'Employee' ? `<button class="btn btn-outline" style="padding:4px 9px;font-size:10.5px;" onclick="openQuickAdjust('${b.employee_id}')">Adjust</button>` : '—'}
-            </td>
-          </tr>
-        `).join(''));
+        if (userRole !== 'Employee') {
+          $('#balancesBody').html(bals.map(b => `
+            <tr>
+              <td><strong>${b.emp_name}</strong></td>
+              <td><small style="color:var(--navy-mid);font-weight:600;">${b.employee_id}</small></td>
+              <td>
+                <span style="font-weight:700;color:var(--navy);">${b.vl_formatted}</span>
+                <br><small style="color:var(--muted2);">${b.vl_minutes.toLocaleString()} mins</small>
+              </td>
+              <td>
+                <span style="font-weight:700;color:var(--navy);">${b.sl_formatted}</span>
+                <br><small style="color:var(--muted2);">${b.sl_minutes.toLocaleString()} mins</small>
+              </td>
+              <td><small style="color:var(--muted2);">${b.updated_at || '—'}</small></td>
+              <td style="text-align:right;">
+                <button class="btn btn-outline" style="padding:4px 9px;font-size:10.5px;" onclick="openQuickAdjust('${b.employee_id}')">Adjust</button>
+              </td>
+            </tr>
+          `).join(''));
+        }
       } else {
         $('#balancesBody').html(`<tr><td colspan="6" style="text-align:center;color:var(--muted2);padding:24px;">No employee balance records found.</td></tr>`);
       }
@@ -336,7 +344,7 @@
   async function loadAudit() {
     try {
       const txs = await $.get('/api/payroll/leave_transactions');
-      if (!txs.length) {
+      if (!txs || !txs.length) {
         $('#auditBody').html(`<tr><td colspan="9" style="text-align:center;color:var(--muted2);padding:24px;">No audit transactions logged.</td></tr>`);
         return;
       }
@@ -376,32 +384,92 @@
       const sPill = l.status==='Pending' ? 'pill-pending' : l.status==='Approved' ? 'pill-approved' : 'pill-rejected';
       const tPill = l.leave_type==='SL' ? 'type-sl' : 'type-vl';
       const empCol = userRole !== 'Employee' ? `<td><strong>${l.emp_name}</strong><br><small style="color:var(--muted2)">${l.employee_id}</small></td>` : '';
-      const actionBtns = (l.status==='Pending' && userRole !== 'Employee') ?
-        `<button class="btn btn-success" style="padding:4px 9px;font-size:10.5px;margin-right:4px;" onclick="reviewLeave(${l.id},'Approved')">Approve</button>
-         <button class="btn btn-danger"  style="padding:4px 9px;font-size:10.5px;" onclick="reviewLeave(${l.id},'Rejected')">Reject</button>` :
-        (l.reviewed_by ? `<small style="color:var(--muted2)">By: ${l.reviewed_by}</small>` : '');
+      
+      let actionBtns = '';
+      if (userRole !== 'Employee') {
+        if (l.status === 'Pending') {
+          actionBtns = `
+            <button class="btn btn-success" style="padding:4px 9px;font-size:10.5px;margin-right:4px;" onclick="reviewLeave(${l.id},'Approved')">Approve</button>
+            <button class="btn btn-danger"  style="padding:4px 9px;font-size:10.5px;" onclick="reviewLeave(${l.id},'Rejected')">Reject</button>
+          `;
+        } else if (l.reviewed_by) {
+          actionBtns = `<small style="color:var(--muted2)">By: ${l.reviewed_by}</small>`;
+        }
+      } else {
+        if (l.status === 'Pending') {
+          actionBtns = `<button class="btn btn-outline" style="padding:4px 9px;font-size:10.5px;color:var(--red);border-color:rgba(192,57,43,0.25);" onclick="cancelLeave(${l.id})">Cancel Request</button>`;
+        } else if (l.reviewed_by) {
+          actionBtns = `<small style="color:var(--muted2)">Reviewed by HR</small>`;
+        }
+      }
+
       return `<tr>
         ${empCol}
-        <td>${l.leave_date}</td>
+        <td><strong>${l.leave_date}</strong></td>
         <td><span class="${tPill}">${l.leave_type}</span></td>
         <td>${l.reason || '<span style="color:var(--muted2)">—</span>'}</td>
         <td><small>${l.filed_at||'—'}</small></td>
         <td><span class="status-pill ${sPill}">${l.status}</span></td>
-        <td>${actionBtns}</td>
+        <td style="text-align:right;">${actionBtns}</td>
       </tr>`;
     }).join(''));
   }
 
-  window.reviewLeave = async function(id, status) {
-    const action = status === 'Approved' ? 'approve' : 'reject';
-    if (!confirm(`Are you sure you want to ${action} this leave request?`)) return;
-    try {
-      await fetch(API_LEAVES + '/' + id + '/status', {
-        method:'PUT', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({status})
-      });
-      loadLeaves();
-    } catch(e) { alert('Error updating leave.'); }
+  window.reviewLeave = function(id, status) {
+    const action = status === 'Approved' ? 'Approve' : 'Reject';
+    const btnColor = status === 'Approved' ? '#16a34a' : '#dc2626';
+    Swal.fire({
+      title: `${action} Leave Request?`,
+      text: `Are you sure you want to mark this leave request as ${status}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: btnColor,
+      confirmButtonText: `Yes, ${action}`
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const res = await fetch(API_LEAVES + '/' + id + '/status', {
+            method:'PUT', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({status})
+          });
+          const d = await res.json();
+          if (d.error) {
+            Swal.fire({ icon: 'error', title: 'Error', text: d.error });
+          } else {
+            Swal.fire({ icon: 'success', title: 'Updated', text: d.message || `Leave marked as ${status}.`, timer: 1500, showConfirmButton: false });
+            loadLeaves();
+          }
+        } catch(e) {
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to update leave status.' });
+        }
+      }
+    });
+  };
+
+  window.cancelLeave = function(id) {
+    Swal.fire({
+      title: 'Cancel Leave Request?',
+      text: 'Are you sure you want to withdraw and cancel this pending leave request?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      confirmButtonText: 'Yes, cancel request'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const res = await fetch(API_LEAVES + '/' + id, { method: 'DELETE' });
+          const d = await res.json();
+          if (d.error) {
+            Swal.fire({ icon: 'error', title: 'Error', text: d.error });
+          } else {
+            Swal.fire({ icon: 'success', title: 'Cancelled', text: 'Your leave request has been cancelled.', timer: 1500, showConfirmButton: false });
+            loadLeaves();
+          }
+        } catch(e) {
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to cancel leave request.' });
+        }
+      }
+    });
   };
 
   window.openQuickAdjust = function(empId) {
@@ -432,7 +500,17 @@
 
   // File leave modal
   $('#btnFileLeave').on('click', function() {
-    $('#mLeaveDate').val(''); $('#mReason').val(''); $('#mErr').hide();
+    const tmr = new Date();
+    tmr.setDate(tmr.getDate() + 1);
+    const tmrStr = tmr.toISOString().split('T')[0];
+
+    if (userRole === 'Employee') {
+      $('#mLeaveDate').attr('min', tmrStr).val(tmrStr);
+    } else {
+      $('#mLeaveDate').removeAttr('min').val(tmrStr);
+    }
+    $('#mReason').val('');
+    $('#mErr').hide();
     $('#fileModal').addClass('open');
   });
   $('#btnCancelFile').on('click', () => $('#fileModal').removeClass('open'));
@@ -445,6 +523,13 @@
     const employee_id = userRole === 'Employee' ? userEmpId : $('#mEmpSelect').val();
 
     if (!leave_date) { $('#mErr').text('Leave date is required.').show(); return; }
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (userRole === 'Employee' && leave_date <= todayStr) {
+      $('#mErr').text('Leave date must be tomorrow or later (minimum 1 day advance filing).').show();
+      return;
+    }
+
     if (userRole !== 'Employee' && !employee_id) { $('#mErr').text('Please select an employee.').show(); return; }
     $('#mErr').hide();
     $(this).prop('disabled',true).text('Submitting…');
@@ -454,10 +539,24 @@
         body: JSON.stringify({employee_id, leave_date, leave_type, reason})
       });
       const d = await res.json();
-      if (d.error) { $('#mErr').text(d.error).show(); }
-      else { $('#fileModal').removeClass('open'); loadLeaves(); }
-    } catch(e) { $('#mErr').text('Error submitting leave.').show(); }
-    finally { $(this).prop('disabled',false).text('Submit Request'); }
+      if (d.error) {
+        $('#mErr').text(d.error).show();
+      } else {
+        $('#fileModal').removeClass('open');
+        Swal.fire({
+          icon: 'success',
+          title: 'Leave Request Submitted',
+          text: d.message || 'Your leave application has been submitted for approval.',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        loadLeaves();
+      }
+    } catch(e) {
+      $('#mErr').text('Error submitting leave.').show();
+    } finally {
+      $(this).prop('disabled',false).text('Submit Request');
+    }
   });
 
   // Adjust leave credits modal

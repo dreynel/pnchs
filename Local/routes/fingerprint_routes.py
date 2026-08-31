@@ -6,18 +6,16 @@ fingerprint_bp = Blueprint('fingerprints', __name__, url_prefix='/api/fingerprin
 
 @fingerprint_bp.route('/enroll/<emp_id>/<int:finger_index>', methods=['POST'])
 def start_enrollment(emp_id, finger_index):
-    from flask import session
-    if 'user' not in session or session['user'].get('role') not in ['Admin', 'HR', 'HR Officer']:
-        return jsonify({'error': 'Unauthorized. Admin or HR login required.'}), 401
-
+    # Insert an enrollment task into tblenrollment_tasks.
+    # The local app will poll this task and execute it.
     try:
         with db_cursor(commit=True) as (conn, cur):
             # Force cancel any stuck pending task to avoid 409 locked scanner error
             cur.execute("UPDATE tblenrollment_tasks SET status='cancelled' WHERE status='pending'")
             
             cur.execute("""
-                INSERT INTO tblenrollment_tasks (employee_id, finger_index, status) 
-                VALUES (%s, %s, 'pending')
+                INSERT INTO tblenrollment_tasks (employee_id, finger_index, status, step, message) 
+                VALUES (%s, %s, 'pending', 1, 'Scanner ready. Please touch finger to sensor (Press 1 of 3)...')
             """, (emp_id, finger_index))
             task_id = cur.lastrowid
             
@@ -25,44 +23,54 @@ def start_enrollment(emp_id, finger_index):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@fingerprint_bp.route('/enroll_step', methods=['POST'])
+def update_enrollment_step():
+    data = request.json or {}
+    task_id = data.get('task_id')
+    step = int(data.get('step') or 1)
+    message = data.get('message', '')
+    error_msg = data.get('error', '')
+    status = data.get('status', 'pending')
+
+    try:
+        with db_cursor(commit=True) as (conn, cur):
+            cur.execute("""
+                UPDATE tblenrollment_tasks
+                SET step=%s, message=%s, error_message=%s, status=%s
+                WHERE id=%s
+            """, (step, message, error_msg, status, task_id))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @fingerprint_bp.route('/enroll_status', methods=['GET'])
 def get_status():
     # The frontend polls this to see if enrollment succeeded or failed
     try:
         with db_cursor() as (conn, cur):
-            # Find the most recent pending or recently completed task
-            cur.execute("SELECT status, finger_index, employee_id FROM tblenrollment_tasks ORDER BY id DESC LIMIT 1")
+            cur.execute("SELECT id, status, finger_index, employee_id, step, message, error_message FROM tblenrollment_tasks ORDER BY id DESC LIMIT 1")
             task = cur.fetchone()
             if not task:
-                return jsonify({'status': 'idle', 'message': '', 'error': ''})
+                return jsonify({'status': 'idle', 'message': '', 'error': '', 'step': 0})
                 
             status = task['status']
+            step = task.get('step') or 1
+            msg = task.get('message') or 'Please scan finger...'
+            err = task.get('error_message') or ''
+
             if status == 'pending':
-                try:
-                    from scanner_manager import KIOSK_STATE
-                    current_step = KIOSK_STATE.get('enroll_step', 1)
-                    if current_step == 0: current_step = 1
-                    if current_step > 3: current_step = 3
-                except Exception:
-                    current_step = 1
-                return jsonify({'status': 'enrolling', 'message': 'Scanner is ready. Please scan...', 'error': '', 'step': current_step})
+                return jsonify({'status': 'enrolling', 'message': msg, 'error': '', 'step': step})
             elif status == 'success':
-                # The frontend interprets success and handles it. We just deliver the state.
-                return jsonify({'status': 'success', 'message': 'Enrolled successfully!', 'error': ''})
+                return jsonify({'status': 'success', 'message': msg or 'Enrolled successfully!', 'error': '', 'step': 3})
             elif status == 'error':
-                try:
-                    from scanner_manager import KIOSK_STATE
-                    err_msg = KIOSK_STATE.get('enroll_error') or 'Enrollment failed.'
-                except Exception:
-                    err_msg = 'Enrollment failed.'
-                return jsonify({'status': 'error', 'message': '', 'error': err_msg})
+                return jsonify({'status': 'error', 'message': '', 'error': err or 'Enrollment failed.', 'step': 0})
             elif status == 'cancelled':
-                return jsonify({'status': 'error', 'message': '', 'error': 'Enrollment cancelled.'})
+                return jsonify({'status': 'error', 'message': '', 'error': 'Enrollment cancelled.', 'step': 0})
             else:
-                return jsonify({'status': 'idle', 'message': '', 'error': ''})
+                return jsonify({'status': 'idle', 'message': '', 'error': '', 'step': 0})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @fingerprint_bp.route('/enroll_cancel', methods=['POST'])
 def cancel_enrollment():
@@ -136,28 +144,6 @@ def enroll_complete():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@fingerprint_bp.route('/clear/<emp_id>/<int:finger_index>', methods=['DELETE'])
-def clear_fingerprint(emp_id, finger_index):
-    import requests, os
-    from flask import session
-    if 'user' not in session or session['user'].get('role') not in ['Admin', 'HR', 'HR Officer']:
-        return jsonify({'error': 'Unauthorized. Admin or HR login required.'}), 401
-
-    try:
-        with db_cursor(commit=True) as (conn, cur):
-            cur.execute("DELETE FROM fingerprints WHERE employee_id=%s AND finger_index=%s", (emp_id, finger_index))
-
-        cloud_url = os.environ.get('CLOUD_API_URL', 'http://187.52.121.22:8080')
-        try:
-            requests.delete(f"{cloud_url}/api/fingerprint/clear/{emp_id}/{finger_index}", timeout=5)
-        except Exception:
-            pass
-
-        return jsonify({'message': 'Fingerprint cleared successfully'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @fingerprint_bp.route('/verify_admin', methods=['POST'])
 def verify_admin():
     """Verify Admin/HR credentials for Kiosk authorization."""
@@ -198,5 +184,4 @@ def verify_admin():
                 return jsonify({'success': False, 'error': 'Invalid admin credentials.'}), 401
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
 

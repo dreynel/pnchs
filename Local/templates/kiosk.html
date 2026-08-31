@@ -442,6 +442,31 @@
 
   <script>
     // ── Clock ───────────────────────────────────────────
+    // ── Toggles ─────────────────────────────────────────
+    let currentLogType = 'am_time_in';
+    let userManualOverrideUntil = 0;
+
+    function getAutoSlot() {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const totalM = h * 60 + m;
+      if (totalM < 11 * 60) return 'am_time_in';         // Before 11:00 AM -> Morning In
+      if (totalM < 12 * 60 + 45) return 'am_time_out';   // 11:00 AM - 12:45 PM -> Lunch Out
+      if (totalM < 14 * 60 + 30) return 'pm_time_in';    // 12:45 PM - 2:30 PM -> Afternoon In
+      return 'pm_time_out';                              // 2:30 PM onwards -> Day Dismissal
+    }
+
+    function syncActiveToggle() {
+      if (Date.now() < userManualOverrideUntil) return;
+      const autoType = getAutoSlot();
+      if (currentLogType !== autoType) {
+        currentLogType = autoType;
+        $('.toggle-btn').removeClass('active');
+        $(`.toggle-btn[data-type="${autoType}"]`).addClass('active');
+      }
+    }
+
     function updateClock() {
       const now = new Date();
       let hours = now.getHours();
@@ -457,16 +482,17 @@
       
       const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
       $('#date').text(now.toLocaleDateString('en-US', options));
+      
+      syncActiveToggle();
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // ── Toggles ─────────────────────────────────────────
-    let currentLogType = 'am_time_in';
     $('.toggle-btn').on('click', function() {
       $('.toggle-btn').removeClass('active');
       $(this).addClass('active');
       currentLogType = $(this).data('type');
+      userManualOverrideUntil = Date.now() + 15000; // Hold manual selection for 15s
     });
 
     // ── Scanner Polling ─────────────────────────────────

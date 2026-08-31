@@ -661,106 +661,58 @@
       const e = payrollData.employees.find(x => x.id === id);
       if (!e) return;
       window.currentViewedEmpId = id;
-      const runRec = records.find(r => r.key === activeKey);
-      const isDraft = (runRec && (runRec.status === 'Draft' || runRec.status === 'Rejected'));
       
       $('#drawerName').text(e.name);
-      if (isDraft) {
-        let eHtml = `<div class="ph-row"><span>Basic Salary (50%)</span><input type="number" step="0.01" id="eHalfBasic" value="${e.half_basic}" style="background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;width:105px;text-align:right;font-size:12px;"></div>`;
-        let dHtml = ``;
-        
-        if (e.payheads_json) {
-            try {
-                const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
-                (ph.earnings || []).forEach(item => {
-                    eHtml += `<div class="ph-row"><span style="font-size:11px; color:var(--muted2); padding-left:10px;">• ${item.name}</span><span style="font-size:11px;">${fmt(item.amount)}</span></div>`;
-                });
-                (ph.deductions || []).forEach(item => {
-                    dHtml += `<div class="ph-row"><span style="font-size:11px; color:var(--muted2); padding-left:10px;">• ${item.name}</span><span style="font-size:11px; color:var(--red)">${fmt(item.amount)}</span></div>`;
-                });
-            } catch(ex) { console.error(ex); }
-        }
 
-        eHtml += `<div class="ph-row"><span>Other Earnings (Total)</span><input type="number" step="0.01" id="eOtherEarn" value="${e.other_earnings || 0}" style="background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;width:105px;text-align:right;font-size:12px;"></div>`;
-        
-        dHtml = `
-          <div class="ph-row"><span>Static Deductions (Total)</span><input type="number" step="0.01" id="eOtherDeduct" value="${e.other_deductions || 0}" style="background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;width:105px;text-align:right;font-size:12px;"></div>
-          ${dHtml}
-          <div class="ph-row"><span>Absence Deduction</span><input type="number" step="0.01" id="eAbsentDeduct" value="${e.absent_deduction}" style="background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;width:105px;text-align:right;font-size:12px;color:var(--red)"></div>
-          <div class="ph-row"><span>Tardiness Deduction</span><input type="number" step="0.01" id="eLateDeduct" value="${e.tardiness_deduction}" style="background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;width:105px;text-align:right;font-size:12px;color:var(--red)"></div>
-          <div class="ph-row"><span>Undertime Deduction</span><input type="number" step="0.01" id="eUndertimeDeduct" value="${e.undertime_deduction || 0}" style="background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;width:105px;text-align:right;font-size:12px;color:var(--red)"></div>
-          <div style="margin-top:16px;"><button class="btn btn-primary" style="width:100%;justify-content:center;font-size:12px;padding:9px;" onclick="saveEmpDetails()">Save Adjustments</button></div>
-        `;
-        
-        $('#earningList').html(eHtml);
-        $('#deductList').html(dHtml);
+      let eHtml = `<div class="ph-row"><input value="Basic Salary (50%)" readonly><input value="${fmt(e.half_basic)}" readonly></div>`;
+      let dHtml = ``;
+
+      if (e.payheads_json) {
+          try {
+              const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+              (ph.earnings || []).forEach(item => {
+                  eHtml += `<div class="ph-row"><input value="${item.name}" readonly><input value="${fmt(item.amount)}" readonly></div>`;
+              });
+              (ph.deductions || []).forEach(item => {
+                  dHtml += `<div class="ph-row"><input value="${item.name}" readonly><input value="${fmt(item.amount)}" style="color:var(--red)" readonly></div>`;
+              });
+          } catch(ex) { console.error("Error parsing payheads_json", ex); }
       } else {
-        let eHtml = `<div class="ph-row"><input value="Basic Salary (50%)" readonly><input value="${fmt(e.half_basic)}" readonly></div>`;
-        let dHtml = ``;
-        
-        if (e.payheads_json) {
-            try {
-                const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
-                (ph.earnings || []).forEach(item => {
-                    eHtml += `<div class="ph-row"><input value="${item.name}" readonly><input value="${fmt(item.amount)}" readonly></div>`;
-                });
-                (ph.deductions || []).forEach(item => {
-                    dHtml += `<div class="ph-row"><input value="${item.name}" readonly><input value="${fmt(item.amount)}" style="color:var(--red)" readonly></div>`;
-                });
-            } catch(ex) { console.error("Error parsing payheads_json", ex); }
-        } else {
-            // Fallback for old records
-            eHtml += `<div class="ph-row"><input value="Other Earnings" readonly><input value="${fmt(e.other_earnings)}" readonly></div>`;
-            dHtml += `<div class="ph-row"><input value="Static Deductions" readonly><input value="${fmt(e.other_deductions)}" readonly></div>`;
-        }
-        
-        dHtml += `
-          <div class="ph-row"><input value="Absence Deduction" readonly><input value="${fmt(e.absent_deduction)}" style="color:var(--red)" readonly></div>
-          <div class="ph-row"><input value="Tardiness (${e.late_minutes} min)" readonly><input value="${fmt(e.tardiness_deduction)}" style="color:var(--red)" readonly></div>
-          <div class="ph-row"><input value="Undertime (${e.undertime_minutes || 0} min)" readonly><input value="${fmt(e.undertime_deduction || 0)}" style="color:var(--red)" readonly></div>
-        `;
-        
-        $('#earningList').html(eHtml);
-        $('#deductList').html(dHtml);
+          if (e.other_earnings) {
+              eHtml += `<div class="ph-row"><input value="Other Earnings" readonly><input value="${fmt(e.other_earnings)}" readonly></div>`;
+          }
+          if (e.other_deductions) {
+              dHtml += `<div class="ph-row"><input value="Other Deductions" readonly><input value="${fmt(e.other_deductions)}" readonly></div>`;
+          }
       }
+
+      if (e.statutory_json) {
+          try {
+              const st = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
+              if (st.GSIS) dHtml += `<div class="ph-row"><input value="GSIS Contribution (EE)" readonly><input value="${fmt(st.GSIS)}" style="color:var(--red)" readonly></div>`;
+              if (st.PHILHEALTH) dHtml += `<div class="ph-row"><input value="PhilHealth (EE)" readonly><input value="${fmt(st.PHILHEALTH)}" style="color:var(--red)" readonly></div>`;
+              if (st.PAGIBIG) dHtml += `<div class="ph-row"><input value="Pag-IBIG (EE)" readonly><input value="${fmt(st.PAGIBIG)}" style="color:var(--red)" readonly></div>`;
+              if (st.WTAX) dHtml += `<div class="ph-row"><input value="Withholding Tax (BIR)" readonly><input value="${fmt(st.WTAX)}" style="color:var(--red)" readonly></div>`;
+          } catch(ex) { console.error("Error parsing statutory_json", ex); }
+      }
+
+      if (e.absent_deduction > 0) {
+          dHtml += `<div class="ph-row"><input value="Absence Deduction (${e.absent_days || 0}d)" readonly><input value="${fmt(e.absent_deduction)}" style="color:var(--red)" readonly></div>`;
+      }
+      if (e.tardiness_deduction > 0) {
+          dHtml += `<div class="ph-row"><input value="Tardiness (${e.late_minutes || 0} min)" readonly><input value="${fmt(e.tardiness_deduction)}" style="color:var(--red)" readonly></div>`;
+      }
+      if (e.undertime_deduction > 0) {
+          dHtml += `<div class="ph-row"><input value="Undertime (${e.undertime_minutes || 0} min)" readonly><input value="${fmt(e.undertime_deduction)}" style="color:var(--red)" readonly></div>`;
+      }
+
+      $('#earningList').html(eHtml);
+      $('#deductList').html(dHtml || '<div style="font-size:12px;color:var(--muted2);padding:6px 0;">No deductions recorded.</div>');
+
       $('#dGross').text(fmt(e.total_gross));
       $('#dDeduct').text(fmt(e.total_deduct));
       $('#dNet').text(fmt(e.net_pay));
       $('#payheadDrawer').addClass('open');
-    };
-
-    window.saveEmpDetails = async function () {
-      if (!window.currentViewedEmpId || !activeKey) return;
-      const payload = {
-        half_basic: $('#eHalfBasic').val(),
-        other_earnings: $('#eOtherEarn').val(),
-        other_deductions: $('#eOtherDeduct').val(),
-        absent_deduction: $('#eAbsentDeduct').val(),
-        tardiness_deduction: $('#eLateDeduct').val(),
-        undertime_deduction: $('#eUndertimeDeduct').val()
-      };
-      const btn = $('#deductList button');
-      btn.prop('disabled', true).text('Saving...');
-      try {
-        const res = await fetch(API_RUNS + '/' + activeKey + '/details/' + window.currentViewedEmpId, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.error) { 
-          Swal.fire({ icon: 'error', title: 'Update Failed', text: data.error }); 
-          btn.prop('disabled', false).text('Save Adjustments'); return; 
-        }
-        const rec = records.find(r => r.key === activeKey);
-        rec.data = await $.get(API_PROCESS, { year: rec.year, month: rec.month, half: rec.half });
-        payrollData = rec.data;
-        renderDetail(rec);
-        showEmp(window.currentViewedEmpId);
-        Swal.fire({ icon: 'success', title: 'Adjustments Saved', showConfirmButton: false, timer: 1200 });
-      } catch (e) { 
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Error updating properties' }); 
-        console.error(e); btn.prop('disabled', false).text('Save Adjustments'); 
-      }
     };
 
     window.showPayslip = function (id) {

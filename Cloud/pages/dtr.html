@@ -286,24 +286,15 @@
       $.get('/api/dtr/employees', function (data) {
         employees = data || [];
         renderDropdown('');
-        if (employees.length > 0) {
-          selectedEmp = {
-            id: employees[0].id,
-            full_name: employees[0].full_name,
-            designation: employees[0].designation
-          };
-          $('#empSearchInput').val(selectedEmp.full_name);
-          $('#btnGenerate').prop('disabled', false).click();
-        }
+        selectedEmp = null;
+        $('#empSearchInput').val('');
+        $('#btnGenerate').prop('disabled', true);
       });
     }
   });
 
   function renderDropdown(q) {
     const filtered = q
-      ? employees.filter(e =>
-          e.full_name.toLowerCase().includes(q.toLowerCase()) ||
-          e.id.toLowerCase().includes(q.toLowerCase()) ||
           e.designation.toLowerCase().includes(q.toLowerCase()))
       : employees;
 

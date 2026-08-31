@@ -338,7 +338,7 @@
   <div class="welcome-banner d1">
     <div class="wb-left">
       <div class="wb-greeting">Good morning 👋</div>
-      <div class="wb-title">Welcome back, <em>Alex Rivera</em></div>
+      <div class="wb-title">Welcome back, <em id="wbUserName">...</em></div>
       <div class="wb-sub">Here's what's happening with your payroll today.</div>
       <div class="wb-date" id="wb-current-date">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -457,27 +457,28 @@
     </div>
 
     <!-- Upcoming Payroll -->
+    <!-- Upcoming Payroll -->
     <div class="s-card">
       <div class="s-card-header">
         <div>
-          <div class="s-card-title">Next Payroll Run</div>
-          <div class="s-card-sub">Feb 16 – Feb 28, 2026</div>
+          <div class="s-card-title">Next Payroll Cutoff</div>
+          <div class="s-card-sub" id="countdown-period-sub">Loading period…</div>
         </div>
       </div>
       <div class="payroll-countdown">
-        <div class="countdown-ring">
+        <div class="countdown-ring" id="countdown-ring">
           <div class="countdown-inner">
-            <div class="countdown-val">8</div>
-            <div class="countdown-unit">days</div>
+            <div class="countdown-val" id="countdown-val">0</div>
+            <div class="countdown-unit">days left</div>
           </div>
         </div>
-        <div class="countdown-title">Payroll Due</div>
-        <div class="countdown-date">February 28, 2026</div>
-        <div class="countdown-label">68% of period elapsed</div>
+        <div class="countdown-title">Payroll Cutoff Due</div>
+        <div class="countdown-date" id="countdown-date">...</div>
+        <div class="countdown-label" id="countdown-elapsed">...</div>
       </div>
       <div class="payroll-details">
         <div class="pd-row">
-          <span class="pd-lbl">Employees Processed</span>
+          <span class="pd-lbl">Employees Active</span>
           <span class="pd-val" id="processed-count">...</span>
         </div>
         <div class="pd-row">
@@ -485,9 +486,9 @@
           <span class="pd-val" id="payroll-cycle-label">...</span>
         </div>
         <div class="pd-row">
-          <span class="pd-lbl">Status</span>
+          <span class="pd-lbl">System Status</span>
           <span class="pd-val" style="color:var(--green); font-size:11px;">
-            ● Active
+            ● Operational
           </span>
         </div>
       </div>
@@ -549,38 +550,38 @@
             <div class="quick-sub">Attendance records</div>
           </a>
 
-          <a href="#" class="quick-btn" data-page="Payroll Report" data-url="/pages/payroll_report.html">
+          <a href="#" class="quick-btn" data-page="Leave Management" data-url="/pages/leaves.html">
             <div class="quick-icon qi-blue">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             </div>
-            <div class="quick-label">Export Report</div>
-            <div class="quick-sub">Download payroll data</div>
+            <div class="quick-label">Leave Portal</div>
+            <div class="quick-sub">Filing & approvals</div>
           </a>
 
         </div>
 
         <!-- Summary strip -->
         <div style="margin-top:16px; padding:14px; background:var(--navy-light); border-radius:11px; border:1px solid #c5d8f5;">
-          <div style="font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--navy-mid); margin-bottom:10px; font-weight:600;">Period Summary</div>
+          <div style="font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--navy-mid); margin-bottom:10px; font-weight:600;">School Overview</div>
           <div style="display:flex; justify-content:space-between; gap:8px;">
-            <div style="text-align:center;">
-              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy);">142</div>
-              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Employees</div>
+            <div style="text-align:center; flex:1;">
+              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy);" id="ps-total-emps">—</div>
+              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Staff</div>
             </div>
             <div style="width:1px; background:var(--border);"></div>
-            <div style="text-align:center;">
-              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy);">96%</div>
-              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">DTR Filed</div>
+            <div style="text-align:center; flex:1;">
+              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy);" id="ps-teaching-emps">—</div>
+              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Teachers</div>
             </div>
             <div style="width:1px; background:var(--border);"></div>
-            <div style="text-align:center;">
-              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--green);">₱1.8M</div>
-              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Net Pay</div>
+            <div style="text-align:center; flex:1;">
+              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--green);" id="ps-net-pay">—</div>
+              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Est. Net</div>
             </div>
             <div style="width:1px; background:var(--border);"></div>
-            <div style="text-align:center;">
-              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--accent);">4</div>
-              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Pending</div>
+            <div style="text-align:center; flex:1;">
+              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--accent);" id="ps-pending-leaves">—</div>
+              <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Leaves</div>
             </div>
           </div>
         </div>
@@ -592,30 +593,49 @@
 
 </div><!-- /page -->
 
-
-
 <script>
 (function () {
   const fCurrency = num => '₱' + Number(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fShort    = num => '₱' + (num >= 1e6 ? (num/1e6).toFixed(1)+'M' : num.toLocaleString());
+  const fShort    = num => '₱' + (num >= 1e6 ? (num/1e6).toFixed(1)+'M' : (num >= 1e3 ? (num/1e3).toFixed(1)+'k' : Number(num).toLocaleString()));
 
-  function animateValue(id, start, end, duration, formatFn) {
+  const prevValues = {};
+
+  function updateMetric(id, end, formatFn) {
     const el = document.getElementById(id);
     if (!el) return;
+
+    const prev = prevValues[id];
+    if (prev === undefined) {
+      // First load animation from 0
+      prevValues[id] = end;
+      animate(el, 0, end, 800, formatFn);
+    } else if (prev !== end) {
+      // Transition from prev to new value
+      prevValues[id] = end;
+      animate(el, prev, end, 500, formatFn);
+    } else {
+      // Value unchanged, keep current display
+      el.innerHTML = formatFn ? formatFn(end) : end;
+    }
+  }
+
+  function animate(el, start, end, duration, formatFn) {
     if (start === end) {
       el.innerHTML = formatFn ? formatFn(end) : end;
       return;
     }
     let startTimestamp = null;
     const step = (timestamp) => {
-      const targetEl = document.getElementById(id);
-      if (!targetEl) return;
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      const current = Math.floor(progress * (end - start) + start);
-      targetEl.innerHTML = formatFn ? formatFn(current) : current;
+      const current = (typeof end === 'number' && !Number.isInteger(end))
+        ? progress * (end - start) + start
+        : Math.floor(progress * (end - start) + start);
+      el.innerHTML = formatFn ? formatFn(current) : current;
       if (progress < 1) {
         window.requestAnimationFrame(step);
+      } else {
+        el.innerHTML = formatFn ? formatFn(end) : end;
       }
     };
     window.requestAnimationFrame(step);
@@ -628,47 +648,74 @@
   $('.wb-greeting').text(greet);
 
   const opt = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  $('#wb-current-date').text(now.toLocaleDateString('en-US', opt));
+  $('#wb-current-date').html(`
+    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    ${now.toLocaleDateString('en-US', opt)}
+  `);
 
   // Fetch User Info for greeting
   $.get('/api/auth/me', user => {
-    if (user.name) $('.wb-title em').text(user.name);
+    if (user && user.name) $('.wb-title em').text(user.name);
   });
 
   // ── Fetch Dashboard Stats ─────────────────────────────────────────────
+  let isFetching = false;
   function initDashboard() {
+    if (isFetching) return;
+    isFetching = true;
+
     $.get('/api/dashboard/stats', function(data) {
-      if (data.error) return console.error(data.error);
+      isFetching = false;
+      if (!data || data.error) return console.error(data ? data.error : 'Empty response');
 
       const s = data.summary;
-      animateValue('wb-total-employees', 0, s.total_employees, 1000);
-      animateValue('wb-days-left', 0, s.days_left, 1000);
-      $('#wb-period-gross').text(fShort(s.current_period_gross));
-      
       const k = data.kpis;
-      animateValue('kpi-total-payroll', 0, k.total_gross, 1000, fCurrency);
-      animateValue('kpi-active-employees', 0, s.total_employees, 1000);
-      animateValue('kpi-total-deductions', 0, k.total_deduct, 1000, fCurrency);
-      animateValue('kpi-net-disbursement', 0, k.net_pay, 1000, fCurrency);
 
-      $('#kpi-payroll-sub').text('Period: ' + s.period_label);
-      $('#kpi-active-sub').text(s.new_hires + ' new staff this month');
+      // Top Welcome Stats
+      updateMetric('wb-total-employees', s.total_employees);
+      updateMetric('wb-days-left', s.days_left);
+      $('#wb-period-gross').text(s.current_period_gross > 0 ? fShort(s.current_period_gross) : '₱0.00');
+
+      // KPI Grid Cards
+      updateMetric('kpi-total-payroll', k.total_gross, fCurrency);
+      updateMetric('kpi-active-employees', s.total_employees);
+      updateMetric('kpi-total-deductions', k.total_deduct, fCurrency);
+      updateMetric('kpi-net-disbursement', k.net_pay, fCurrency);
+
+      $('#kpi-payroll-sub').text('Cycle: ' + s.period_label);
+      $('#kpi-active-sub').text(`${s.teaching_employees} Teaching · ${s.non_teaching_employees} Non-Teaching`);
+
+      // Upcoming Payroll Countdown Card
+      $('#countdown-period-sub').text(s.period_name || s.period_label);
+      updateMetric('countdown-val', s.days_left);
+      $('#countdown-date').text(s.cutoff_date_str);
+      $('#countdown-elapsed').text(`${s.elapsed_pct}% of period elapsed`);
+      $('#countdown-ring').css('background', `conic-gradient(var(--accent) 0% ${s.elapsed_pct}%, var(--border) ${s.elapsed_pct}% 100%)`);
+
       $('#processed-count').text(k.processed_count + ' / ' + s.total_employees);
       $('#payroll-cycle-label').text(s.period_label);
 
+      // Period Summary Strip
+      $('#ps-total-emps').text(s.total_employees);
+      $('#ps-teaching-emps').text(s.teaching_employees);
+      $('#ps-net-pay').text(k.net_pay > 0 ? fShort(k.net_pay) : '₱0.00');
+      $('#ps-pending-leaves').text(s.pending_leaves);
+
       // Render Trends
       if (data.trends && data.trends.length) {
-        const maxVal = Math.max(...data.trends.map(t => t.gross), 1);
+        const maxVal = Math.max(...data.trends.map(t => Math.max(t.gross, t.net)), 1);
         const chartHtml = data.trends.map(t => `
           <div class="bar-group">
             <div class="bars">
-              <div class="bar b-navy"  style="height:${(t.gross / maxVal * 110).toFixed(0)}px" title="Gross: ${fCurrency(t.gross)}"></div>
-              <div class="bar b-amber" style="height:${(t.net / maxVal * 110).toFixed(0)}px"   title="Net: ${fCurrency(t.net)}"></div>
+              <div class="bar b-navy"  style="height:${Math.max(8, (t.gross / maxVal * 105)).toFixed(0)}px" title="Gross: ${fCurrency(t.gross)}"></div>
+              <div class="bar b-amber" style="height:${Math.max(6, (t.net / maxVal * 105)).toFixed(0)}px"   title="Net: ${fCurrency(t.net)}"></div>
             </div>
             <div class="bar-lbl">${t.label}</div>
           </div>
         `).join('');
         $('#trend-chart-wrap').html(chartHtml);
+      } else {
+        $('#trend-chart-wrap').html('<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--muted2);font-size:12px;text-align:center;">No payroll runs processed yet. Run payroll to view trends.</div>');
       }
 
       // Render Activity
@@ -677,14 +724,14 @@
         const actHtml = data.activity.map(a => `
           <div class="activity-item">
             <div class="act-dot-wrap">
-              <div class="act-dot ${a.tag === 'Biometric' ? 'navy' : 'green'}"></div>
+              <div class="act-dot ${a.tag === 'Biometric' ? 'navy' : a.tag === 'Leave' ? 'amber' : 'green'}"></div>
               <div class="act-line"></div>
             </div>
             <div class="act-content">
-              <div class="act-text"><strong>${a.name}</strong> ${a.tag === 'Biometric' ? 'recorded <strong>'+a.type+'</strong> attendance' : 'was added to the registry'}.</div>
+              <div class="act-text"><strong>${a.name}</strong> — ${a.type}.</div>
               <div class="act-meta">
-                <span class="act-time">${a.date_label}, ${a.time_label}</span>
-                <span class="act-tag ${a.tag === 'Biometric' ? 'navy' : 'green'}">${a.tag}</span>
+                <span class="act-time">${a.date_label} ${a.time_label ? '· ' + a.time_label : ''}</span>
+                <span class="act-tag ${a.tag === 'Biometric' ? 'navy' : a.tag === 'Leave' ? 'amber' : 'green'}">${a.tag}</span>
               </div>
             </div>
           </div>
@@ -693,19 +740,21 @@
       } else {
         $actList.html('<div style="padding:20px; text-align:center; color:var(--muted2); font-size:12px;">No recent activity recorded.</div>');
       }
+    }).fail(function() {
+      isFetching = false;
     });
   }
 
   initDashboard();
 
-  // Real-time live updates from database every 5 seconds
+  // Smooth live polling (every 10s without reset-bouncing)
   const liveInterval = setInterval(function() {
     if (document.getElementById('recent-activity-list')) {
       initDashboard();
     } else {
       clearInterval(liveInterval);
     }
-  }, 5000);
+  }, 10000);
 
   window.addEventListener('pnchs:data-change', function() {
     if (document.getElementById('recent-activity-list')) initDashboard();
@@ -716,7 +765,6 @@
     e.preventDefault();
     const page = $(this).data('page');
     const url  = $(this).data('url');
-    // Call the navigate function on the parent index.html
     const $nav = window.parent ? $(window.parent.document) : $(document);
     $nav.find('.nav-item, .nav-sub-item').removeClass('active');
     $nav.find(`.nav-item[data-page="${page}"], .nav-sub-item[data-page="${page}"]`).addClass('active');

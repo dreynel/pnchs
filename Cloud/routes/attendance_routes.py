@@ -4,28 +4,85 @@ from db import db_cursor
 
 attendance_bp = Blueprint('attendance', __name__, url_prefix='/api/attendance')
 
+def _format_time_12h(time_val):
+    if not time_val:
+        return None
+    if isinstance(time_val, datetime.timedelta):
+        tot_sec = int(time_val.total_seconds())
+        h = tot_sec // 3600
+        m = (tot_sec % 3600) // 60
+        s = tot_sec % 60
+        t = datetime.time(h, m, s)
+        return t.strftime('%I:%M %p').lstrip('0')
+    if isinstance(time_val, str):
+        try:
+            parts = time_val.split(':')
+            t = datetime.time(int(parts[0]), int(parts[1]), int(parts[2]) if len(parts) > 2 else 0)
+            return t.strftime('%I:%M %p').lstrip('0')
+        except Exception:
+            return time_val
+    if isinstance(time_val, datetime.time):
+        return time_val.strftime('%I:%M %p').lstrip('0')
+    return str(time_val)
+
+
+def resolve_log_slot(row, now_time=None):
+    if now_time is None:
+        now_time = datetime.datetime.now().time()
+    now_m = now_time.hour * 60 + now_time.minute
+    
+    # Morning: before 11:00 AM (660 mins)
+    if now_m < 11 * 60:
+        if not row or row.get('am_time_in') is None:
+            return 'am_time_in'
+        if row.get('am_time_out') is None and now_m >= 10 * 60:
+            return 'am_time_out'
+        return 'am_time_in'
+        
+    # Lunch break: 11:00 AM to 12:45 PM (765 mins)
+    elif now_m < 12 * 60 + 45:
+        if not row or row.get('am_time_out') is None:
+            return 'am_time_out'
+        if row.get('pm_time_in') is None and now_m >= 12 * 60 + 15:
+            return 'pm_time_in'
+        return 'am_time_out'
+        
+    # Afternoon Return: 12:45 PM to 02:30 PM (870 mins)
+    elif now_m < 14 * 60 + 30:
+        if not row or row.get('pm_time_in') is None:
+            return 'pm_time_in'
+        if row.get('pm_time_out') is None and now_m >= 14 * 60:
+            return 'pm_time_out'
+        return 'pm_time_in'
+        
+    # Afternoon Dismissal: 02:30 PM onwards
+    else:
+        if not row or row.get('pm_time_out') is None:
+            return 'pm_time_out'
+        return 'pm_time_out'
+
 
 @attendance_bp.route('/log', methods=['POST'])
 def log_attendance():
     data = request.get_json(force=True)
     employee_id = data.get('employee_id')
-    log_type = data.get('log_type') # 'am_time_in', 'am_time_out', 'pm_time_in', 'pm_time_out'
+    log_type = data.get('log_type') # 'am_time_in', 'am_time_out', 'pm_time_in', 'pm_time_out', or 'auto'
     
-    if not employee_id or not log_type:
-        return jsonify({'error': 'Missing data'}), 400
-        
+    if not employee_id:
+        return jsonify({'error': 'Missing employee_id'}), 400
+
     type_labels = {
         'am_time_in': 'AM Time In',
         'am_time_out': 'AM Time Out',
         'pm_time_in': 'PM Time In',
         'pm_time_out': 'PM Time Out'
     }
-    label = type_labels.get(log_type, log_type)
 
     try:
         with db_cursor(commit=True) as (conn, cur):
             today = datetime.date.today()
-            current_time = datetime.datetime.now().strftime('%H:%M:%S')
+            now_dt = datetime.datetime.now()
+            current_time = now_dt.strftime('%H:%M:%S')
             
             # Check existing time log for today
             cur.execute("""
@@ -34,6 +91,12 @@ def log_attendance():
                 WHERE employee_id=%s AND work_date=%s
             """, (employee_id, today))
             row = cur.fetchone()
+            
+            # Auto-determine slot if 'auto' or not explicitly provided
+            if not log_type or log_type == 'auto':
+                log_type = resolve_log_slot(row, now_dt.time())
+                
+            label = type_labels.get(log_type, log_type)
             
             # Trap duplication: only once per slot per day (max 4 entries/day)
             if row and row.get(log_type) is not None:
@@ -66,6 +129,7 @@ def log_attendance():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 
 @attendance_bp.route('/logs/data', methods=['GET'])
@@ -189,6 +253,14 @@ def get_today_categorized():
                     'department': emp.get('employee_type') or 'Faculty',
                     'designation': emp.get('designation') or 'Staff',
                     'employee_type': emp.get('employee_type') or 'Faculty',
+                    'am_time_in': formatted_am_in,
+                    'am_time_out': formatted_am_out,
+                    'pm_time_in': formatted_pm_in,
+                    'pm_time_out': formatted_pm_out,
+                    'am_in': formatted_am_in,
+                    'am_out': formatted_am_out,
+                    'pm_in': formatted_pm_in,
+                    'pm_out': formatted_pm_out,
                     'has_activity': bool(am_in or am_out or pm_in or pm_out)
                 })
 

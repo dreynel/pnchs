@@ -1,7 +1,6 @@
 import datetime
 import time
 import os
-import requests
 from flask import Blueprint, jsonify, request
 from db import db_cursor
 
@@ -41,22 +40,75 @@ def poll_kiosk():
         'server_time': time.time()
     })
 
+def _format_time_12h(time_val):
+    if not time_val:
+        return None
+    if isinstance(time_val, datetime.timedelta):
+        tot_sec = int(time_val.total_seconds())
+        h = tot_sec // 3600
+        m = (tot_sec % 3600) // 60
+        s = tot_sec % 60
+        t = datetime.time(h, m, s)
+        return t.strftime('%I:%M %p').lstrip('0')
+    if isinstance(time_val, str):
+        try:
+            parts = time_val.split(':')
+            t = datetime.time(int(parts[0]), int(parts[1]), int(parts[2]) if len(parts) > 2 else 0)
+            return t.strftime('%I:%M %p').lstrip('0')
+        except Exception:
+            return time_val
+    if isinstance(time_val, datetime.time):
+        return time_val.strftime('%I:%M %p').lstrip('0')
+    return str(time_val)
+
+
+def resolve_log_slot(row, now_time=None):
+    if now_time is None:
+        now_time = datetime.datetime.now().time()
+    now_m = now_time.hour * 60 + now_time.minute
+    
+    # Morning: before 11:00 AM (660 mins)
+    if now_m < 11 * 60:
+        if not row or row.get('am_time_in') is None:
+            return 'am_time_in'
+        if row.get('am_time_out') is None and now_m >= 10 * 60:
+            return 'am_time_out'
+        return 'am_time_in'
+        
+    # Lunch break: 11:00 AM to 12:45 PM (765 mins)
+    elif now_m < 12 * 60 + 45:
+        if not row or row.get('am_time_out') is None:
+            return 'am_time_out'
+        if row.get('pm_time_in') is None and now_m >= 12 * 60 + 15:
+            return 'pm_time_in'
+        return 'am_time_out'
+        
+    # Afternoon Return: 12:45 PM to 02:30 PM (870 mins)
+    elif now_m < 14 * 60 + 30:
+        if not row or row.get('pm_time_in') is None:
+            return 'pm_time_in'
+        if row.get('pm_time_out') is None and now_m >= 14 * 60:
+            return 'pm_time_out'
+        return 'pm_time_in'
+        
+    # Afternoon Dismissal: 02:30 PM onwards
+    else:
+        if not row or row.get('pm_time_out') is None:
+            return 'pm_time_out'
+        return 'pm_time_out'
+
+
 @attendance_bp.route('/log', methods=['POST'])
 def log_attendance():
     if KIOSK_STATE.get('status') != 'running':
         return jsonify({'error': 'Fingerprint Scanner device not connected. Please connect USB reader.'}), 503
 
     data = request.get_json(force=True)
-
     employee_id = data.get('employee_id')
-    log_type = data.get('log_type') # 'am_time_in', 'am_time_out', 'pm_time_in', 'pm_time_out'
+    log_type = data.get('log_type') # 'am_time_in', 'am_time_out', 'pm_time_in', 'pm_time_out', or 'auto'
     
-    if not employee_id or not log_type:
-        return jsonify({'error': 'Missing data'}), 400
-        
-    valid_types = ['am_time_in', 'am_time_out', 'pm_time_in', 'pm_time_out']
-    if log_type not in valid_types:
-        return jsonify({'error': 'Invalid log_type'}), 400
+    if not employee_id:
+        return jsonify({'error': 'Missing employee_id'}), 400
 
     type_labels = {
         'am_time_in': 'AM Time In',
@@ -64,12 +116,12 @@ def log_attendance():
         'pm_time_in': 'PM Time In',
         'pm_time_out': 'PM Time Out'
     }
-    label = type_labels.get(log_type, log_type)
 
     try:
         with db_cursor(commit=True) as (conn, cur):
             today = datetime.date.today()
-            current_time = datetime.datetime.now().strftime('%H:%M:%S')
+            now_dt = datetime.datetime.now()
+            current_time = now_dt.strftime('%H:%M:%S')
             
             # Check existing time log for today
             cur.execute("""
@@ -78,6 +130,12 @@ def log_attendance():
                 WHERE employee_id=%s AND work_date=%s
             """, (employee_id, today))
             row = cur.fetchone()
+            
+            # Auto-determine slot if 'auto' or not explicitly provided
+            if not log_type or log_type == 'auto':
+                log_type = resolve_log_slot(row, now_dt.time())
+                
+            label = type_labels.get(log_type, log_type)
             
             # Trap duplication: only once per slot per day (max 4 entries/day)
             if row and row.get(log_type) is not None:
@@ -108,49 +166,9 @@ def log_attendance():
             'log_type': log_type,
             'time': _format_time_12h(current_time)
         })
-    except Exception as db_err:
-        print(f"[DB ERROR] Attendance log write notice: {db_err}")
-        return jsonify({'error': str(db_err)}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-
-def _format_time_12h(val):
-    """Format any time/timedelta/datetime/string into 12-hour format (e.g. 7:30 AM or 3:13:08 PM)."""
-    if not val:
-        return None
-    if isinstance(val, datetime.timedelta):
-        total_seconds = int(val.total_seconds())
-        h = (total_seconds // 3600) % 24
-        m = (total_seconds % 3600) // 60
-        s = total_seconds % 60
-        suffix = 'AM' if h < 12 else 'PM'
-        h12 = h % 12
-        if h12 == 0:
-            h12 = 12
-        return f"{h12}:{m:02d}:{s:02d} {suffix}" if s > 0 else f"{h12}:{m:02d} {suffix}"
-    if isinstance(val, (datetime.time, datetime.datetime)):
-        h = val.hour
-        m = val.minute
-        s = getattr(val, 'second', 0)
-        suffix = 'AM' if h < 12 else 'PM'
-        h12 = h % 12
-        if h12 == 0:
-            h12 = 12
-        return f"{h12}:{m:02d}:{s:02d} {suffix}" if s > 0 else f"{h12}:{m:02d} {suffix}"
-    s_val = str(val).strip()
-    for fmt in ['%H:%M:%S', '%H:%M', '%I:%M:%S %p', '%I:%M %p']:
-        try:
-            dt = datetime.datetime.strptime(s_val, fmt)
-            h = dt.hour
-            m = dt.minute
-            sec = dt.second
-            suffix = 'AM' if h < 12 else 'PM'
-            h12 = h % 12
-            if h12 == 0:
-                h12 = 12
-            return f"{h12}:{m:02d}:{sec:02d} {suffix}" if sec > 0 else f"{h12}:{m:02d} {suffix}"
-        except ValueError:
-            pass
-    return s_val
 
 
 @attendance_bp.route('/logs/data', methods=['GET'])
@@ -179,17 +197,17 @@ def get_biometric_logs():
         with db_cursor() as (conn, cur):
             cur.execute(query, tuple(params))
             logs = cur.fetchall()
-            type_map = {
-                'am_time_in': 'AM Time In',
-                'am_time_out': 'AM Time Out',
-                'pm_time_in': 'PM Time In',
-                'pm_time_out': 'PM Time Out'
-            }
             for log in logs:
                 if log['log_time']:
-                    log['time_str'] = log['log_time'].strftime('%I:%M:%S %p').lstrip('0')
-                    log['date_str'] = log['log_time'].strftime('%b %d, %Y')
-                    log['log_time'] = log['log_time'].strftime('%b %d, %Y %I:%M:%S %p').lstrip('0')
+                    log['log_time'] = log['log_time'].strftime('%b %d, %Y %I:%M:%S %p')
+                    
+                # Beautify log_type
+                type_map = {
+                    'am_time_in': 'AM Time In',
+                    'am_time_out': 'AM Time Out',
+                    'pm_time_in': 'PM Time In',
+                    'pm_time_out': 'PM Time Out'
+                }
                 log['log_type_label'] = type_map.get(log['log_type'], log['log_type'])
                 
             return jsonify(logs)

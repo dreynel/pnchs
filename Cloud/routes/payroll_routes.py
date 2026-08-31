@@ -618,56 +618,7 @@ def delete_run(period_key):
 # ── PUT /api/payroll/runs/<period_key>/details/<employee_id> ─────────────────
 @payroll_bp.route('/runs/<period_key>/details/<employee_id>', methods=['PUT'])
 def update_payroll_detail(period_key, employee_id):
-    from flask import session
-    if session.get('user', {}).get('role') not in ['Admin', 'Finance']:
-        return jsonify({'error': 'Unauthorized'}), 403
-
-    data = request.json
-    try:
-        half_basic          = float(data.get('half_basic', 0))
-        other_earnings      = float(data.get('other_earnings', 0))
-        holiday_pay         = float(data.get('holiday_pay', 0))
-        other_deductions    = float(data.get('other_deductions', 0))
-        absent_deduction    = float(data.get('absent_deduction', 0))
-        tardiness_deduction = float(data.get('tardiness_deduction', 0))
-        gsis_ee              = float(data.get('gsis_ee', data.get('sss_ee', 0)))
-        philhealth_ee       = float(data.get('philhealth_ee', 0))
-        pagibig_ee          = float(data.get('pagibig_ee', 0))
-        withholding_tax     = float(data.get('withholding_tax', 0))
-    except (ValueError, TypeError):
-        return jsonify({'error': 'Invalid numeric data.'}), 400
-
-    total_gross  = half_basic + other_earnings + holiday_pay
-    total_deduct = other_deductions + absent_deduction + tardiness_deduction + gsis_ee + philhealth_ee + pagibig_ee + withholding_tax
-    raw_net      = total_gross - total_deduct
-    net_pay      = max(0.0, raw_net)
-    is_negative  = 1 if raw_net < 0 else 0
-
-    try:
-        with db_cursor() as (conn, cur):
-            cur.execute("SELECT status FROM tblpayroll WHERE period_key=%s", (period_key,))
-            rec = cur.fetchone()
-            if not rec:
-                return jsonify({'error': 'Not found'}), 404
-            if rec['status'] != 'Draft':
-                return jsonify({'error': 'Cannot edit details of a non-draft payroll.'}), 400
-
-            cur.execute("""
-                UPDATE tblpayroll_details
-                SET half_basic=%s, other_earnings=%s, holiday_pay=%s, other_deductions=%s,
-                    absent_deduction=%s, tardiness_deduction=%s,
-                    sss_ee=%s, philhealth_ee=%s, pagibig_ee=%s, withholding_tax=%s,
-                    total_gross=%s, total_deduct=%s, net_pay=%s, is_negative=%s
-                WHERE period_key=%s AND employee_id=%s
-            """, (half_basic, other_earnings, holiday_pay, other_deductions,
-                  absent_deduction, tardiness_deduction,
-                  gsis_ee, philhealth_ee, pagibig_ee, withholding_tax,
-                  total_gross, total_deduct, net_pay, is_negative,
-                  period_key, employee_id))
-            conn.commit()
-            return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify({'error': 'Manual payroll adjustments are currently disabled.'}), 403
 
 
 # ── POST /api/payroll/runs/<period_key>/status ───────────────────────────────
@@ -783,28 +734,46 @@ def delete_holiday(hid):
 # LEAVES API
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════════
+# LEAVE MANAGEMENT API
+# ══════════════════════════════════════════════════════════════════════════════
+
 @payroll_bp.route('/leaves', methods=['GET'])
 def get_leaves():
     from flask import session
     user = session.get('user', {})
     role = user.get('role')
+    emp_id_param = request.args.get('employee_id', '').strip()
+    status_param = request.args.get('status', '').strip()
+
     try:
         with db_cursor() as (conn, cur):
+            query = """
+                SELECT l.id, l.employee_id, CONCAT(e.first_name,' ',e.last_name) as emp_name,
+                       l.leave_date, l.leave_type, l.status, l.reason, l.reviewed_by, l.reviewed_at, l.filed_at
+                FROM tblleaves l JOIN tblemployee e ON l.employee_id=e.employee_id
+            """
+            params = []
+            conditions = []
+
             if role == 'Employee':
                 emp_id = user.get('employee_id')
-                cur.execute("""
-                    SELECT l.id, l.employee_id, CONCAT(e.first_name,' ',e.last_name) as emp_name,
-                           l.leave_date, l.leave_type, l.status, l.reason, l.reviewed_by, l.reviewed_at, l.filed_at
-                    FROM tblleaves l JOIN tblemployee e ON l.employee_id=e.employee_id
-                    WHERE l.employee_id=%s ORDER BY l.leave_date DESC
-                """, (emp_id,))
-            else:
-                cur.execute("""
-                    SELECT l.id, l.employee_id, CONCAT(e.first_name,' ',e.last_name) as emp_name,
-                           l.leave_date, l.leave_type, l.status, l.reason, l.reviewed_by, l.reviewed_at, l.filed_at
-                    FROM tblleaves l JOIN tblemployee e ON l.employee_id=e.employee_id
-                    ORDER BY l.filed_at DESC
-                """)
+                conditions.append("l.employee_id = %s")
+                params.append(emp_id)
+            elif emp_id_param:
+                conditions.append("l.employee_id = %s")
+                params.append(emp_id_param)
+
+            if status_param and status_param != 'all':
+                conditions.append("l.status = %s")
+                params.append(status_param)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            query += " ORDER BY l.leave_date DESC, l.filed_at DESC"
+
+            cur.execute(query, tuple(params))
             rows = cur.fetchall()
             return jsonify([{
                 'id':          r['id'],
@@ -813,10 +782,10 @@ def get_leaves():
                 'leave_date':  r['leave_date'].strftime('%Y-%m-%d'),
                 'leave_type':  r['leave_type'],
                 'status':      r['status'],
-                'reason':      r['reason'],
-                'reviewed_by': r['reviewed_by'],
-                'reviewed_at': r['reviewed_at'].strftime('%b %d, %Y') if r['reviewed_at'] else None,
-                'filed_at':    r['filed_at'].strftime('%b %d, %Y') if r['filed_at'] else None,
+                'reason':      r['reason'] or '',
+                'reviewed_by': r['reviewed_by'] or '',
+                'reviewed_at': r['reviewed_at'].strftime('%b %d, %Y %I:%M %p') if r['reviewed_at'] else None,
+                'filed_at':    r['filed_at'].strftime('%b %d, %Y %I:%M %p') if r['filed_at'] else None,
             } for r in rows])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -825,24 +794,50 @@ def get_leaves():
 @payroll_bp.route('/leaves', methods=['POST'])
 def file_leave():
     from flask import session
+    from services.policy_engine import LeavePolicyService
     user = session.get('user', {})
     role = user.get('role')
-    data = request.json
+    data = request.json or {}
+
     emp_id     = user.get('employee_id') if role == 'Employee' else data.get('employee_id')
     leave_date = data.get('leave_date')
-    leave_type = data.get('leave_type', 'VL')
+    leave_type = (data.get('leave_type') or 'VL').upper()
     reason     = data.get('reason', '').strip()
 
-    if not emp_id or not leave_date:
-        return jsonify({'error': 'employee_id and leave_date are required.'}), 400
-    if leave_type not in ['SL', 'VL']:
-        return jsonify({'error': 'leave_type must be SL or VL.'}), 400
+    if not emp_id:
+        return jsonify({'error': 'Employee ID is required.'}), 400
+    if not leave_date:
+        return jsonify({'error': 'Leave date is required.'}), 400
     try:
-        with db_cursor() as (conn, cur):
-            cur.execute("INSERT INTO tblleaves (employee_id, leave_date, leave_type, reason) VALUES (%s, %s, %s, %s)",
-                        (emp_id, leave_date, leave_type, reason))
-            conn.commit()
-            return jsonify({'success': True, 'id': cur.lastrowid})
+        parsed_date = datetime.strptime(leave_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid leave date format. Use YYYY-MM-DD.'}), 400
+
+    if role == 'Employee' and parsed_date <= date.today():
+        return jsonify({'error': 'Leave applications must be filed at least 1 day in advance (starting tomorrow).'}), 400
+
+    try:
+        with db_cursor(commit=True) as (conn, cur):
+            # Check for duplicate leave on the same date
+            cur.execute("""
+                SELECT id, status FROM tblleaves
+                WHERE employee_id=%s AND leave_date=%s AND status IN ('Pending', 'Approved')
+            """, (emp_id, leave_date))
+            dup = cur.fetchone()
+            if dup:
+                return jsonify({'error': f"A {dup['status']} leave request already exists for this date."}), 400
+
+            cur.execute("""
+                INSERT INTO tblleaves (employee_id, leave_date, leave_type, reason, status)
+                VALUES (%s, %s, %s, %s, 'Pending')
+            """, (emp_id, leave_date, leave_type, reason))
+            leave_id = cur.lastrowid
+
+            return jsonify({
+                'success': True,
+                'id': leave_id,
+                'message': f"Leave request for {leave_date} submitted successfully!"
+            }), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -850,20 +845,131 @@ def file_leave():
 @payroll_bp.route('/leaves/<int:lid>/status', methods=['PUT'])
 def review_leave(lid):
     from flask import session
+    from services.policy_engine import AuditService, LeavePolicyService
     user = session.get('user', {})
     role = user.get('role')
-    if role not in ['Admin', 'HR', 'Finance']:
+
+    if role not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer']:
         return jsonify({'error': 'Unauthorized'}), 403
-    data       = request.json
+
+    data       = request.json or {}
     new_status = data.get('status')
     if new_status not in ['Approved', 'Rejected']:
         return jsonify({'error': 'Status must be Approved or Rejected.'}), 400
+
     try:
-        with db_cursor() as (conn, cur):
-            cur.execute("UPDATE tblleaves SET status=%s, reviewed_by=%s, reviewed_at=NOW() WHERE id=%s",
-                        (new_status, user.get('name', 'HR'), lid))
-            conn.commit()
-            return jsonify({'success': True})
+        with db_cursor(commit=True) as (conn, cur):
+            cur.execute("SELECT * FROM tblleaves WHERE id=%s", (lid,))
+            leave = cur.fetchone()
+            if not leave:
+                return jsonify({'error': 'Leave record not found'}), 404
+
+            old_status = leave['status']
+            emp_id     = leave['employee_id']
+            leave_type = leave['leave_type']
+            leave_date_str = leave['leave_date'].strftime('%Y-%m-%d')
+            reviewer_name = user.get('name', 'HR Admin')
+
+            if old_status == new_status:
+                return jsonify({'success': True, 'message': f'Leave is already {new_status}.'})
+
+            # Handle transitions
+            if new_status == 'Approved' and old_status != 'Approved':
+                # Deduct 1 day (480 mins) from balance
+                bal = LeavePolicyService.get_balance(cur, emp_id)
+                target_key = 'vl_minutes' if leave_type == 'VL' else 'sl_minutes'
+                curr_mins = bal[target_key]
+                new_mins = max(0, curr_mins - 480)
+
+                cur.execute(f"UPDATE tblleave_balances SET {target_key}=%s WHERE employee_id=%s", (new_mins, emp_id))
+
+                # Log transaction
+                cur.execute("""
+                    INSERT INTO tblleave_transactions
+                    (employee_id, date, leave_type, minutes, transaction_type, source, reference_id, remarks, created_by)
+                    VALUES (%s, %s, %s, 480, 'DEDUCTION', 'LEAVE_APPLICATION', %s, %s, %s)
+                """, (emp_id, leave_date_str, leave_type, f"LEAVE-{lid}", f"Approved {leave_type} leave on {leave_date_str}", reviewer_name))
+
+                AuditService.log_action(
+                    cur, action='LEAVE_APPROVED', employee_id=emp_id, user_name=reviewer_name,
+                    target_table='tblleaves', target_id=str(lid),
+                    old_value=f"Status: {old_status}", new_value=f"Status: Approved (-480m {leave_type})",
+                    reason=leave.get('reason') or 'Leave Approved'
+                )
+
+            elif old_status == 'Approved' and new_status in ['Rejected', 'Pending']:
+                # Reverse deduction (+480 mins back)
+                bal = LeavePolicyService.get_balance(cur, emp_id)
+                target_key = 'vl_minutes' if leave_type == 'VL' else 'sl_minutes'
+                curr_mins = bal[target_key]
+                new_mins = curr_mins + 480
+
+                cur.execute(f"UPDATE tblleave_balances SET {target_key}=%s WHERE employee_id=%s", (new_mins, emp_id))
+
+                # Log reversal transaction
+                cur.execute("""
+                    INSERT INTO tblleave_transactions
+                    (employee_id, date, leave_type, minutes, transaction_type, source, reference_id, remarks, created_by)
+                    VALUES (%s, %s, %s, 480, 'ACCRUAL', 'LEAVE_REVERSAL', %s, %s, %s)
+                """, (emp_id, leave_date_str, leave_type, f"REV-LEAVE-{lid}", f"Reversed {leave_type} leave (marked {new_status})", reviewer_name))
+
+                AuditService.log_action(
+                    cur, action='LEAVE_REVERSED', employee_id=emp_id, user_name=reviewer_name,
+                    target_table='tblleaves', target_id=str(lid),
+                    old_value="Status: Approved", new_value=f"Status: {new_status} (+480m refunded)",
+                    reason=f"Status changed to {new_status}"
+                )
+
+            cur.execute("""
+                UPDATE tblleaves
+                SET status=%s, reviewed_by=%s, reviewed_at=NOW()
+                WHERE id=%s
+            """, (new_status, reviewer_name, lid))
+
+            return jsonify({'success': True, 'message': f'Leave request marked as {new_status}.'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@payroll_bp.route('/leaves/<int:lid>', methods=['DELETE'])
+def delete_leave(lid):
+    from flask import session
+    from services.policy_engine import AuditService, LeavePolicyService
+    user = session.get('user', {})
+    role = user.get('role')
+    emp_id = user.get('employee_id')
+
+    try:
+        with db_cursor(commit=True) as (conn, cur):
+            cur.execute("SELECT * FROM tblleaves WHERE id=%s", (lid,))
+            leave = cur.fetchone()
+            if not leave:
+                return jsonify({'error': 'Leave record not found'}), 404
+
+            # Permission check: Employee can cancel their OWN Pending leave
+            if role == 'Employee':
+                if leave['employee_id'] != emp_id:
+                    return jsonify({'error': 'Unauthorized'}), 403
+                if leave['status'] != 'Pending':
+                    return jsonify({'error': 'Only pending leave requests can be cancelled.'}), 400
+            elif role not in ['Admin', 'Principal', 'HR', 'HR Officer']:
+                return jsonify({'error': 'Unauthorized'}), 403
+
+            # If it was Approved, reverse deduction first
+            if leave['status'] == 'Approved':
+                target_key = 'vl_minutes' if leave['leave_type'] == 'VL' else 'sl_minutes'
+                bal = LeavePolicyService.get_balance(cur, leave['employee_id'])
+                new_mins = bal[target_key] + 480
+                cur.execute(f"UPDATE tblleave_balances SET {target_key}=%s WHERE employee_id=%s", (new_mins, leave['employee_id']))
+
+                cur.execute("""
+                    INSERT INTO tblleave_transactions
+                    (employee_id, date, leave_type, minutes, transaction_type, source, reference_id, remarks, created_by)
+                    VALUES (%s, %s, %s, 480, 'ACCRUAL', 'LEAVE_CANCEL', %s, 'Cancelled approved leave', %s)
+                """, (leave['employee_id'], leave['leave_date'].strftime('%Y-%m-%d'), leave['leave_type'], f"CAN-LEAVE-{lid}", user.get('name', 'User')))
+
+            cur.execute("DELETE FROM tblleaves WHERE id=%s", (lid,))
+            return jsonify({'success': True, 'message': 'Leave request cancelled successfully.'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
