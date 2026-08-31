@@ -162,9 +162,12 @@ def _scanner_loop():
                         try:
                             from db import db_cursor
                             with db_cursor(commit=True) as (conn, cur):
-                                cur.execute("UPDATE tblenrollment_tasks SET status='error' WHERE id=%s", (enroll_task['id'],))
+                                cur.execute("UPDATE tblenrollment_tasks SET status='error', error_message='Enrollment timed out.' WHERE id=%s", (enroll_task['id'],))
                         except Exception: pass
                         enroll_task = None
+                        with state_lock:
+                            KIOSK_STATE['enroll_step'] = 0
+                            KIOSK_STATE['enroll_error'] = 'Enrollment timed out.'
                         continue
 
                     res = zkfp.AcquireFingerprint()
@@ -177,14 +180,14 @@ def _scanner_loop():
 
                         enroll_timeout = 0
 
-                        # Check for duplicate fingerprints
+                        # Check for duplicate fingerprints against other registered employees
                         if len(id_map) > 0:
                             try:
                                 fid, score = zkfp.DBIdentify(tmp)
                                 if score >= MATCH_THRESHOLD:
                                     matched_emp = id_map.get(fid, {})
                                     matched_emp_id = matched_emp.get('employee_id')
-                                    if matched_emp_id != enroll_task['employee_id']:
+                                    if matched_emp_id and matched_emp_id != enroll_task['employee_id']:
                                         is_ghost = False
                                         try:
                                             with db_cursor() as (conn, cur):
@@ -200,7 +203,7 @@ def _scanner_loop():
                                             except Exception: pass
                                         else:
                                             matched_name = matched_emp.get('name', 'Unknown')
-                                            err_msg = f"Fingerprint already assigned to {matched_name}."
+                                            err_msg = f"Fingerprint already assigned to {matched_name} ({matched_emp_id})."
                                             try:
                                                 from db import db_cursor
                                                 with db_cursor(commit=True) as (conn, cur):
@@ -210,34 +213,46 @@ def _scanner_loop():
                                             with state_lock:
                                                 KIOSK_STATE['enroll_step'] = 0
                                                 KIOSK_STATE['enroll_error'] = err_msg
-                                            time.sleep(2)
+                                            time.sleep(1.5)
                                             continue
-                            except Exception: pass
+                            except Exception as dup_err:
+                                print(f"[ENROLL] Duplicate check notice: {dup_err}")
 
                         enroll_templates.append(tmp)
                         enroll_step += 1
                         scanned_count = enroll_step - 1
-                        step_msg = f"Scan {scanned_count} of 3 recorded! Touch sensor again..." if scanned_count < 3 else "Merging fingerprint templates..."
+                        step_msg = f"Scan {scanned_count} of 3 recorded! Lift finger and touch sensor again..." if scanned_count < 3 else "Merging fingerprint templates..."
 
                         try:
                             from db import db_cursor
                             with db_cursor(commit=True) as (conn, cur):
-                                cur.execute("UPDATE tblenrollment_tasks SET step=%s, message=%s WHERE id=%s", (enroll_step, step_msg, enroll_task['id']))
+                                cur.execute("UPDATE tblenrollment_tasks SET step=%s, message=%s WHERE id=%s", (min(enroll_step, 3), step_msg, enroll_task['id']))
                         except Exception: pass
 
                         with state_lock:
-                            KIOSK_STATE['enroll_step'] = enroll_step
-                        print(f"Scan {scanned_count} successful.")
-                        time.sleep(3.0)  # 3-second cooldown for sensor recalibration between scans
+                            KIOSK_STATE['enroll_step'] = min(enroll_step, 3)
+                        print(f"Enroll scan {scanned_count} of 3 successful.")
+                        time.sleep(1.2)  # Sensor recalibration pause between scans
                 else:
-                    # DBMerge templates
-                    merged_template, merged_len = zkfp.DBMerge(*enroll_templates)
+                    # DBMerge templates from the 3 valid scans
+                    try:
+                        print(f"[ENROLL] Merging {len(enroll_templates)} scans for {enroll_task['employee_id']}...")
+                        merged_template, merged_len = zkfp.DBMerge(enroll_templates[0], enroll_templates[1], enroll_templates[2])
+                    except Exception as merge_err:
+                        print(f"[ENROLL] DBMerge call failed: {merge_err}")
+                        merged_template, merged_len = None, 0
+
                     if merged_template is None or merged_len == 0:
+                        err_msg = "Could not combine the 3 scans. Please place the same finger firmly and try again."
+                        print(f"[ENROLL ERROR] {err_msg}")
                         try:
                             from db import db_cursor
                             with db_cursor(commit=True) as (conn, cur):
-                                cur.execute("UPDATE tblenrollment_tasks SET status='error', error_message='Failed to merge fingerprint scans.' WHERE id=%s", (enroll_task['id'],))
+                                cur.execute("UPDATE tblenrollment_tasks SET status='error', error_message=%s WHERE id=%s", (err_msg, enroll_task['id']))
                         except Exception: pass
+                        with state_lock:
+                            KIOSK_STATE['enroll_step'] = 0
+                            KIOSK_STATE['enroll_error'] = err_msg
                     else:
                         template_bytes = bytes(merged_template)
                         if 0 < merged_len < len(template_bytes):
@@ -260,21 +275,47 @@ def _scanner_loop():
                                         user_name = VALUES(user_name)
                                 """, (enroll_task['employee_id'], user_name, template_b64, enroll_task['finger_index']))
 
-                                cur.execute("UPDATE tblenrollment_tasks SET status='success' WHERE id=%s", (enroll_task['id'],))
+                                cur.execute("UPDATE tblenrollment_tasks SET status='success', step=3, message='Fingerprint registered successfully!' WHERE id=%s", (enroll_task['id'],))
 
                             new_local_id = max(list(id_map.keys()) + [0]) + 1
-                            zkfp.DBAdd(new_local_id, template_bytes)
+                            try:
+                                zkfp.DBAdd(new_local_id, template_bytes)
+                            except Exception: pass
                             id_map[new_local_id] = {'employee_id': enroll_task['employee_id'], 'name': user_name}
                             print(f"[ENROLL SUCCESS] Fingerprint enrolled for {user_name} ({enroll_task['employee_id']}).")
+                            with state_lock:
+                                KIOSK_STATE['enroll_step'] = 3
+                                KIOSK_STATE['enroll_error'] = None
                         except Exception as e:
-                            print(f"Error completing enrollment: {e}")
+                            print(f"[ENROLL ERROR] Error saving enrollment to database: {e}")
+                            with state_lock:
+                                KIOSK_STATE['enroll_error'] = f"Database error: {e}"
 
                     enroll_task = None
-                    with state_lock:
-                        KIOSK_STATE['enroll_step'] = 0
+                    enroll_templates = []
+                    enroll_step = 0
 
             else:
                 # Normal Kiosk Attendance Scanning Mode
+                # Periodic sync fingerprints from DB every 30 seconds
+                if now - last_db_check >= 30.0:
+                    last_db_check = now
+                    try:
+                        fresh_users = sync_fingerprints_from_cloud()
+                        if len(fresh_users) != len(id_map):
+                            print(f"[SYNC] Database fingerprint count changed ({len(id_map)} -> {len(fresh_users)}). Reloading RAM cache.")
+                            try:
+                                zkfp.DBClear()
+                            except Exception: pass
+                            id_map.clear()
+                            for row_id, emp_id, user_name, template in fresh_users:
+                                try:
+                                    zkfp.DBAdd(row_id, template)
+                                    id_map[row_id] = {'employee_id': emp_id, 'name': user_name}
+                                except Exception: pass
+                    except Exception as sync_err:
+                        print(f"[SYNC] Periodic sync notice: {sync_err}")
+
                 res = zkfp.AcquireFingerprint()
                 if res:
                     tmp, img = res
@@ -289,7 +330,8 @@ def _scanner_loop():
                                     with state_lock:
                                         last_log = KIOSK_STATE['cooldowns'].get(emp_id, 0)
                                         if now - last_log < 7:
-                                            time.sleep(0.5)
+                                            # Same person double-tap cooldown
+                                            time.sleep(0.3)
                                             continue
                                             
                                         print(f"[SCAN MATCH] Identified: {user_info['name']} (score: {score})")
@@ -299,14 +341,15 @@ def _scanner_loop():
                                             'timestamp': now
                                         }
                                         KIOSK_STATE['cooldowns'][emp_id] = now
-                                    time.sleep(7)
+                                    # Brief sensor recalibration pause before next finger touch
+                                    time.sleep(0.8)
                             else:
                                 with state_lock:
                                     KIOSK_STATE['last_error'] = {
                                         'message': 'Fingerprint not recognized.',
                                         'timestamp': time.time()
                                     }
-                                time.sleep(1.5)
+                                time.sleep(0.5)
                         except Exception as ex:
                             err_msg = str(ex).lower()
                             if any(k in err_msg for k in ['object reference', 'null', 'device', 'handle', 'interrupted', 'pointer']):
@@ -317,7 +360,7 @@ def _scanner_loop():
                                     'message': 'Fingerprint not recognized.',
                                     'timestamp': time.time()
                                 }
-                            time.sleep(1.5)
+                            time.sleep(0.5)
 
                     else:
                         with state_lock:
@@ -325,9 +368,9 @@ def _scanner_loop():
                                 'message': 'Scanner active, but no fingerprints registered in system.',
                                 'timestamp': time.time()
                             }
-                        time.sleep(1.5)
+                        time.sleep(1.0)
 
-            time.sleep(0.1)
+            time.sleep(0.08)
 
         except Exception as e:
             print(f"[WARNING] USB Fingerprint Scanner communication interrupted: {e}")

@@ -156,8 +156,17 @@
     border: 2px solid var(--border); border-top-color: var(--navy-mid);
     border-radius: 50%; animation: spin .7s linear infinite;
   }
-</style>
 
+  @media (max-width: 768px) {
+    .dtr-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+    .filter-row { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; }
+    .filter-group { width: 100%; }
+    .emp-select-wrap { width: 100% !important; }
+    .filter-select { width: 100% !important; }
+    .filter-group div[style*="display:flex"] { width: 100%; }
+    .filter-group .btn { flex: 1; justify-content: center; }
+  }
+</style>
 
 <!-- ── Toolbar ── -->
 <div class="dtr-toolbar">
@@ -265,18 +274,27 @@
 
   // ── Load employee list ────────────────────────────────────────────────────
   $.get('/api/auth/me', function (user) {
-    if (user.role === 'Employee') {
+    if (user.role === 'Employee' && user.employee_id) {
       $('#empFilterGroup').hide();
       selectedEmp = {
         id: user.employee_id,
         full_name: user.name,
         designation: ''
       };
-      $('#btnGenerate').prop('disabled', false);
+      $('#btnGenerate').prop('disabled', false).click();
     } else {
       $.get('/api/dtr/employees', function (data) {
-        employees = data;
+        employees = data || [];
         renderDropdown('');
+        if (employees.length > 0) {
+          selectedEmp = {
+            id: employees[0].id,
+            full_name: employees[0].full_name,
+            designation: employees[0].designation
+          };
+          $('#empSearchInput').val(selectedEmp.full_name);
+          $('#btnGenerate').prop('disabled', false).click();
+        }
       });
     }
   });

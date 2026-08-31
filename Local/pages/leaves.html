@@ -57,6 +57,19 @@
     gap:8px; background:var(--surface2); }
   .err-msg { font-size:11.5px; color:var(--red); background:var(--red-dim); padding:8px 12px;
     border-radius:7px; display:none; }
+
+  .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+
+  @media (max-width: 768px) {
+    .lv-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+    .lv-toolbar .btn { width: 100%; justify-content: center; }
+    .lv-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+    .lv-body { padding: 14px 12px; }
+    .modal-box { width: 94vw !important; max-width: 94vw !important; margin: 10px; border-radius: 12px; }
+  }
+  @media (max-width: 480px) {
+    .lv-cards { grid-template-columns: 1fr; }
+  }
 </style>
 
 <div class="lv-page">
@@ -66,6 +79,12 @@
       <div class="lv-sub">File and manage employee sick leave (SL) and vacation leave (VL)</div>
     </div>
     <div style="flex:1;"></div>
+    <button class="btn btn-outline" id="btnAdjustCredits" style="display:none;margin-right:6px;">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+      </svg>
+      Adjust Leave Credits
+    </button>
     <button class="btn btn-primary" id="btnFileLeave">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
@@ -75,36 +94,91 @@
   </div>
 
   <div class="lv-body">
+    <!-- Leave Balance Card -->
+    <div style="background:var(--navy-light);border:1px solid #c5d8f5;border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--navy-mid);text-transform:uppercase;letter-spacing:.08em;">Vacation Leave (VL) Credit Balance</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--navy);margin-top:2px;" id="lblVlBalance">Loading balance…</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--navy-mid);text-transform:uppercase;letter-spacing:.08em;">Sick Leave (SL) Credit Balance</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--navy);margin-top:2px;" id="lblSlBalance">Loading balance…</div>
+      </div>
+    </div>
+
     <div class="lv-cards">
-      <div class="lv-card"><div class="lv-card-lbl">Total Filed</div><div class="lv-card-val" id="cTotal">—</div></div>
+      <div class="lv-card"><div class="lv-card-lbl">Total Filed Requests</div><div class="lv-card-val" id="cTotal">—</div></div>
       <div class="lv-card"><div class="lv-card-lbl">Pending</div><div class="lv-card-val" id="cPending" style="color:#92400e;">—</div></div>
       <div class="lv-card"><div class="lv-card-lbl">Approved</div><div class="lv-card-val" id="cApproved" style="color:var(--green);">—</div></div>
       <div class="lv-card"><div class="lv-card-lbl">Rejected</div><div class="lv-card-val" id="cRejected" style="color:var(--red);">—</div></div>
     </div>
 
     <div class="filter-tabs">
-      <div class="ftab active" data-status="all">All</div>
+      <div class="ftab active" data-status="all">All Leave Requests</div>
       <div class="ftab" data-status="Pending">Pending</div>
       <div class="ftab" data-status="Approved">Approved</div>
       <div class="ftab" data-status="Rejected">Rejected</div>
+      <div class="ftab" data-status="balances" id="tabBalances">Employee Credit Balances</div>
+      <div class="ftab" data-status="audit">Leave Credit Audit History</div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th id="empColHdr">Employee</th>
-          <th>Leave Date</th>
-          <th>Type</th>
-          <th>Reason</th>
-          <th>Filed</th>
-          <th>Status</th>
-          <th style="width:120px;"></th>
-        </tr>
-      </thead>
-      <tbody id="lvBody">
-        <tr><td colspan="7" style="text-align:center;color:var(--muted2);padding:24px;">Loading…</td></tr>
-      </tbody>
-    </table>
+    <div id="leaveRequestsWrap" class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th id="empColHdr">Employee</th>
+            <th>Leave Date</th>
+            <th>Type</th>
+            <th>Reason</th>
+            <th>Filed</th>
+            <th>Status</th>
+            <th style="width:120px;"></th>
+          </tr>
+        </thead>
+        <tbody id="lvBody">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted2);padding:24px;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="leaveBalancesWrap" class="table-responsive" style="display:none;">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Employee ID</th>
+            <th>Vacation Leave (VL) Left</th>
+            <th>Sick Leave (SL) Left</th>
+            <th>Last Updated</th>
+            <th style="width:120px;text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="balancesBody">
+          <tr><td colspan="6" style="text-align:center;color:var(--muted2);padding:24px;">Loading employee credit balances…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="leaveAuditWrap" class="table-responsive" style="display:none;">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Change (Minutes)</th>
+            <th>Action</th>
+            <th>Source</th>
+            <th>Reference</th>
+            <th>Remarks</th>
+            <th>Logged By</th>
+          </tr>
+        </thead>
+        <tbody id="auditBody">
+          <tr><td colspan="9" style="text-align:center;color:var(--muted2);padding:24px;">Loading audit transactions…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -141,6 +215,48 @@
   </div>
 </div>
 
+<!-- Adjust Leave Credits Modal -->
+<div class="modal-overlay" id="adjModal">
+  <div class="modal-box">
+    <div class="modal-hdr">Adjust Employee Leave Credits</div>
+    <div class="modal-body">
+      <div>
+        <label class="form-lbl">Employee *</label>
+        <select class="form-inp" id="aEmpSelect"><option value="">— Select Employee —</option></select>
+      </div>
+      <div>
+        <label class="form-lbl">Leave Type *</label>
+        <select class="form-inp" id="aLeaveType">
+          <option value="VL">Vacation Leave (VL)</option>
+          <option value="SL">Sick Leave (SL)</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-lbl">Adjustment Action *</label>
+        <select class="form-inp" id="aMode">
+          <option value="ADD">Add Credits (+)</option>
+          <option value="DEDUCT">Deduct Credits (-)</option>
+          <option value="SET">Set Exact Balance (=)</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-lbl">Amount in Minutes * (e.g. 480 mins = 1 day)</label>
+        <input type="number" class="form-inp" id="aMinutes" placeholder="e.g. 480" min="0">
+        <small style="font-size:10px;color:var(--muted2);" id="aMinsHelp">480 mins = 1 day (8 hours)</small>
+      </div>
+      <div>
+        <label class="form-lbl">Reason *</label>
+        <input type="text" class="form-inp" id="aReason" placeholder="Reason for adjustment">
+      </div>
+      <div class="err-msg" id="aErr"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-outline" id="btnCancelAdj">Cancel</button>
+      <button class="btn btn-primary" id="btnSaveAdj">Save Adjustment</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
   const API_LEAVES = '/api/payroll/leaves';
@@ -156,14 +272,19 @@
 
     if (userRole !== 'Employee') {
       $('#empColHdr').show();
-      // HR/Admin: load employees for file modal
+      $('#btnAdjustCredits').show();
+      // HR/Admin: load employees for file & adjust modals
       try {
-        const emps = await $.get('/api/employees/list');
-        emps.forEach(e => $('#mEmpSelect').append(`<option value="${e.employee_id}">${e.first_name} ${e.last_name}</option>`));
+        const emps = await $.get('/api/employees/');
+        emps.forEach(e => {
+          $('#mEmpSelect').append(`<option value="${e.id}">${e.first_name} ${e.last_name} (${e.id})</option>`);
+          $('#aEmpSelect').append(`<option value="${e.id}">${e.first_name} ${e.last_name} (${e.id})</option>`);
+        });
         $('#hrEmpRow').show();
       } catch(e) {}
     } else {
       $('#empColHdr').hide();
+      $('#btnAdjustCredits').hide();
     }
     loadLeaves();
   }
@@ -173,6 +294,68 @@
       leaves = await $.get(API_LEAVES);
       renderCards();
       renderTable();
+      loadBalances();
+      loadAudit();
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadBalances() {
+    try {
+      const bals = await $.get('/api/payroll/leave_balances');
+      if (bals && bals.length) {
+        // Render logged-in user balance (or first employee) in banner
+        const userBal = bals.find(b => b.employee_id === userEmpId) || bals[0];
+        $('#lblVlBalance').html(`${userBal.vl_minutes.toLocaleString()} mins <span style="font-size:0.9rem;color:var(--navy-mid);">(${userBal.vl_formatted})</span>`);
+        $('#lblSlBalance').html(`${userBal.sl_minutes.toLocaleString()} mins <span style="font-size:0.9rem;color:var(--navy-mid);">(${userBal.sl_formatted})</span>`);
+
+        // Render All Employees Credit Balances Table
+        $('#balancesBody').html(bals.map(b => `
+          <tr>
+            <td><strong>${b.emp_name}</strong></td>
+            <td><small style="color:var(--navy-mid);font-weight:600;">${b.employee_id}</small></td>
+            <td>
+              <span style="font-weight:700;color:var(--navy);">${b.vl_formatted}</span>
+              <br><small style="color:var(--muted2);">${b.vl_minutes.toLocaleString()} mins</small>
+            </td>
+            <td>
+              <span style="font-weight:700;color:var(--navy);">${b.sl_formatted}</span>
+              <br><small style="color:var(--muted2);">${b.sl_minutes.toLocaleString()} mins</small>
+            </td>
+            <td><small style="color:var(--muted2);">${b.updated_at || '—'}</small></td>
+            <td style="text-align:right;">
+              ${userRole !== 'Employee' ? `<button class="btn btn-outline" style="padding:4px 9px;font-size:10.5px;" onclick="openQuickAdjust('${b.employee_id}')">Adjust</button>` : '—'}
+            </td>
+          </tr>
+        `).join(''));
+      } else {
+        $('#balancesBody').html(`<tr><td colspan="6" style="text-align:center;color:var(--muted2);padding:24px;">No employee balance records found.</td></tr>`);
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadAudit() {
+    try {
+      const txs = await $.get('/api/payroll/leave_transactions');
+      if (!txs.length) {
+        $('#auditBody').html(`<tr><td colspan="9" style="text-align:center;color:var(--muted2);padding:24px;">No audit transactions logged.</td></tr>`);
+        return;
+      }
+      $('#auditBody').html(txs.map(t => {
+        const isDeduct = t.transaction_type === 'DEDUCTION';
+        const colorStyle = isDeduct ? 'color:var(--red);' : 'color:var(--green);';
+        const signStr = isDeduct ? '-' : '+';
+        return `<tr>
+          <td><strong>${t.emp_name}</strong><br><small style="color:var(--muted2);">${t.employee_id}</small></td>
+          <td>${t.date}</td>
+          <td><span class="${t.leave_type==='SL'?'type-sl':'type-vl'}">${t.leave_type}</span></td>
+          <td style="${colorStyle}font-weight:700;">${signStr}${t.minutes}m</td>
+          <td><span class="status-pill ${isDeduct?'pill-rejected':'pill-approved'}">${t.transaction_type}</span></td>
+          <td><small style="font-weight:600;">${t.source}</small></td>
+          <td><small style="color:var(--navy-mid);">${t.reference_id||'—'}</small></td>
+          <td><small>${t.remarks||'—'}</small></td>
+          <td><small>${t.created_by||'System'}</small></td>
+        </tr>`;
+      }).join(''));
     } catch(e) { console.error(e); }
   }
 
@@ -221,11 +404,30 @@
     } catch(e) { alert('Error updating leave.'); }
   };
 
+  window.openQuickAdjust = function(empId) {
+    $('#aEmpSelect').val(empId);
+    $('#aMinutes').val(''); $('#aReason').val(''); $('#aErr').hide();
+    $('#adjModal').addClass('open');
+  };
+
   // Filter tabs
   $('.ftab').on('click', function() {
     $('.ftab').removeClass('active'); $(this).addClass('active');
     activeStatus = $(this).data('status');
-    renderTable();
+    if (activeStatus === 'audit') {
+      $('#leaveRequestsWrap').hide();
+      $('#leaveBalancesWrap').hide();
+      $('#leaveAuditWrap').show();
+    } else if (activeStatus === 'balances') {
+      $('#leaveRequestsWrap').hide();
+      $('#leaveAuditWrap').hide();
+      $('#leaveBalancesWrap').show();
+    } else {
+      $('#leaveAuditWrap').hide();
+      $('#leaveBalancesWrap').hide();
+      $('#leaveRequestsWrap').show();
+      renderTable();
+    }
   });
 
   // File leave modal
@@ -254,10 +456,71 @@
       const d = await res.json();
       if (d.error) { $('#mErr').text(d.error).show(); }
       else { $('#fileModal').removeClass('open'); loadLeaves(); }
-    } catch(e) { $('#mErr').text('Failed to submit.').show(); }
-    $(this).prop('disabled',false).text('Submit Request');
+    } catch(e) { $('#mErr').text('Error submitting leave.').show(); }
+    finally { $(this).prop('disabled',false).text('Submit Request'); }
+  });
+
+  // Adjust leave credits modal
+  $('#btnAdjustCredits').on('click', function() {
+    $('#aMinutes').val(''); $('#aReason').val(''); $('#aErr').hide();
+    $('#adjModal').addClass('open');
+  });
+  $('#btnCancelAdj').on('click', () => $('#adjModal').removeClass('open'));
+  $('#adjModal').on('click', function(e) { if(e.target===this) $(this).removeClass('open'); });
+
+  $('#aMinutes').on('input', function() {
+    const m = parseInt($(this).val()) || 0;
+    const days = (m / 480).toFixed(2);
+    const hrs  = (m / 60).toFixed(1);
+    $('#aMinsHelp').text(`${m} mins = ~${days} days (${hrs} hours)`);
+  });
+
+  $('#btnSaveAdj').on('click', async function() {
+    const employee_id = $('#aEmpSelect').val();
+    const leave_type  = $('#aLeaveType').val();
+    const mode        = $('#aMode').val();
+    const minutes     = parseInt($('#aMinutes').val());
+    const reason      = $('#aReason').val().trim();
+
+    if (!employee_id) { $('#aErr').text('Please select an employee.').show(); return; }
+    if (isNaN(minutes) || minutes < 0) { $('#aErr').text('Please enter a valid non-negative minute amount.').show(); return; }
+    if (!reason) { $('#aErr').text('Please provide a reason for adjustment.').show(); return; }
+
+    $('#aErr').hide();
+    $(this).prop('disabled', true).text('Saving…');
+    try {
+      const res = await fetch('/api/payroll/leave_balances/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employee_id, leave_type, mode, minutes, reason })
+      });
+      const d = await res.json();
+      if (d.error) {
+        $('#aErr').text(d.error).show();
+      } else {
+        $('#adjModal').removeClass('open');
+        Swal.fire({
+          icon: 'success',
+          title: 'Balance Adjusted',
+          text: `Updated ${leave_type} balance: ${d.formatted} (${d.new_balance} mins)`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+        loadLeaves();
+      }
+    } catch(e) {
+      $('#aErr').text('Error saving balance adjustment.').show();
+    } finally {
+      $(this).prop('disabled', false).text('Save Adjustment');
+    }
   });
 
   init();
+
+  window.addEventListener('pnchs:data-change', function() {
+    if (document.getElementById('lvBody') && !$('#fileModal').hasClass('open') && !$('#adjModal').hasClass('open')) {
+      loadLeaves();
+    }
+  });
 })();
 </script>

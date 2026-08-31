@@ -431,6 +431,7 @@
 <script>
 
   function to12Hour(time24) {
+    if (!time24) return null;
     const [hour, minute] = time24.split(":");
     let h = parseInt(hour);
     const ampm = h >= 12 ? "PM" : "AM";
@@ -539,16 +540,22 @@
         ${sumCell(ovs.total_absent, ovs.total_absent > 0 ? 'dtr-sum-late' : '', 'days missed')}
       </div>
       <div class="dtr-sum-row">
-        <div class="dtr-sum-row-lbl">Total Late</div>
-        ${sumCell(fmtLateMin(h1s.late_min), h1s.late_min > 0 ? 'dtr-sum-late' : '', h1s.late_min + ' minutes')}
-        ${sumCell(fmtLateMin(h2s.late_min), h2s.late_min > 0 ? 'dtr-sum-late' : '', h2s.late_min + ' minutes')}
-        ${sumCell(fmtLateMin(ovs.total_late_min), ovs.total_late_min > 0 ? 'dtr-sum-late' : '', ovs.total_late_min + ' minutes')}
+        <div class="dtr-sum-row-lbl">Total Late & Undertime</div>
+        ${sumCell(fmtLateMin((h1s.late_min || 0) + (h1s.undertime_min || 0)), ((h1s.late_min || 0) + (h1s.undertime_min || 0)) > 0 ? 'dtr-sum-late' : '', 'deficiency')}
+        ${sumCell(fmtLateMin((h2s.late_min || 0) + (h2s.undertime_min || 0)), ((h2s.late_min || 0) + (h2s.undertime_min || 0)) > 0 ? 'dtr-sum-late' : '', 'deficiency')}
+        ${sumCell(fmtLateMin((ovs.total_late_min || 0) + (ovs.total_undertime_min || 0)), ((ovs.total_late_min || 0) + (ovs.total_undertime_min || 0)) > 0 ? 'dtr-sum-late' : '', 'deficiency')}
       </div>
-      <div class="dtr-sum-row">
-        <div class="dtr-sum-row-lbl">Undertime</div>
-        ${sumCell(fmtLateMin(h1s.undertime_min || 0), (h1s.undertime_min || 0) > 0 ? 'dtr-sum-late' : '', (h1s.undertime_min || 0) + ' minutes')}
-        ${sumCell(fmtLateMin(h2s.undertime_min || 0), (h2s.undertime_min || 0) > 0 ? 'dtr-sum-late' : '', (h2s.undertime_min || 0) + ' minutes')}
-        ${sumCell(fmtLateMin(ovs.total_undertime_min || 0), (ovs.total_undertime_min || 0) > 0 ? 'dtr-sum-late' : '', (ovs.total_undertime_min || 0) + ' minutes')}
+      <div class="dtr-sum-row" style="background:rgba(22,163,74,0.04);">
+        <div class="dtr-sum-row-lbl" style="color:var(--green);">VL Charged</div>
+        ${sumCell(fmtLateMin(h1s.vl_charged_min || 0), 'dtr-sum-hours', 'covered by leave')}
+        ${sumCell(fmtLateMin(h2s.vl_charged_min || 0), 'dtr-sum-hours', 'covered by leave')}
+        ${sumCell(fmtLateMin(ovs.total_vl_charged_min || 0), 'dtr-sum-hours', 'covered by leave')}
+      </div>
+      <div class="dtr-sum-row" style="background:rgba(192,57,43,0.04);">
+        <div class="dtr-sum-row-lbl" style="color:var(--red);">Unpaid (LWOP)</div>
+        ${sumCell(fmtLateMin(h1s.unpaid_min || 0), (h1s.unpaid_min || 0) > 0 ? 'dtr-sum-late' : '', '₱' + (h1s.payroll_deduction || 0).toFixed(2))}
+        ${sumCell(fmtLateMin(h2s.unpaid_min || 0), (h2s.unpaid_min || 0) > 0 ? 'dtr-sum-late' : '', '₱' + (h2s.payroll_deduction || 0).toFixed(2))}
+        ${sumCell(fmtLateMin(ovs.total_unpaid_min || 0), (ovs.total_unpaid_min || 0) > 0 ? 'dtr-sum-late' : '', '₱' + (ovs.total_payroll_deduction || 0).toFixed(2))}
       </div>
       <div class="dtr-sum-row total-row">
         <div class="dtr-sum-row-lbl">Hours Dutied</div>
@@ -591,6 +598,10 @@
         ? '<span class="no-log-text">—</span>'
         : '<span style="font-size:12px;color:var(--navy);font-weight:500;">' + (d.hours || 0) + 'h</span>';
 
+      const vlChargedStr = d.vl_charged_min > 0 ? `<span style="color:var(--green);font-weight:600;">-${d.vl_charged_min}m VL</span>` : '0m';
+      const unpaidStr = d.unpaid_min > 0 ? `<span style="color:var(--red);font-weight:600;">${d.unpaid_min}m LWOP</span>` : '0m';
+      const deductStr = d.payroll_deduction > 0 ? `<span style="color:var(--red);font-weight:600;">₱${d.payroll_deduction.toFixed(2)}</span>` : '<span style="color:var(--green);">₱0.00</span>';
+
       return `
       <tr class="${rowClass}">
         <td>
@@ -606,6 +617,9 @@
         <td class="center">${lateStr ? '<span class="late-badge">\u23f1 ' + lateStr + '</span>' : (d.is_weekend || !d.has_log ? '<span class="no-log-text">—</span>' : '<span style="color:var(--green);font-size:11px;">On time</span>')}
           ${d.undertime_min > 0 ? '<br><span class="late-badge" style="background:rgba(192,57,43,0.08);color:#c0392b;border-color:rgba(192,57,43,0.2);">\u23f0 ' + fmtLate(d.undertime_min).replace('late', 'early') + '</span>' : ''}
         </td>
+        <td class="center" style="font-size:11px;">${d.is_weekend || !d.has_log ? '—' : vlChargedStr}</td>
+        <td class="center" style="font-size:11px;">${d.is_weekend || !d.has_log ? '—' : unpaidStr}</td>
+        <td class="center" style="font-size:11px;">${d.is_weekend || !d.has_log ? '—' : deductStr}</td>
         <td class="center">${hoursCell}</td>
       </tr>`;
     }).join('');
@@ -616,7 +630,7 @@
       <div class="dtr-table-card-header">
         <div>
           <div class="dtr-table-card-title">Attendance Log — ${period.label}</div>
-          <div class="dtr-table-card-sub">${days.length} days · ${summary.working_days} working days</div>
+          <div class="dtr-table-card-sub">${days.length} days · ${summary.working_days} working days · VL Balance: ${emp.vl_balance_formatted || '4,800 mins'}</div>
         </div>
         <div class="dtr-legend">
           <div class="dtr-leg-item"><div class="dtr-leg-dot" style="background:var(--green);"></div> Present</div>
@@ -631,11 +645,14 @@
             <tr>
               <th style="width:70px;">Day</th>
               <th>Date</th>
-              <th class="center" style="width:130px;">AM (In / Out)</th>
-              <th class="center" style="width:130px;">PM (In / Out)</th>
-              <th class="center" style="width:110px;">Status</th>
-              <th class="center" style="width:100px;">Late</th>
-              <th class="center" style="width:80px;">Hours</th>
+              <th class="center" style="width:120px;">AM (In / Out)</th>
+              <th class="center" style="width:120px;">PM (In / Out)</th>
+              <th class="center" style="width:100px;">Status</th>
+              <th class="center" style="width:100px;">Late/Under</th>
+              <th class="center" style="width:90px;">VL Charged</th>
+              <th class="center" style="width:90px;">Unpaid (LWOP)</th>
+              <th class="center" style="width:100px;">Deduction (₱)</th>
+              <th class="center" style="width:70px;">Hours</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>

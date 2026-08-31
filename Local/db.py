@@ -4,25 +4,24 @@ from mysql.connector import Error, pooling
 from contextlib import contextmanager
 
 DB_CONFIG = {
-    "host":     os.getenv("DB_HOST", "194.59.164.63"),
-    "database": os.getenv("DB_NAME", "u534933225_dbpwms"),
-    "user":     os.getenv("DB_USER", "u534933225_pwms"),
-    "password": os.getenv("DB_PASSWORD", "QIr0lbg5*"),
+    "host":     os.getenv("DB_HOST", "187.52.121.22"),
+    "database": os.getenv("DB_NAME", "dbpnchs"),
+    "user":     os.getenv("DB_USER", "pnchs_user"),
+    "password": os.getenv("DB_PASSWORD", "YourSecurePassword123!"),
     "charset":  "utf8mb4",
     "autocommit": False,
     "use_pure": True,
 }
 
-# Create connection pool gracefully for live Hostinger MySQL database
+# Create connection pool gracefully for live VPS MySQL database
 db_pool = None
 try:
     db_pool = pooling.MySQLConnectionPool(
-        pool_name="live_hostinger_pool",
+        pool_name="live_vps_pool",
         pool_size=10,
         pool_reset_session=True,
         **DB_CONFIG
     )
-    print("[OK] Connected directly to live Hostinger MySQL database pool.")
 except Exception as e:
     print(f"[INFO] Direct live MySQL pool notice ({e}). Falling back to direct connection.")
     db_pool = None

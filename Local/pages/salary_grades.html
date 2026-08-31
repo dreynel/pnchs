@@ -1,0 +1,418 @@
+<div class="container-fluid p-2 p-md-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+      <h3 class="fw-bold text-navy mb-1" style="font-family: 'Playfair Display', serif;">Salary Grade Management</h3>
+      <p class="text-muted small mb-0">Civil Service & DepEd SSL Third Tranche Standard Salary Scale (Salary Grades 1 – 33, Steps 1 – 8)</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+      <button class="btn btn-outline-secondary btn-sm rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-1 flex-grow-1 flex-md-grow-0" onclick="reseedSalaryGrades()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Reset to Defaults
+      </button>
+      <button class="btn btn-navy btn-sm rounded-3 shadow-sm px-3 d-flex align-items-center justify-content-center gap-1 flex-grow-1 flex-md-grow-0" onclick="openRateCalculatorModal()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+        </svg>
+        Rate Calculator
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-surface">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 p-3 text-white" style="background: linear-gradient(135deg, var(--navy), var(--navy-mid));">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-muted extra-small text-uppercase fw-semibold tracking-wider">Salary Matrix Scope</span>
+            <h4 class="fw-bold text-navy mb-0">SG 1 to 33</h4>
+            <span class="badge bg-light text-secondary border mt-1 font-monospace fs-11">8 Incremental Steps per Grade</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-surface">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 p-3 text-white" style="background: linear-gradient(135deg, #c8973a, #a87620);">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-muted extra-small text-uppercase fw-semibold tracking-wider">DepEd Faculty Positions</span>
+            <h4 class="fw-bold text-navy mb-0">Teacher I – Principal IV</h4>
+            <span class="badge bg-amber-light text-amber border mt-1 font-monospace fs-11">SG 11 to SG 22 Annotated</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-surface">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-3 p-3 text-white" style="background: linear-gradient(135deg, #27ae60, #1e824c);">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-muted extra-small text-uppercase fw-semibold tracking-wider">Governing Standard</span>
+            <h4 class="fw-bold text-navy mb-0">Third Tranche SSL</h4>
+            <span class="badge bg-success-subtle text-success border border-success-subtle mt-1 font-monospace fs-11">DepEd / DBM Official Scale</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter & Table Card -->
+  <div class="card border-0 shadow-sm rounded-4 bg-surface overflow-hidden">
+    <div class="p-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 bg-light-subtle">
+      <div class="position-relative w-100" style="max-width: 360px;">
+        <input type="text" id="searchSG" class="form-control form-control-sm ps-4 rounded-3 border-secondary-subtle" placeholder="Search Grade or Position (e.g. Teacher I, SG 11)..." onkeyup="filterSalaryGrades()">
+        <svg class="position-absolute top-50 start-0 translate-middle-y ms-2 text-muted" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/>
+        </svg>
+      </div>
+      <div class="text-muted small">
+        Showing <span id="sgRowCount" class="fw-bold text-navy">33</span> Salary Grades
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="sgTable">
+        <thead class="bg-light text-uppercase fs-11 text-muted fw-bold">
+          <tr>
+            <th class="ps-4 py-3" style="width: 70px;">SG</th>
+            <th class="py-3" style="width: 220px;">Position / Annotation</th>
+            <th class="text-end py-3">Step 1</th>
+            <th class="text-end py-3">Step 2</th>
+            <th class="text-end py-3">Step 3</th>
+            <th class="text-end py-3">Step 4</th>
+            <th class="text-end py-3">Step 5</th>
+            <th class="text-end py-3">Step 6</th>
+            <th class="text-end py-3">Step 7</th>
+            <th class="text-end py-3">Step 8</th>
+            <th class="pe-4 text-center py-3" style="width: 80px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="sgTableBody" class="fs-13">
+          <tr><td colspan="11" class="text-center py-4 text-muted">Loading salary grades...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Salary Grade Modal -->
+<div class="modal fade" id="editSGModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-navy text-white rounded-top-4 py-3">
+        <h5 class="modal-title fw-bold" id="editSGModalTitle">Edit Salary Grade</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <input type="hidden" id="editSGNum">
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label extra-small fw-bold text-muted text-uppercase">Salary Grade</label>
+            <input type="text" id="editSGDisplay" class="form-control fw-bold bg-light" readonly>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label extra-small fw-bold text-muted text-uppercase">Position Title / Tag</label>
+            <input type="text" id="editSGPosition" class="form-control" placeholder="e.g. Teacher I, Master Teacher II">
+          </div>
+        </div>
+
+        <h6 class="fw-bold text-navy mb-3 mt-4 border-bottom pb-2">Incremental Steps (Monthly Basic Salary in ₱)</h6>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 1</label>
+            <input type="number" step="0.01" id="editStep1" class="form-control text-end font-monospace">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 2</label>
+            <input type="number" step="0.01" id="editStep2" class="form-control text-end font-monospace">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 3</label>
+            <input type="number" step="0.01" id="editStep3" class="form-control text-end font-monospace">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 4</label>
+            <input type="number" step="0.01" id="editStep4" class="form-control text-end font-monospace">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 5</label>
+            <input type="number" step="0.01" id="editStep5" class="form-control text-end font-monospace">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 6</label>
+            <input type="number" step="0.01" id="editStep6" class="form-control text-end font-monospace">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 7</label>
+            <input type="number" step="0.01" id="editStep7" class="form-control text-end font-monospace">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label extra-small fw-bold text-muted">Step 8</label>
+            <input type="number" step="0.01" id="editStep8" class="form-control text-end font-monospace">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light rounded-bottom-4 py-2 px-4">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-navy btn-sm px-4" onclick="saveSalaryGrade()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rate Calculator Modal -->
+<div class="modal fade" id="calcRateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-navy text-white rounded-top-4 py-3">
+        <h5 class="modal-title fw-bold">Salary & Deduction Rate Calculator</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label extra-small fw-bold text-muted">Salary Grade</label>
+            <select id="calcSG" class="form-select" onchange="runRateCalculator()">
+              <option value="">Select SG...</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label extra-small fw-bold text-muted">Step</label>
+            <select id="calcStep" class="form-select" onchange="runRateCalculator()">
+              <option value="1">Step 1</option>
+              <option value="2">Step 2</option>
+              <option value="3">Step 3</option>
+              <option value="4">Step 4</option>
+              <option value="5">Step 5</option>
+              <option value="6">Step 6</option>
+              <option value="7">Step 7</option>
+              <option value="8">Step 8</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card border-0 bg-light p-3 rounded-3 mt-3">
+          <div class="text-muted extra-small text-uppercase fw-semibold mb-2">Calculated Rates (22 Working Days / 8 Hrs/Day)</div>
+          <div class="d-flex justify-content-between py-2 border-bottom">
+            <span class="text-muted">Monthly Basic:</span>
+            <span class="fw-bold text-navy font-monospace fs-15" id="calcMonthly">₱0.00</span>
+          </div>
+          <div class="d-flex justify-content-between py-2 border-bottom">
+            <span class="text-muted">Daily Rate (22 days):</span>
+            <span class="fw-bold text-dark font-monospace" id="calcDaily">₱0.00</span>
+          </div>
+          <div class="d-flex justify-content-between py-2 border-bottom">
+            <span class="text-muted">Hourly Rate (8 hrs):</span>
+            <span class="fw-semibold text-dark font-monospace" id="calcHourly">₱0.00</span>
+          </div>
+          <div class="d-flex justify-content-between py-2">
+            <span class="text-muted">Per-Minute Rate (LWOP/Tardy):</span>
+            <span class="fw-bold text-danger font-monospace" id="calcMin">₱0.0000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .extra-small { font-size: 11px; }
+  .fs-11 { font-size: 11px; }
+  .fs-13 { font-size: 13px; }
+  .fs-15 { font-size: 15px; }
+  .btn-navy { background: var(--navy); color: #fff; border: none; }
+  .btn-navy:hover { background: var(--navy-mid); color: #fff; }
+  .bg-navy { background: var(--navy); }
+  .text-navy { color: var(--navy); }
+  .bg-amber-light { background: rgba(200,151,58,0.12); }
+  .text-amber { color: #a87620; }
+  .tracking-wider { letter-spacing: 0.05em; }
+</style>
+
+<script>
+(function() {
+let allSalaryGrades = [];
+
+function loadSalaryGrades() {
+  $.get('/api/salary_grades', function(data) {
+    allSalaryGrades = data;
+    renderSalaryGradeTable(data);
+    populateCalcDropdowns(data);
+  }).fail(function(err) {
+    console.error("Failed to load salary grades:", err);
+    $('#sgTableBody').html('<tr><td colspan="11" class="text-center py-4 text-danger">Failed to load salary grades schedule.</td></tr>');
+  });
+}
+
+function fmtCurrency(val) {
+  if (val === null || val === undefined || parseFloat(val) === 0) return '<span class="text-muted">—</span>';
+  return '₱' + parseFloat(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderSalaryGradeTable(grades) {
+  $('#sgRowCount').text(grades.length);
+  if (!grades || grades.length === 0) {
+    $('#sgTableBody').html('<tr><td colspan="11" class="text-center py-4 text-muted">No salary grade records found.</td></tr>');
+    return;
+  }
+
+  let html = '';
+  grades.forEach(g => {
+    let titleBadge = g.position_title 
+      ? `<span class="badge bg-amber-light text-amber border border-warning-subtle rounded-2 px-2 py-1">${g.position_title}</span>`
+      : '<span class="text-muted small">—</span>';
+
+    html += `
+      <tr>
+        <td class="ps-4 fw-bold text-navy font-monospace">SG ${g.salary_grade}</td>
+        <td>${titleBadge}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_1)}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_2)}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_3)}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_4)}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_5)}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_6)}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_7)}</td>
+        <td class="text-end font-monospace">${fmtCurrency(g.step_8)}</td>
+        <td class="pe-4 text-center">
+          <button class="btn btn-link p-1 text-navy" title="Edit Salary Grade" onclick="openEditModal(${g.salary_grade})">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+            </svg>
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+  $('#sgTableBody').html(html);
+}
+
+function filterSalaryGrades() {
+  let q = $('#searchSG').val().toLowerCase();
+  if (!q) {
+    renderSalaryGradeTable(allSalaryGrades);
+    return;
+  }
+  let filtered = allSalaryGrades.filter(g => {
+    let sgText = 'sg ' + g.salary_grade;
+    let posText = (g.position_title || '').toLowerCase();
+    return sgText.includes(q) || g.salary_grade.toString() === q || posText.includes(q);
+  });
+  renderSalaryGradeTable(filtered);
+}
+
+function openEditModal(sgNum) {
+  let g = allSalaryGrades.find(item => item.salary_grade === sgNum);
+  if (!g) return;
+
+  $('#editSGNum').val(g.salary_grade);
+  $('#editSGDisplay').val('SG ' + g.salary_grade);
+  $('#editSGPosition').val(g.position_title || '');
+  for (let i = 1; i <= 8; i++) {
+    $(`#editStep${i}`).val(g[`step_${i}`] || 0);
+  }
+  let modal = new bootstrap.Modal(document.getElementById('editSGModal'));
+  modal.show();
+}
+
+function saveSalaryGrade() {
+  let sg = $('#editSGNum').val();
+  let payload = {
+    position_title: $('#editSGPosition').val().trim() || null
+  };
+  for (let i = 1; i <= 8; i++) {
+    payload[`step_${i}`] = parseFloat($(`#editStep${i}`).val()) || 0;
+  }
+
+  $.ajax({
+    url: `/api/salary_grades/${sg}`,
+    type: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify(payload),
+    success: function(resp) {
+      bootstrap.Modal.getInstance(document.getElementById('editSGModal')).hide();
+      Swal.fire({ icon: 'success', title: 'Saved!', text: resp.message, timer: 1500, showConfirmButton: false });
+      loadSalaryGrades();
+    },
+    error: function(err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.error || 'Failed to update salary grade.' });
+    }
+  });
+}
+
+function reseedSalaryGrades() {
+  Swal.fire({
+    title: 'Reset to 3rd Tranche?',
+    text: 'This will reset all 33 Salary Grades to official government Third Tranche defaults.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#1e3a5f',
+    confirmButtonText: 'Yes, reset matrix'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      $.post('/api/salary_grades/reseed', function(resp) {
+        Swal.fire({ icon: 'success', title: 'Reseeded!', text: resp.message });
+        loadSalaryGrades();
+      });
+    }
+  });
+}
+
+function populateCalcDropdowns(grades) {
+  let options = '<option value="">Select SG...</option>';
+  grades.forEach(g => {
+    let label = `SG ${g.salary_grade}` + (g.position_title ? ` (${g.position_title})` : '');
+    options += `<option value="${g.salary_grade}">${label}</option>`;
+  });
+  $('#calcSG').html(options);
+}
+
+function openRateCalculatorModal() {
+  let modal = new bootstrap.Modal(document.getElementById('calcRateModal'));
+  modal.show();
+}
+
+function runRateCalculator() {
+  let sg = $('#calcSG').val();
+  let step = $('#calcStep').val();
+  if (!sg) return;
+
+  $.get(`/api/salary_grades/lookup?salary_grade=${sg}&step=${step}`, function(data) {
+    $('#calcMonthly').text('₱' + data.monthly_basic.toLocaleString('en-US', {minimumFractionDigits: 2}));
+    $('#calcDaily').text('₱' + data.daily_rate.toLocaleString('en-US', {minimumFractionDigits: 2}));
+    $('#calcHourly').text('₱' + data.hourly_rate.toLocaleString('en-US', {minimumFractionDigits: 2}));
+    $('#calcMin').text('₱' + data.per_min_rate.toFixed(4));
+  });
+}
+
+// Expose handlers globally
+window.openEditModal = openEditModal;
+window.saveSalaryGrade = saveSalaryGrade;
+window.reseedSalaryGrades = reseedSalaryGrades;
+window.openRateCalculatorModal = openRateCalculatorModal;
+window.runRateCalculator = runRateCalculator;
+window.filterSalaryGrades = filterSalaryGrades;
+
+loadSalaryGrades();
+})();
+</script>
+

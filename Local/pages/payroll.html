@@ -133,6 +133,24 @@
   .dtr-pill { font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
   .dtr-pill.full { background: var(--green-dim); color: var(--green); }
   .dtr-pill.absent { background: var(--red-dim); color: var(--red); }
+
+  @media (max-width: 768px) {
+    .pr-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+    .pr-toolbar .btn { width: 100%; justify-content: center; }
+    .pr-body { flex-direction: column; overflow-y: auto; }
+    .pr-left { width: 100%; min-width: 0; min-height: 45%; max-height: 45%; border-right: none; border-bottom: 1.5px solid var(--border); }
+    .pr-right { min-height: 55%; width: 100%; }
+    .list-container { padding: 0 14px 14px; }
+    .pr-detail-topbar { padding: 14px; flex-direction: column; align-items: flex-start; gap: 10px; }
+    .pr-summary { grid-template-columns: 1fr 1fr; padding: 14px; }
+    .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .drawer-panel { width: 100%; }
+    .modal-content, .payslip-modal-content { max-width: 95vw !important; margin: 10px; }
+    #payslipContent { min-width: 100%; padding: 12px !important; overflow-x: auto; }
+  }
+  @media (max-width: 480px) {
+    .pr-summary { grid-template-columns: 1fr; }
+  }
 </style>
 
 <div class="pr-page">
@@ -622,7 +640,8 @@
         <td class="num">${e.dtr_filed ? '<span class="dtr-pill full">OK</span>' : '<span class="dtr-pill absent">NO LOGS</span>'}</td>
         <td class="num amt-earn">${fmt(e.total_gross)}</td>
         <td class="num amt-deduct">${fmt(e.total_deduct)}</td>
-        <td class="num amt-net">${fmt(e.net_pay)}</td>
+        <td class="num amt-net">${fmt(e.net_pay)}${e.below_net_floor ? '<br><span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:9px;" title="Net Pay below DepEd ₱5,000 monthly threshold (₱2,500 semi-monthly)">Below ₱2.5k Floor</span>' : ''}</td>
+
         <td style="text-align:center;">
           <button onclick="event.stopPropagation();showPayslip('${e.id}')" title="View Payslip"
             style="background:var(--navy-light);border:1.5px solid #c5d8f5;border-radius:7px;padding:5px 10px;cursor:pointer;color:var(--navy-mid);font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;transition:all .15s;" onmouseover="this.style.background='var(--navy)';this.style.color='#fff'" onmouseout="this.style.background='var(--navy-light)';this.style.color='var(--navy-mid)'">
@@ -887,6 +906,15 @@
     })();
 
     $('#btnNewDoc').on('click', function () {
+      const now = new Date();
+      const curY = now.getFullYear();
+      const curM = now.getMonth() + 1;
+      const curH = now.getDate() <= 15 ? 1 : 2;
+
+      $('#npYear').val(curY);
+      $('#npMonth').val(curM);
+      $(`input[name="npHalf"][value="${curH}"]`).prop('checked', true);
+
       $('#npError').hide();
       $('#confirmNewPayroll').prop('disabled', false).html('<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> Generate Payroll');
       $('#newPayrollModal').addClass('open');
@@ -912,6 +940,12 @@
     });
 
     loadRuns();
+
+    window.addEventListener('pnchs:data-change', function() {
+      if (document.getElementById('docList') && !$('#newPayrollModal').hasClass('open')) {
+        loadRuns();
+      }
+    });
   })();
 </script>
 </div>

@@ -1,0 +1,894 @@
+<!-- ════ LOCAL BIOMETRIC FINGERPRINT ENROLLMENT SETUP ════ -->
+<style>
+  .enroll-page {
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 18px;
+    background: var(--bg);
+  }
+
+  /* Header Card */
+  .enroll-header-card {
+    background: linear-gradient(135deg, var(--navy) 0%, #203a5e 100%);
+    border-radius: 16px;
+    padding: 20px 24px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 6px 20px rgba(30, 58, 95, 0.12);
+    flex-shrink: 0;
+  }
+
+  .enroll-header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+    color: #fff;
+  }
+
+  .enroll-header-sub {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .scanner-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .status-dot-active {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+  }
+
+  /* Quick Summary Stats Grid */
+  .enroll-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .enroll-stat-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(30, 58, 95, 0.02);
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .stat-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.1;
+  }
+
+  .stat-txt {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+
+  /* Main Table Card */
+  .enroll-card {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .enroll-toolbar {
+    padding: 14px 20px;
+    border-bottom: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: var(--surface2);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    position: relative;
+    width: 300px;
+  }
+
+  .search-box svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted2);
+    pointer-events: none;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 7px 12px 7px 34px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    font-size: 12px;
+    outline: none;
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .search-box input:focus {
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.08);
+  }
+
+  .filter-select {
+    padding: 6px 12px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .table-container {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .table-container::-webkit-scrollbar { width: 5px; }
+  .table-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .enroll-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .enroll-table th {
+    position: sticky;
+    top: 0;
+    background: #f8fafc;
+    z-index: 5;
+    padding: 12px 18px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1.5px solid var(--border);
+    letter-spacing: 0.06em;
+  }
+
+  .enroll-table td {
+    padding: 12px 18px;
+    border-bottom: 1px solid rgba(226, 221, 214, 0.4);
+    font-size: 13px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  .enroll-table tr:hover td {
+    background: #fafaf8;
+  }
+
+  .emp-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .emp-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--navy-light);
+    color: var(--navy);
+    font-weight: 700;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid #dbeafe;
+  }
+
+  .finger-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .badge-registered {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  .btn-enroll-slot {
+    padding: 5px 11px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--navy);
+    background: var(--navy);
+    color: #fff;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: inherit;
+  }
+
+  .btn-enroll-slot:hover {
+    background: #2a4f80;
+    border-color: #2a4f80;
+    transform: translateY(-1px);
+  }
+
+  .btn-clear-slot {
+    padding: 3px 7px;
+    border-radius: 5px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  .btn-clear-slot:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  /* Modal Overlay */
+  .enroll-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .enroll-modal-overlay.open {
+    display: flex;
+  }
+
+  .enroll-modal-box {
+    background: #fff;
+    width: 100%;
+    max-width: 440px;
+    border-radius: 20px;
+    padding: 30px 26px;
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    animation: modalPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .scanner-anim-icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: #eff6ff;
+    border: 2px solid #bfdbfe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    color: var(--navy);
+    position: relative;
+  }
+
+  .step-progress-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 18px 0;
+  }
+
+  .progress-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    border: 2px solid #cbd5e1;
+    transition: all 0.3s;
+  }
+
+  .progress-dot.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    transform: scale(1.25);
+    box-shadow: 0 0 10px rgba(30, 58, 95, 0.3);
+  }
+
+  .progress-dot.done {
+    background: #10b981;
+    border-color: #10b981;
+  }
+
+  /* ── Setup Device Trap Overlay ── */
+  .setup-trap-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3500;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .setup-trap-overlay.show {
+    display: flex;
+  }
+
+  .setup-trap-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 460px;
+    border-radius: 20px;
+    padding: 34px 28px;
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+  }
+
+  .setup-trap-icon {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: #fef2f2;
+    border: 2px solid #fecaca;
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+
+  .setup-trap-status {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 11.5px;
+    color: var(--navy);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .trap-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(30, 58, 95, 0.2);
+    border-top-color: var(--navy);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+
+<div class="enroll-page">
+
+  <!-- Header Card -->
+  <div class="enroll-header-card">
+    <div>
+      <div class="enroll-header-title">Biometric Fingerprint Enrollment</div>
+      <div class="enroll-header-sub">Enroll and manage up to 3 biometric fingerprint templates per employee on the hardware USB scanner.</div>
+    </div>
+    <div class="header-actions">
+      <div class="scanner-status-pill">
+        <span class="status-dot-active"></span>
+        <span id="scannerStatusText">USB Scanner Ready</span>
+      </div>
+      <button class="btn btn-sm btn-outline-light" onclick="loadEnrollmentList()" style="border-radius:8px; font-weight:600; padding:6px 12px; display:inline-flex; align-items:center; gap:5px;">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Metric Stats -->
+  <div class="enroll-stats-grid">
+    <div class="enroll-stat-card">
+      <div class="stat-icon" style="background:#eff6ff; color:#2563eb;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      </div>
+      <div>
+        <div class="stat-val" id="statTotalEmp">0</div>
+        <div class="stat-txt">Total Employees</div>
+      </div>
+    </div>
+
+    <div class="enroll-stat-card">
+      <div class="stat-icon" style="background:#ecfdf5; color:#059669;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      </div>
+      <div>
+        <div class="stat-val" id="statEnrolledEmp" style="color:#059669;">0</div>
+        <div class="stat-txt">Biometrics Enrolled</div>
+      </div>
+    </div>
+
+    <div class="enroll-stat-card">
+      <div class="stat-icon" style="background:#fff7ed; color:#ea580c;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <div>
+        <div class="stat-val" id="statPendingEmp" style="color:#ea580c;">0</div>
+        <div class="stat-txt">Pending Setup</div>
+      </div>
+    </div>
+
+    <div class="enroll-stat-card">
+      <div class="stat-icon" style="background:#faf5ff; color:#7c3aed;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>
+      </div>
+      <div>
+        <div class="stat-val" id="statTemplatesTotal" style="color:#7c3aed;">0</div>
+        <div class="stat-txt">Total Stored Slots</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Table Card -->
+  <div class="enroll-card">
+    <div class="enroll-toolbar">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="search-box">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="enrollSearch" placeholder="Search employee name or ID…" oninput="filterEnrollList()">
+        </div>
+        <select id="enrollStatusFilter" class="filter-select" onchange="filterEnrollList()">
+          <option value="all">All Biometric Status</option>
+          <option value="enrolled">Enrolled (Any Slot)</option>
+          <option value="pending">Pending (No Slots)</option>
+        </select>
+      </div>
+      <div class="text-muted small">
+        Showing <span id="enrollCount" class="fw-bold text-navy">0</span> staff records
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="enroll-table">
+        <thead>
+          <tr>
+            <th style="width: 280px;">Employee</th>
+            <th>Designation / Dept</th>
+            <th style="text-align:center; width: 170px;">Slot 1 (Primary)</th>
+            <th style="text-align:center; width: 170px;">Slot 2 (Secondary)</th>
+            <th style="text-align:center; width: 170px;">Slot 3 (Backup)</th>
+          </tr>
+        </thead>
+        <tbody id="enrollTableBody">
+          <tr><td colspan="5" class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div> Loading employee biometric directory…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- Live Enrollment Modal Overlay -->
+<div class="enroll-modal-overlay" id="localEnrollModal">
+  <div class="enroll-modal-box">
+    <div class="scanner-anim-icon" id="localScannerIcon">
+      <svg width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/>
+      </svg>
+    </div>
+    
+    <h5 class="fw-bold mb-1 text-navy" id="localEnrollTitle">Initializing USB Scanner…</h5>
+    <p class="text-muted small mb-2" id="localEnrollEmpName">–</p>
+    <p class="small text-navy fw-medium" id="localEnrollMsg">Please place finger on the USB scanner sensor...</p>
+
+    <!-- 3 Scan Progress Dots -->
+    <div class="step-progress-dots">
+      <div class="progress-dot" id="dot1"></div>
+      <div class="progress-dot" id="dot2"></div>
+      <div class="progress-dot" id="dot3"></div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <button class="btn btn-sm btn-outline-secondary w-100" onclick="cancelLocalEnrollment()" style="border-radius:9px; font-weight:600; padding:8px;">Cancel Registration</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Hardware Disconnected Trap Overlay for FP Setup -->
+<div class="setup-trap-overlay" id="setupTrapOverlay">
+  <div class="setup-trap-card">
+    <div class="setup-trap-icon">
+      <svg width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+    </div>
+    <h4 class="fw-bold text-navy mb-2">Fingerprint Scanner Device Not Detected</h4>
+    <p class="text-muted small mb-3">Biometric Fingerprint Setup requires a physical ZKTeco USB reader connected to this station to register or clear staff fingerprints.</p>
+    
+    <div class="setup-trap-status mb-4">
+      <span class="trap-spinner"></span>
+      <span id="setupTrapMsg">Polling USB biometric reader status...</span>
+    </div>
+
+    <button class="btn btn-primary w-100" onclick="checkScannerStatus()" style="border-radius:10px; font-weight:600; padding:10px;">Re-check Scanner Connection</button>
+  </div>
+</div>
+
+
+<script>
+(function() {
+  let allEmployees = [];
+  let currentEmpId = null;
+  let currentFingerIndex = 1;
+  let enrollPollTimer = null;
+  let lastSeenStep = 0;
+  let countdownActive = false;
+  let deviceCheckTimer = null;
+
+  function loadEnrollmentList() {
+    $.get('/api/employees', function(employees) {
+      allEmployees = employees || [];
+      updateSummaryCounts(allEmployees);
+      renderEnrollTable(allEmployees);
+    }).fail(function() {
+      $('#enrollTableBody').html('<tr><td colspan="5" class="text-center py-5 text-danger fw-bold">Failed to load employee list. Verify database connection.</td></tr>');
+    });
+  }
+
+  function updateSummaryCounts(employees) {
+    const total = employees.length;
+    let enrolledCount = 0;
+    let totalTemplates = 0;
+
+    employees.forEach(e => {
+      const slots = e.enrolled_fingers || [];
+      if (slots.length > 0) {
+        enrolledCount++;
+        totalTemplates += slots.length;
+      }
+    });
+
+    $('#statTotalEmp').text(total);
+    $('#statEnrolledEmp').text(enrolledCount);
+    $('#statPendingEmp').text(total - enrolledCount);
+    $('#statTemplatesTotal').text(totalTemplates);
+  }
+
+  function renderEnrollTable(employees) {
+    const uniqueMap = new Map();
+    (employees || []).forEach(emp => {
+      if (emp && emp.id && !uniqueMap.has(emp.id)) {
+        uniqueMap.set(emp.id, emp);
+      }
+    });
+    const uniqueEmployees = Array.from(uniqueMap.values());
+
+    $('#enrollCount').text(uniqueEmployees.length);
+    if (!uniqueEmployees.length) {
+      $('#enrollTableBody').html(`
+        <tr>
+          <td colspan="5" class="text-center py-5 text-muted">
+            <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.4; margin-bottom:8px;"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+            <div class="fw-bold text-navy">No matching staff found</div>
+            <div class="small">Try adjusting your search keywords.</div>
+          </td>
+        </tr>
+      `);
+      return;
+    }
+
+    let html = '';
+    uniqueEmployees.forEach(emp => {
+      const enrolled = emp.enrolled_fingers || [];
+      const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Staff Member';
+      const initials = (emp.first_name ? emp.first_name[0] : '') + (emp.last_name ? emp.last_name[0] : '');
+
+      function renderSlot(slotNum) {
+        if (enrolled.includes(slotNum)) {
+          return `
+            <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+              <span class="finger-badge badge-registered">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Slot ${slotNum}: Enrolled
+              </span>
+              <button class="btn-clear-slot" title="Delete Fingerprint Slot ${slotNum}" onclick="clearFinger('${emp.id}', ${slotNum})">Clear</button>
+            </div>
+          `;
+        } else {
+          return `
+            <button class="btn-enroll-slot" onclick="startLocalEnroll('${emp.id}', '${fullName.replace(/'/g, "\\'")}', ${slotNum})">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m-8-8h16"/></svg>
+              Enroll Slot ${slotNum}
+            </button>
+          `;
+        }
+      }
+
+      html += `
+        <tr>
+          <td>
+            <div class="emp-cell">
+              <div class="emp-avatar">${initials || 'EM'}</div>
+              <div>
+                <div class="fw-bold text-navy" style="font-size:13.5px;">${fullName}</div>
+                <div class="text-muted small" style="font-size:11px;">ID: ${emp.id}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight:600; color:var(--text);">${emp.designation || 'Staff'}</div>
+            <div class="text-muted small">${emp.department || 'General'}</div>
+          </td>
+          <td style="text-align:center;">${renderSlot(1)}</td>
+          <td style="text-align:center;">${renderSlot(2)}</td>
+          <td style="text-align:center;">${renderSlot(3)}</td>
+        </tr>
+      `;
+    });
+
+    $('#enrollTableBody').html(html);
+  }
+
+  function filterEnrollList() {
+    const q = ($('#enrollSearch').val() || '').toLowerCase().trim();
+    const statusFilter = $('#enrollStatusFilter').val();
+
+    let filtered = allEmployees;
+
+    if (statusFilter === 'enrolled') {
+      filtered = filtered.filter(e => (e.enrolled_fingers || []).length > 0);
+    } else if (statusFilter === 'pending') {
+      filtered = filtered.filter(e => (e.enrolled_fingers || []).length === 0);
+    }
+
+    if (q) {
+      filtered = filtered.filter(e => {
+        const name = `${e.first_name || ''} ${e.last_name || ''}`.toLowerCase();
+        const id = String(e.id || '').toLowerCase();
+        const des = (e.designation || '').toLowerCase();
+        const dept = (e.department || '').toLowerCase();
+        return name.includes(q) || id.includes(q) || des.includes(q) || dept.includes(q);
+      });
+    }
+
+    renderEnrollTable(filtered);
+  }
+
+  function startLocalEnroll(empId, empName, fingerIndex) {
+    $.get('/api/attendance/poll', function(res) {
+      if (!res || res.status !== 'running') {
+        $('#setupTrapOverlay').addClass('show');
+        return;
+      }
+
+      currentEmpId = empId;
+      currentFingerIndex = fingerIndex;
+      lastSeenStep = 0;
+      countdownActive = false;
+
+      $('#localEnrollEmpName').text(`${empName} (ID: ${empId}) — Slot ${fingerIndex}`);
+      $('#localEnrollTitle').text('Ready to Scan');
+      $('#localEnrollMsg').text('Touch USB scanner sensor with finger (1 of 3)...');
+      updateDots(1);
+
+      $('#localScannerIcon svg').css('color', 'var(--navy)');
+      $('#localEnrollModal').addClass('open');
+
+      $.post(`/api/fingerprint/enroll/${empId}/${fingerIndex}`, function() {
+        if (enrollPollTimer) clearInterval(enrollPollTimer);
+        enrollPollTimer = setInterval(pollLocalEnrollStatus, 600);
+      }).fail(function(err) {
+        Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.error || 'Failed to start scanner.' });
+        $('#localEnrollModal').removeClass('open');
+      });
+    }).fail(function() {
+      $('#setupTrapOverlay').addClass('show');
+    });
+  }
+
+  function updateDots(step) {
+    $('.progress-dot').removeClass('active done');
+    if (step >= 1) $('#dot1').addClass(step > 1 ? 'done' : 'active');
+    if (step >= 2) $('#dot2').addClass(step > 2 ? 'done' : 'active');
+    if (step >= 3) $('#dot3').addClass(step > 3 ? 'done' : 'active');
+  }
+
+  function showRecalibrationCountdown(nextScanNum) {
+    if (countdownActive) return;
+    countdownActive = true;
+    let remaining = 3;
+
+    function tick() {
+      if (remaining > 0) {
+        $('#localEnrollTitle').text('Recalibrating Sensor...');
+        $('#localEnrollMsg').html(`<span style="font-size:1.8rem;font-weight:700;color:#f59e0b">${remaining}</span><br>Lift finger and wait before next scan`);
+        $('#localScannerIcon svg').css('color', '#f59e0b');
+        remaining--;
+        setTimeout(tick, 1000);
+      } else {
+        $('#localEnrollTitle').text(`Scanning (Press ${nextScanNum} of 3)`);
+        $('#localEnrollMsg').text('Touch USB scanner sensor with finger...');
+        $('#localScannerIcon svg').css('color', 'var(--navy)');
+        countdownActive = false;
+      }
+    }
+    tick();
+  }
+
+  function pollLocalEnrollStatus() {
+    $.get('/api/fingerprint/enroll_status', function(res) {
+      if (!res) return;
+
+      if (res.status === 'enrolling') {
+        const step = res.step || 1;
+        updateDots(step);
+
+        if (step > lastSeenStep && lastSeenStep > 0 && step <= 3) {
+          lastSeenStep = step;
+          showRecalibrationCountdown(step);
+        } else {
+          lastSeenStep = step;
+          if (!countdownActive) {
+            $('#localEnrollTitle').text(`Scanning (Press ${step} of 3)`);
+            $('#localEnrollMsg').text(res.message || 'Touch sensor with finger...');
+          }
+        }
+      } else if (res.status === 'success') {
+        clearInterval(enrollPollTimer);
+        enrollPollTimer = null;
+        lastSeenStep = 0;
+        updateDots(3);
+        $('#dot1, #dot2, #dot3').addClass('done');
+        $('#localEnrollTitle').text('Enrollment Successful!');
+        $('#localEnrollMsg').text('Fingerprint merged & stored successfully.');
+        $('#localScannerIcon svg').css('color', '#10b981');
+
+        setTimeout(() => {
+          $('#localEnrollModal').removeClass('open');
+          loadEnrollmentList();
+        }, 1400);
+      } else if (res.status === 'error') {
+        clearInterval(enrollPollTimer);
+        enrollPollTimer = null;
+        lastSeenStep = 0;
+        $('#localEnrollTitle').text('Enrollment Error');
+        $('#localEnrollMsg').text(res.error || 'Fingerprint registration failed.');
+        $('#localScannerIcon svg').css('color', 'var(--red)');
+      }
+    });
+  }
+
+  function cancelLocalEnrollment() {
+    if (enrollPollTimer) {
+      clearInterval(enrollPollTimer);
+      enrollPollTimer = null;
+    }
+    $.post('/api/fingerprint/enroll_cancel', function() {
+      $('#localEnrollModal').removeClass('open');
+    });
+  }
+
+  function clearFinger(empId, fingerIndex) {
+    Swal.fire({
+      title: 'Clear Fingerprint Slot?',
+      text: `Remove Finger Slot ${fingerIndex} for Employee ID ${empId}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      confirmButtonText: 'Yes, clear slot'
+    }).then(result => {
+      if (result.isConfirmed) {
+        $.ajax({
+          url: `/api/fingerprint/clear/${empId}/${fingerIndex}`,
+          type: 'DELETE',
+          success: function() {
+            Swal.fire({ icon: 'success', title: 'Cleared', showConfirmButton: false, timer: 1000 });
+            loadEnrollmentList();
+          },
+          error: function(err) {
+            Swal.fire({ icon: 'error', title: 'Error', text: err.responseJSON?.error || 'Failed to clear fingerprint.' });
+          }
+        });
+      }
+    });
+  }
+
+  function checkScannerStatus() {
+    $.get('/api/attendance/poll', function(res) {
+      if (res && res.status === 'running') {
+        $('#setupTrapOverlay').removeClass('show');
+        $('#scannerStatusText').text('USB Scanner Ready').css('color', '#fff');
+        $('.status-dot-active').css({ background: '#10b981', boxShadow: '0 0 8px #10b981' });
+      } else {
+        $('#setupTrapOverlay').addClass('show');
+        $('#scannerStatusText').text('Scanner Disconnected').css('color', '#fca5a5');
+        $('.status-dot-active').css({ background: '#ef4444', boxShadow: '0 0 8px #ef4444' });
+      }
+    }).fail(function() {
+      $('#setupTrapOverlay').addClass('show');
+    });
+  }
+
+  window.startLocalEnroll = startLocalEnroll;
+  window.filterEnrollList = filterEnrollList;
+  window.cancelLocalEnrollment = cancelLocalEnrollment;
+  window.clearFinger = clearFinger;
+  window.checkScannerStatus = checkScannerStatus;
+  window.loadEnrollmentList = loadEnrollmentList;
+
+  loadEnrollmentList();
+  checkScannerStatus();
+  deviceCheckTimer = setInterval(checkScannerStatus, 3000);
+})();
+</script>

@@ -1,9 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
-from routes import employee_bp, dtr_bp, payroll_bp, fingerprint_bp, attendance_bp, registry_bp, dashboard_bp
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, jsonify
+from routes import employee_bp, dtr_bp, payroll_bp, fingerprint_bp, attendance_bp, registry_bp, salary_grade_bp, dashboard_bp
 import os
 
 app = Flask(__name__)
 app.secret_key = 'paycore-secret-2026'
+app.url_map.strict_slashes = False
+
+@app.after_request
+def add_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 # Register blueprints
 app.register_blueprint(employee_bp)
@@ -12,15 +23,10 @@ app.register_blueprint(payroll_bp)
 app.register_blueprint(fingerprint_bp)
 app.register_blueprint(attendance_bp)
 app.register_blueprint(registry_bp)
+app.register_blueprint(salary_grade_bp)
 app.register_blueprint(dashboard_bp)
 
-# DB Initialization & Real-Time Biometric Scanner Start
-try:
-    from init_db import init
-    init()
-except Exception as e:
-    pass
-
+# Real-Time Biometric Scanner Start
 try:
     from scanner_manager import start_device_thread
     start_device_thread()
@@ -51,7 +57,7 @@ scanner_portal = kiosk
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user' in session:
-        if session['user'].get('role') in ['Admin', 'HR', 'HR Officer']:
+        if session['user'].get('role') in ['Admin', 'Principal', 'HR', 'HR Officer']:
             return redirect(url_for('enrollment'))
         return redirect(url_for('kiosk'))
 
@@ -62,7 +68,6 @@ def login():
         authenticated_user = None
         auth_error = 'Invalid admin credentials. Please verify your username and password.'
 
-        # 1. Try Local MySQL DB first if reachable
         try:
             from db import db_cursor
             with db_cursor() as (conn, cur):
@@ -74,10 +79,6 @@ def login():
                 """, (email, password))
                 emp = cur.fetchone()
                 if emp:
-                    if emp['role'] not in ['Admin', 'HR', 'HR Officer']:
-                        flash('Access Denied: Fingerprint setup is strictly restricted to Authorized Admin/HR personnel.', 'error')
-                        return render_template('login.html')
-
                     display_name = emp['fallback_name']
                     if emp['first_name'] and emp['last_name']:
                         display_name = f"{emp['first_name']} {emp['last_name']}"
@@ -89,33 +90,13 @@ def login():
                         'employee_id': emp['employee_id']
                     }
         except Exception as local_db_err:
-            print(f"[AUTH] Local DB check notice ({local_db_err}), checking Cloud API...")
-
-        # 2. If not authenticated locally (e.g. on another laptop without MySQL), check Cloud API
-        if not authenticated_user:
-            try:
-                import requests
-                cloud_url = os.environ.get('CLOUD_API_URL', 'http://187.52.121.22:8080')
-                resp = requests.post(f"{cloud_url}/api/fingerprint/verify_admin", json={
-                    'username': email,
-                    'password': password
-                }, timeout=6)
-
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if data.get('success') and data.get('user'):
-                        authenticated_user = data['user']
-                elif resp.status_code == 403:
-                    flash('Access Denied: Fingerprint setup is strictly restricted to Authorized Admin/HR personnel.', 'error')
-                    return render_template('login.html')
-                elif resp.status_code == 401:
-                    auth_error = 'Invalid admin credentials. Please verify your username and password.'
-            except Exception as cloud_err:
-                print(f"[AUTH] Cloud verification notice: {cloud_err}")
+            print(f"[AUTH] Database error: {local_db_err}")
 
         if authenticated_user:
             session['user'] = authenticated_user
-            return redirect(url_for('enrollment'))
+            if authenticated_user.get('role') in ['Admin', 'Principal', 'HR', 'HR Officer']:
+                return redirect(url_for('enrollment'))
+            return redirect(url_for('kiosk'))
 
         flash(auth_error, 'error')
 
@@ -125,8 +106,7 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return redirect(url_for('enrollment'))
-
+    return render_template('index.html', user=session['user'], initial_page='/pages/dashboard.html', title='Dashboard')
 
 
 # Serve page fragments loaded dynamically via jQuery $.load()
@@ -140,18 +120,74 @@ def pages(filename):
 @app.route('/employees')
 @login_required
 def employees():
-    if session['user'].get('role') != 'HR':
-        return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/employee.html', title='Employees')
 
 
 @app.route('/enrollment')
 @login_required
 def enrollment():
-    if session['user'].get('role') not in ['Admin', 'HR', 'HR Officer']:
-        flash('Access Restricted: Authorized Admin or HR credentials required.', 'error')
-        return redirect(url_for('login'))
     return render_template('index.html', user=session['user'], initial_page='/pages/enrollment.html', title='Biometric Fingerprint Setup')
+
+
+@app.route('/payroll')
+@login_required
+def payroll():
+    return render_template('index.html', user=session['user'], initial_page='/pages/payroll.html', title='Payroll Processing')
+
+
+@app.route('/payroll_approvals')
+@login_required
+def payroll_approvals():
+    return render_template('index.html', user=session['user'], initial_page='/pages/payroll_approval.html', title='Payroll Approvals')
+
+
+@app.route('/holidays')
+@login_required
+def holidays():
+    return render_template('index.html', user=session['user'], initial_page='/pages/holidays.html', title='Holiday Calendar')
+
+
+@app.route('/leaves')
+@login_required
+def leaves():
+    return render_template('index.html', user=session['user'], initial_page='/pages/leaves.html', title='Leave Management')
+
+
+@app.route('/salary_grades')
+@login_required
+def salary_grades():
+    return render_template('index.html', user=session['user'], initial_page='/pages/salary_grades.html', title='Salary Grade Management')
+
+
+@app.route('/dtr')
+@login_required
+def dtr():
+    return render_template('index.html', user=session['user'], initial_page='/pages/dtr.html', title='DTR')
+
+
+@app.route('/mypayslip')
+@login_required
+def mypayslip():
+    return render_template('index.html', user=session['user'], initial_page='/pages/mypayslip.html', title='My Payslip')
+
+
+@app.route('/payroll_report')
+@login_required
+def payroll_report():
+    return render_template('index.html', user=session['user'], initial_page='/pages/payroll_report.html', title='Payroll Report')
+
+
+@app.route('/registry')
+@login_required
+def registry():
+    return render_template('index.html', user=session['user'], initial_page='/pages/registry.html', title='Global Registry')
+
+
+@app.route('/api/auth/me')
+@login_required
+def auth_me():
+    return jsonify(session.get('user', {}))
+
 
 @app.route('/logout')
 def logout():

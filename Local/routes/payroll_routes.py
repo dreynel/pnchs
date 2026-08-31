@@ -4,6 +4,14 @@ from mysql.connector import Error
 from db import db_cursor
 from datetime import date, timedelta, datetime
 import calendar
+from services.policy_engine import (
+    RateCalculationService,
+    AttendancePolicyService,
+    LeavePolicyService,
+    PayrollPolicyService,
+    HabitualTardinessService,
+    AuditService
+)
 
 payroll_bp = Blueprint('payroll', __name__, url_prefix='/api/payroll')
 
@@ -17,28 +25,29 @@ def _get_statutory_configs(cur):
 
 def compute_dynamic_statutory_deductions(monthly_basic, configs):
     """
-    Processes all statutory deductions in tblstatutory_registry dynamically.
-    Returns MONTHLY totals. Callers must split for semi-monthly runs.
+    Processes official Philippine DepEd government statutory deductions.
+    Returns MONTHLY employee contribution amounts.
     """
-    deductions = {}
-    for key, cfg in configs.items():
-        # Skip special internal keys
-        if key.endswith('_ENABLED') or key == 'BIR_TABLE' or key == 'WITHHOLDING_TAX':
-            continue
-        
-        val = float(cfg.get('value') or 0)
-        mode = cfg.get('mode', 'Amount')
-        
-        if mode == 'Percentage':
-            # Safety check: Prevent percentages from exceeding 100% accidentally
-            safe_val = min(val, 100.0)
-            # Calculate x% of monthly basic
-            deductions[key] = round((safe_val / 100) * monthly_basic, 2)
-        else:
-            # Fixed monthly amount
-            deductions[key] = val
-            
-    return deductions
+    # 1. GSIS Personal Share (9% of basic salary)
+    gsis_cfg = configs.get('GSIS_EE_RATE', {})
+    gsis_rate = float(gsis_cfg.get('value') or 0.09)
+    gsis_ee = round(monthly_basic * gsis_rate, 2)
+
+    # 2. PhilHealth Personal Share (2.5% of basic salary, capped at ₱100k salary / ₱2,500 EE share, floor ₱10k salary / ₱250 EE share)
+    phic_cfg = configs.get('PHILHEALTH_EE_RATE', {})
+    phic_rate = float(phic_cfg.get('value') or 0.025)
+    effective_phic_salary = max(10000.0, min(monthly_basic, 100000.0))
+    philhealth_ee = round(effective_phic_salary * phic_rate, 2)
+
+    # 3. Pag-IBIG Personal Share (₱200.00 monthly cap)
+    pagibig_cfg = configs.get('PAGIBIG_EE_AMOUNT', {})
+    pagibig_ee = float(pagibig_cfg.get('value') or 200.00)
+
+    return {
+        'GSIS': gsis_ee,
+        'PHILHEALTH': philhealth_ee,
+        'PAGIBIG': pagibig_ee
+    }
 
 # BIR TRAIN Law — Semi-monthly withholding tax table (2023 onwards)
 # (min_taxable_income_semi_monthly, base_tax, excess_over, marginal_rate)
@@ -251,7 +260,8 @@ def create_run():
 
                 # ── Attendance logs ───────────────────────────────────────────
                 cur.execute("""
-                    SELECT work_date, am_time_in, am_time_out, pm_time_in, pm_time_out
+                    SELECT log_id, work_date, am_time_in, am_time_out, pm_time_in, pm_time_out,
+                           actual_classroom_teaching_minutes, teaching_related_minutes, teaching_related_approved
                     FROM tbltime_logs
                     WHERE employee_id = %s AND work_date BETWEEN %s AND %s
                 """, (emp_id, start_date, end_date))
@@ -260,10 +270,43 @@ def create_run():
                 logged_dates     = {log['work_date'] for log in logs}
                 total_late_min   = 0
                 total_under_min  = 0
+                vl_late_min      = 0
+                vl_under_min     = 0
+                lwop_late_min    = 0
+                lwop_under_min   = 0
+
+                # Check policy effective date
+                apply_deped_policy = PayrollPolicyService.check_policy_effective_date(cur, end_date)
+
+                emp_type = emp.get('employee_type', 'NON_TEACHING')
+                desig    = emp.get('designation', '')
+
                 for log in logs:
-                    l, u = _get_late_and_undertime(log, emp['designation'])
+                    res = AttendancePolicyService.calculate_tardiness_and_undertime(
+                        emp_type, desig,
+                        log['am_time_in'], log['am_time_out'],
+                        log['pm_time_in'], log['pm_time_out'],
+                        actual_classroom_minutes=log.get('actual_classroom_teaching_minutes') or 0,
+                        teaching_related_minutes=log.get('teaching_related_minutes') or 0,
+                        teaching_related_approved=bool(log.get('teaching_related_approved', 1))
+                    )
+                    l = res['tardiness_minutes']
+                    u = res['undertime_minutes']
                     total_late_min  += l
                     total_under_min += u
+
+                    if apply_deped_policy:
+                        ref_id = f"LOG-{log['log_id']}"
+                        proc = LeavePolicyService.process_tardiness_and_undertime(
+                            cur, emp_id, log['work_date'], l, u, reference_id=ref_id, user_name='PayrollEngine'
+                        )
+                        vl_late_min    += proc['vl_tardiness_minutes']
+                        vl_under_min   += proc['vl_undertime_minutes']
+                        lwop_late_min  += proc['lwop_tardiness_minutes']
+                        lwop_under_min += proc['lwop_undertime_minutes']
+                    else:
+                        lwop_late_min  += l
+                        lwop_under_min += u
 
                 # ── Approved leaves (excluded from absent count) ───────────────
                 approved_leave_dates = get_approved_leave_dates(cur, emp_id, start_date, end_date)
@@ -278,9 +321,14 @@ def create_run():
 
                 absent_days      = max(0, expected_work_days - effective_present)
                 absent_deduction = absent_days * daily_rate
-                tardiness_deduction  = total_late_min  * per_min_rate
-                undertime_deduction  = total_under_min * per_min_rate
 
+                if apply_deped_policy:
+                    # ONLY unpaid (LWOP) tardiness and undertime result in salary deduction!
+                    tardiness_deduction  = round(lwop_late_min  * per_min_rate, 2)
+                    undertime_deduction  = round(lwop_under_min * per_min_rate, 2)
+                else:
+                    tardiness_deduction  = round(total_late_min  * per_min_rate, 2)
+                    undertime_deduction  = round(total_under_min * per_min_rate, 2)
 
                 # ── Dynamic Statutory Deductions (monthly → semi-monthly split) ───────
                 monthly_stat_deductions = compute_dynamic_statutory_deductions(basic_salary, configs)
@@ -334,14 +382,18 @@ def create_run():
                     (period_key, employee_id, basic_salary, half_basic, other_earnings, holiday_pay,
                      other_deductions, daily_rate, absent_days, absent_deduction,
                      late_minutes, undertime_minutes,
+                     vl_tardiness_minutes, vl_undertime_minutes,
+                     lwop_tardiness_minutes, lwop_undertime_minutes,
                      tardiness_deduction, undertime_deduction,
                      sss_ee, philhealth_ee, pagibig_ee, withholding_tax,
                      statutory_json, payheads_json,
                      total_gross, total_deduct, net_pay, is_negative, dtr_filed)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """, (period_key, emp_id, basic_salary, half_basic, half_earnings, holiday_pay,
                       half_deductions, daily_rate, absent_days, absent_deduction,
                       total_late_min, total_under_min,
+                      vl_late_min, vl_under_min,
+                      lwop_late_min, lwop_under_min,
                       tardiness_deduction, undertime_deduction,
                       gsis_ee, philhealth_ee, pagibig_ee, withholding_tax,
                       stat_json, json.dumps(payhead_breakdown),
@@ -422,8 +474,10 @@ def process_payroll():
                     'total_deduct':       f('total_deduct'),
                     'net_pay':            f('net_pay'),
                     'is_negative':        bool(rec.get('is_negative', 0)),
+                    'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
                     'dtr_filed':          bool(rec.get('dtr_filed', 0)),
                 })
+
                 gGross  += f('total_gross')
                 gDeduct += f('total_deduct')
                 gNet    += f('net_pay')
@@ -812,3 +866,259 @@ def review_leave(lid):
             return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LEAVE BALANCES & AUDIT TRANSACTIONS API
+# ══════════════════════════════════════════════════════════════════════════════
+
+@payroll_bp.route('/leave_balances', methods=['GET'])
+def get_leave_balances():
+    from flask import session
+    from services.policy_engine import LeavePolicyService
+    user = session.get('user', {})
+    role = user.get('role')
+
+    try:
+        with db_cursor() as (conn, cur):
+            if role == 'Employee':
+                emp_id = user.get('employee_id')
+                cur.execute("""
+                    SELECT b.*, e.first_name, e.last_name
+                    FROM tblleave_balances b
+                    JOIN tblemployee e ON b.employee_id = e.employee_id
+                    WHERE b.employee_id = %s
+                """, (emp_id,))
+            else:
+                cur.execute("""
+                    SELECT b.*, e.first_name, e.last_name
+                    FROM tblleave_balances b
+                    JOIN tblemployee e ON b.employee_id = e.employee_id
+                    ORDER BY e.last_name, e.first_name
+                """)
+            rows = cur.fetchall()
+
+            res = []
+            for r in rows:
+                vl = int(r['vl_minutes'])
+                sl = int(r['sl_minutes'])
+                res.append({
+                    'employee_id':  r['employee_id'],
+                    'emp_name':     f"{r['first_name']} {r['last_name']}",
+                    'vl_minutes':   vl,
+                    'sl_minutes':   sl,
+                    'vl_formatted': LeavePolicyService.format_minutes_to_dhm(vl),
+                    'sl_formatted': LeavePolicyService.format_minutes_to_dhm(sl),
+                    'updated_at':   r['updated_at'].strftime('%Y-%m-%d %H:%M:%S') if r['updated_at'] else None
+                })
+            return jsonify(res)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@payroll_bp.route('/leave_balances/adjust', methods=['POST'])
+def adjust_leave_balance():
+    from flask import session
+    from services.policy_engine import AuditService, LeavePolicyService
+    user = session.get('user', {})
+    if user.get('role') not in ['Admin', 'HR']:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json or {}
+    emp_id     = data.get('employee_id')
+    leave_type = data.get('leave_type', 'VL').upper()
+    adj_mode   = data.get('mode', 'ADD')
+    try:
+        minutes = int(data.get('minutes', 0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid minutes value'}), 400
+    reason     = data.get('reason', 'Manual Balance Adjustment').strip()
+
+    if not emp_id or minutes < 0:
+        return jsonify({'error': 'employee_id and non-negative minutes are required.'}), 400
+
+    try:
+        with db_cursor(commit=True) as (conn, cur):
+            cur.execute("SELECT vl_minutes, sl_minutes FROM tblleave_balances WHERE employee_id=%s", (emp_id,))
+            row = cur.fetchone()
+            if not row:
+                cur.execute("INSERT INTO tblleave_balances (employee_id, vl_minutes, sl_minutes) VALUES (%s, 4800, 4800)", (emp_id,))
+                current_vl, current_sl = 4800, 4800
+            else:
+                current_vl, current_sl = row['vl_minutes'], row['sl_minutes']
+
+            target_val = current_vl if leave_type == 'VL' else current_sl
+
+            if adj_mode == 'ADD':
+                new_val = target_val + minutes
+                tx_type = 'ACCRUAL'
+                tx_mins = minutes
+            elif adj_mode == 'DEDUCT':
+                new_val = max(0, target_val - minutes)
+                tx_type = 'DEDUCTION'
+                tx_mins = minutes
+            else: # SET
+                new_val = minutes
+                diff = minutes - target_val
+                tx_type = 'ADJUSTMENT'
+                tx_mins = abs(diff)
+
+            if leave_type == 'VL':
+                cur.execute("UPDATE tblleave_balances SET vl_minutes=%s WHERE employee_id=%s", (new_val, emp_id))
+            else:
+                cur.execute("UPDATE tblleave_balances SET sl_minutes=%s WHERE employee_id=%s", (new_val, emp_id))
+
+            today_str = date.today().strftime('%Y-%m-%d')
+            cur.execute("""
+                INSERT INTO tblleave_transactions
+                (employee_id, date, leave_type, minutes, transaction_type, source, reference_id, remarks, created_by)
+                VALUES (%s, %s, %s, %s, %s, 'MANUAL_ADJUSTMENT', 'HR_ADJ', %s, %s)
+            """, (emp_id, today_str, leave_type, tx_mins, tx_type, reason, user.get('name', 'HR')))
+
+            AuditService.log_action(
+                cur, action='LEAVE_BALANCE_ADJUSTED', employee_id=emp_id, user_name=user.get('name', 'HR'),
+                target_table='tblleave_balances', target_id=emp_id,
+                old_value=f"{leave_type}: {target_val} mins", new_value=f"{leave_type}: {new_val} mins", reason=reason
+            )
+
+        return jsonify({'success': True, 'new_balance': new_val, 'formatted': LeavePolicyService.format_minutes_to_dhm(new_val)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@payroll_bp.route('/leave_transactions', methods=['GET'])
+def get_leave_transactions():
+    from flask import session
+    user = session.get('user', {})
+    role = user.get('role')
+    emp_id_param = request.args.get('employee_id', '').strip()
+
+    try:
+        with db_cursor() as (conn, cur):
+            if role == 'Employee':
+                emp_id = user.get('employee_id')
+                cur.execute("""
+                    SELECT t.*, e.first_name, e.last_name
+                    FROM tblleave_transactions t
+                    JOIN tblemployee e ON t.employee_id = e.employee_id
+                    WHERE t.employee_id = %s
+                    ORDER BY t.created_at DESC
+                """, (emp_id,))
+            elif emp_id_param:
+                cur.execute("""
+                    SELECT t.*, e.first_name, e.last_name
+                    FROM tblleave_transactions t
+                    JOIN tblemployee e ON t.employee_id = e.employee_id
+                    WHERE t.employee_id = %s
+                    ORDER BY t.created_at DESC
+                """, (emp_id_param,))
+            else:
+                cur.execute("""
+                    SELECT t.*, e.first_name, e.last_name
+                    FROM tblleave_transactions t
+                    JOIN tblemployee e ON t.employee_id = e.employee_id
+                    ORDER BY t.created_at DESC
+                    LIMIT 200
+                """)
+            rows = cur.fetchall()
+            return jsonify([{
+                'id':               r['id'],
+                'employee_id':      r['employee_id'],
+                'emp_name':         f"{r['first_name']} {r['last_name']}",
+                'date':             r['date'].strftime('%Y-%m-%d'),
+                'leave_type':       r['leave_type'],
+                'minutes':          r['minutes'],
+                'transaction_type': r['transaction_type'],
+                'source':           r['source'],
+                'reference_id':     r['reference_id'],
+                'remarks':          r['remarks'],
+                'created_by':       r['created_by'],
+                'created_at':       r['created_at'].strftime('%b %d, %Y %I:%M %p') if r['created_at'] else None
+            } for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# POLICY CONFIGS & HABITUAL TARDINESS API
+# ══════════════════════════════════════════════════════════════════════════════
+
+@payroll_bp.route('/policy_configs', methods=['GET'])
+def get_policy_configs():
+    try:
+        with db_cursor() as (conn, cur):
+            cur.execute("SELECT config_key, config_value, description, updated_at FROM tblpolicy_config ORDER BY config_key")
+            rows = cur.fetchall()
+            return jsonify([{
+                'key':         r['config_key'],
+                'value':       r['config_value'],
+                'description': r['description'],
+                'updated_at':  r['updated_at'].strftime('%Y-%m-%d %H:%M:%S') if r['updated_at'] else None
+            } for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@payroll_bp.route('/policy_configs', methods=['POST'])
+def update_policy_configs():
+    from flask import session
+    user = session.get('user', {})
+    if user.get('role') not in ['Admin', 'HR']:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    if not isinstance(data, list):
+        return jsonify({'error': 'Expected list of config items'}), 400
+
+    try:
+        with db_cursor() as (conn, cur):
+            for item in data:
+                k = item.get('key')
+                v = item.get('value')
+                if k and v is not None:
+                    cur.execute(
+                        "INSERT INTO tblpolicy_config (config_key, config_value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE config_value=%s",
+                        (k, str(v), str(v))
+                    )
+            conn.commit()
+            return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@payroll_bp.route('/habitual_tardiness', methods=['GET'])
+def get_habitual_tardiness():
+    from flask import session
+    from services.policy_engine import HabitualTardinessService
+    user = session.get('user', {})
+    if user.get('role') not in ['Admin', 'HR', 'Finance']:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    today = date.today()
+    target_year  = int(request.args.get('year', today.year))
+    target_month = int(request.args.get('month', today.month))
+
+    try:
+        with db_cursor() as (conn, cur):
+            cur.execute("SELECT employee_id, first_name, last_name, designation, employee_type FROM tblemployee ORDER BY last_name, first_name")
+            employees = cur.fetchall()
+
+            reports = []
+            for emp in employees:
+                rep = HabitualTardinessService.check_habitual_tardiness(cur, emp['employee_id'], target_year, target_month)
+                rep['emp_name']     = f"{emp['first_name']} {emp['last_name']}"
+                rep['designation']  = emp['designation']
+                rep['employee_type'] = emp.get('employee_type', 'NON_TEACHING')
+                reports.append(rep)
+
+            flagged_count = len([r for r in reports if r['is_flagged']])
+            return jsonify({
+                'year': target_year,
+                'month': target_month,
+                'month_name': calendar.month_name[target_month],
+                'flagged_count': flagged_count,
+                'reports': reports
+            })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

@@ -529,39 +529,36 @@
 
 
 
-    let isCoolingDown = false;
+    let toastTimeout = null;
 
     function showToast(title, msg, isError = false) {
+      if (toastTimeout) {
+        clearTimeout(toastTimeout);
+        toastTimeout = null;
+      }
+
       $('#toastTitle').text(title);
       $('#toastMsg').text(msg);
       
       const $icon = $('#toastIcon');
       if (isError) {
         $icon.removeClass('success').addClass('error').html('<svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>');
+        $('#fpIcon').removeClass('scanning loading success').addClass('error');
+        $('#statusText').text(title).css('color', 'var(--red)');
       } else {
         $icon.removeClass('error').addClass('success').html('<svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>');
+        $('#fpIcon').removeClass('scanning loading error').addClass('success');
+        $('#statusText').text("Recorded Successfully").css('color', 'var(--accent)');
       }
       
       $('#toast').addClass('show');
       
-      // 7-second recalibration loading countdown before next scan is enabled
-      isCoolingDown = true;
-      let secondsLeft = 7;
-      $('#statusText').text(`Recalibrating scanner... (${secondsLeft}s)`).css('color', 'var(--accent)');
-      $('#fpIcon').removeClass('scanning success error').addClass('loading');
-
-      const cdInterval = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft > 0) {
-          $('#statusText').text(`Recalibrating scanner... (${secondsLeft}s)`);
-        } else {
-          clearInterval(cdInterval);
-          isCoolingDown = false;
-          $('#toast').removeClass('show');
-          $('#fpIcon').removeClass('loading success error').addClass('scanning');
-          $('#statusText').text("Ready to Scan").css('color', '');
-        }
-      }, 1000);
+      toastTimeout = setTimeout(() => {
+        $('#toast').removeClass('show');
+        $('#fpIcon').removeClass('loading success error').addClass('scanning');
+        $('#statusText').text("Ready to Scan").css('color', '');
+        toastTimeout = null;
+      }, 4000);
     }
 
     // Handle normal AJAX POST correctly
@@ -571,11 +568,9 @@
     
     // Override logAttendance logic to properly use $.ajax
     function logAttendance(empId, empName) {
-      if (isCoolingDown) return;
-
-      // Pause visual scanning
-      $('#fpIcon').removeClass('scanning').addClass('success');
-      $('#statusText').text(`Identifying...`);
+      // Immediate visual feedback
+      $('#fpIcon').removeClass('scanning error').addClass('loading');
+      $('#statusText').text(`Verifying ${empName}...`).css('color', 'var(--navy)');
       
       const typeLabels = {
         'am_time_in': 'AM Time In',
@@ -589,11 +584,11 @@
           type: 'POST',
           data: JSON.stringify({ employee_id: empId, log_type: currentLogType }),
           success: function(res) {
-             showToast('Success', `${empName} — ${typeLabels[currentLogType]}`);
+             showToast('Attendance Recorded', `${empName} — ${typeLabels[currentLogType]}`);
           },
           error: function(xhr) {
              const isDup = xhr.responseJSON && xhr.responseJSON.duplicate;
-             const title = isDup ? 'Already Recorded' : 'Error';
+             const title = isDup ? 'Already Recorded' : 'Scan Notice';
              const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to record attendance';
              showToast(title, msg, true);
           }

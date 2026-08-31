@@ -44,6 +44,15 @@
   .btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); }
   .btn-outline { background: transparent; border-color: var(--border); color: var(--muted); }
   .btn-outline:hover { background: var(--surface2); color: var(--navy); border-color: var(--navy); }
+
+  @media (max-width: 768px) {
+    .reg-toolbar { flex-direction: column; align-items: flex-start; }
+    .stat-grid { grid-template-columns: 1fr; }
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .reg-body { padding: 16px; }
+    .reg-card-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .reg-card-header .btn { width: 100%; justify-content: center; }
+  }
 </style>
 
 <div class="reg-page">

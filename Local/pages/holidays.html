@@ -53,6 +53,16 @@
     gap:8px; background:var(--surface2); }
   .err-msg { font-size:11.5px; color:var(--red); background:var(--red-dim); padding:8px 12px;
     border-radius:7px; display:none; }
+
+  .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+
+  @media (max-width: 768px) {
+    .hol-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+    .hol-toolbar .btn { width: 100%; justify-content: center; }
+    .hol-cards { grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+    .hol-body { padding: 14px 12px; }
+    .modal-box { width: 94vw !important; max-width: 94vw !important; margin: 10px; border-radius: 12px; }
+  }
 </style>
 
 <div class="hol-page">
@@ -93,19 +103,21 @@
     <div class="year-tabs" id="yearTabs"></div>
 
     <!-- Table -->
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Holiday Name</th>
-          <th>Type</th>
-          <th style="width:60px;"></th>
-        </tr>
-      </thead>
-      <tbody id="holBody">
-        <tr><td colspan="4" style="text-align:center;color:var(--muted2);padding:24px;">Loading…</td></tr>
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Holiday Name</th>
+            <th>Type</th>
+            <th style="width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="holBody">
+          <tr><td colspan="4" style="text-align:center;color:var(--muted2);padding:24px;">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

@@ -27,7 +27,7 @@ def get_dashboard_stats():
                        COUNT(d.id) as processed
                 FROM tblpayroll p
                 JOIN tblpayroll_details d ON p.period_key = d.period_key
-                GROUP BY p.period_key
+                GROUP BY p.period_key, p.month, p.year, p.half
                 ORDER BY p.year DESC, p.month DESC, p.half DESC
                 LIMIT 1
             """)
@@ -38,7 +38,7 @@ def get_dashboard_stats():
                 SELECT p.month, p.half, SUM(d.total_gross) as gross, SUM(d.net_pay) as net
                 FROM tblpayroll p
                 JOIN tblpayroll_details d ON p.period_key = d.period_key
-                GROUP BY p.period_key
+                GROUP BY p.period_key, p.month, p.year, p.half
                 ORDER BY p.year DESC, p.month DESC, p.half DESC
                 LIMIT 6
             """)
