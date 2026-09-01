@@ -694,6 +694,19 @@
               if (st.PAGIBIG) dHtml += `<div class="ph-row"><input value="Pag-IBIG (EE)" readonly><input value="${fmt(st.PAGIBIG)}" style="color:var(--red)" readonly></div>`;
               if (st.WTAX) dHtml += `<div class="ph-row"><input value="Withholding Tax (BIR)" readonly><input value="${fmt(st.WTAX)}" style="color:var(--red)" readonly></div>`;
           } catch(ex) { console.error("Error parsing statutory_json", ex); }
+      }
+
+      if (e.tardiness_deduction > 0) {
+          dHtml += `<div class="ph-row"><input value="Tardiness (${e.late_minutes} mins)" readonly><input value="${fmt(e.tardiness_deduction)}" style="color:var(--red)" readonly></div>`;
+      }
+      if (e.undertime_deduction > 0) {
+          dHtml += `<div class="ph-row"><input value="Undertime (${e.undertime_minutes} mins)" readonly><input value="${fmt(e.undertime_deduction)}" style="color:var(--red)" readonly></div>`;
+      }
+      if (e.absent_deduction > 0) {
+          dHtml += `<div class="ph-row"><input value="Absences" readonly><input value="${fmt(e.absent_deduction)}" style="color:var(--red)" readonly></div>`;
+      }
+
+      $('#earnList').html(eHtml);
       $('#deductList').html(dHtml || '<div style="font-size:12px;color:var(--muted2);padding:6px 0;">No deductions recorded.</div>');
 
       $('#dGross').text(fmt(e.total_gross));
@@ -710,7 +723,7 @@
       const pD = new Date();
       $('#ps_print_date').html(pD.toLocaleDateString('en-US') + '<br>' + pD.toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit'}));
       $('#ps_issue_date').text(pD.toLocaleDateString('en-US'));
-      $('#ps_month_label').text(`For the Period of ${payrollData.period}`);
+      $('#ps_month_label').text('FOR THE PERIOD OF ' + payrollData.period);
       
       const rId = Math.floor(Math.random() * 900000) + 100000;
       $('#ps_print_id').text(rId);
@@ -718,33 +731,59 @@
       $('#ps_name').text(e.name);
       $('#ps_id').text(e.id);
       $('#ps_designation').text(e.designation);
-
       $('#ps_basic_full').text(fmt(e.half_basic));
+
+      let earnHtml = '';
+      if (e.payheads_json) {
+        try {
+          const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          (ph.earnings || []).forEach(item => {
+            earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>${item.name}:</span><span>${fmt(item.amount)}</span></div>`;
+          });
+        } catch(ex) {}
+      }
+      $('#ps_earnings_list').html(earnHtml);
       $('#ps_gross').text(fmt(e.total_gross));
 
-              });
+      let deductHtml = '';
+      const addRow = (lbl, val) => {
+        if (!val || parseFloat(val) <= 0) return;
+        deductHtml += `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+            <span style="flex: 2;">${lbl}</span>
+            <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+              <span style="width: 65px;">--</span>
+              <span style="width: 70px;">--</span>
+              <span style="width: 80px;">${fmt(val)}</span>
+            </span>
+          </div>`;
+      };
+
+      addRow("TARDINESS", e.tardiness_deduction);
+      addRow("UNDERTIME", e.undertime_deduction);
+      addRow("ABSENCE", e.absent_deduction);
+
+      if (e.statutory_json) {
         try {
-          const breakdown = JSON.parse(e.statutory_json);
-          const skip = ['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'];
-          for (const [key, amount] of Object.entries(breakdown)) {
-            if (skip.includes(key)) continue;
-            let label = key.replace(/_/g, ' ');
-            addD(label, amount);
+          const st = JSON.parse(e.statutory_json);
+          for (const [key, amount] of Object.entries(st)) {
+            if (['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'].includes(key) || parseFloat(amount) === 0) continue;
+            addRow(key.replace(/_/g, ' '), amount);
           }
-          if (breakdown['WTAX']) addD('WITHHOLDING TAX', breakdown['WTAX']);
+          if (st['WTAX']) addRow('WITHHOLDING TAX', st['WTAX']);
         } catch(err) {}
       }
-      
+
       if (e.payheads_json) {
         try {
           const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
           (ph.deductions || []).forEach(item => {
-            addD(item.name, item.amount);
+            addRow(item.name, item.amount);
           });
         } catch(ex) {}
       }
-      $('#ps_deductions_list').html(dhtml.join(''));
 
+      $('#ps_deductions_list').html(deductHtml);
       $('#ps_total_deduct').text(fmt(e.total_deduct));
       $('#ps_net').text(fmt(e.net_pay));
       $('#ps_half_net1').text(fmt(e.net_pay)); 
