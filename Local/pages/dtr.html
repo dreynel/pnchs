@@ -295,7 +295,11 @@
 
   function renderDropdown(q) {
     const filtered = q
-          e.designation.toLowerCase().includes(q.toLowerCase()))
+      ? employees.filter(e =>
+          (e.full_name && e.full_name.toLowerCase().includes(q.toLowerCase())) ||
+          (e.id && e.id.toLowerCase().includes(q.toLowerCase())) ||
+          (e.designation && e.designation.toLowerCase().includes(q.toLowerCase()))
+        )
       : employees;
 
     const $dd = $('#empDropdown');

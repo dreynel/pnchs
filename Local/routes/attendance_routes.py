@@ -62,64 +62,6 @@ def _format_time_12h(time_val):
     return str(time_val)
 
 
-def resolve_log_slot(row, now_time=None):
-    if now_time is None:
-        now_time = datetime.datetime.now().time()
-    now_m = now_time.hour * 60 + now_time.minute
-    
-    # Morning: before 11:00 AM (660 mins)
-    if now_m < 11 * 60:
-        if not row or row.get('am_time_in') is None:
-            return 'am_time_in'
-        if row.get('am_time_out') is None and now_m >= 10 * 60:
-            return 'am_time_out'
-        return 'am_time_in'
-        
-    # Lunch break: 11:00 AM to 12:45 PM (765 mins)
-    elif now_m < 12 * 60 + 45:
-        if not row or row.get('am_time_out') is None:
-            return 'am_time_out'
-        if row.get('pm_time_in') is None and now_m >= 12 * 60 + 15:
-            return 'pm_time_in'
-        return 'am_time_out'
-        
-    # Afternoon Return: 12:45 PM to 02:30 PM (870 mins)
-    elif now_m < 14 * 60 + 30:
-        if not row or row.get('pm_time_in') is None:
-            return 'pm_time_in'
-        if row.get('pm_time_out') is None and now_m >= 14 * 60:
-            return 'pm_time_out'
-        return 'pm_time_in'
-        
-    # Afternoon Dismissal: 02:30 PM onwards
-    else:
-        if not row or row.get('pm_time_out') is None:
-            return 'pm_time_out'
-        return 'pm_time_out'
-
-
-@attendance_bp.route('/log', methods=['POST'])
-def log_attendance():
-    if KIOSK_STATE.get('status') != 'running':
-        return jsonify({'error': 'Fingerprint Scanner device not connected. Please connect USB reader.'}), 503
-
-    data = request.get_json(force=True)
-    employee_id = data.get('employee_id')
-    log_type = data.get('log_type') # 'am_time_in', 'am_time_out', 'pm_time_in', 'pm_time_out', or 'auto'
-    
-    if not employee_id:
-        return jsonify({'error': 'Missing employee_id'}), 400
-
-    type_labels = {
-        'am_time_in': 'AM Time In',
-        'am_time_out': 'AM Time Out',
-        'pm_time_in': 'PM Time In',
-        'pm_time_out': 'PM Time Out'
-    }
-
-    try:
-        with db_cursor(commit=True) as (conn, cur):
-            today = datetime.date.today()
             now_dt = datetime.datetime.now()
             current_time = now_dt.strftime('%H:%M:%S')
             
@@ -129,7 +71,6 @@ def log_attendance():
                 FROM tbltime_logs 
                 WHERE employee_id=%s AND work_date=%s
             """, (employee_id, today))
-            row = cur.fetchone()
             
             # Auto-determine slot if 'auto' or not explicitly provided
             if not log_type or log_type == 'auto':
@@ -137,8 +78,6 @@ def log_attendance():
                 
             label = type_labels.get(log_type, log_type)
             
-            # Trap duplication: only once per slot per day (max 4 entries/day)
-            if row and row.get(log_type) is not None:
                 existing_time = _format_time_12h(row.get(log_type))
                 return jsonify({
                     'error': f"{label} already recorded for today at {existing_time}.",
@@ -152,8 +91,6 @@ def log_attendance():
                 INSERT INTO tblbiometric_logs (employee_id, log_type) 
                 VALUES (%s, %s)
             """, (employee_id, log_type))
-            
-            if row:
                 cur.execute(f"UPDATE tbltime_logs SET {log_type} = %s WHERE log_id=%s", (current_time, row['log_id']))
             else:
                 cur.execute(f"""
@@ -163,12 +100,6 @@ def log_attendance():
                 
         return jsonify({
             'message': f"Logged {label} for {employee_id}",
-            'log_type': log_type,
-            'time': _format_time_12h(current_time)
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 
 
 @attendance_bp.route('/logs/data', methods=['GET'])
@@ -201,8 +132,6 @@ def get_biometric_logs():
                 if log['log_time']:
                     log['log_time'] = log['log_time'].strftime('%b %d, %Y %I:%M:%S %p')
                     
-                # Beautify log_type
-                type_map = {
                     'am_time_in': 'AM Time In',
                     'am_time_out': 'AM Time Out',
                     'pm_time_in': 'PM Time In',
@@ -282,15 +211,6 @@ def get_today_categorized():
                 if pm_out: pm_out_count += 1
 
                 formatted_am_in  = _format_time_12h(am_in)
-                formatted_am_out = _format_time_12h(am_out)
-                formatted_pm_in  = _format_time_12h(pm_in)
-                formatted_pm_out = _format_time_12h(pm_out)
-
-                matrix.append({
-                    'employee_id': emp_id,
-                    'name': f"{emp['first_name']} {emp['last_name']}",
-                    'department': emp.get('employee_type') or 'Faculty',
-                    'designation': emp.get('designation') or 'Staff',
                     'employee_type': emp.get('employee_type') or 'Faculty',
                     'am_time_in': formatted_am_in,
                     'am_time_out': formatted_am_out,

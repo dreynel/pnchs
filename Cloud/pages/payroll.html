@@ -718,11 +718,41 @@
       $('#ps_id').text(e.id);
       $('#ps_designation').text(e.designation);
       $('#ps_basic_full').text(fmt(e.half_basic));
+
       let earnHtml = '';
       if (e.payheads_json) {
+        try {
+          const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          (ph.earnings || []).forEach(item => {
+            earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>${item.name}:</span><span>${fmt(item.amount)}</span></div>`;
+          });
+        } catch(ex) {}
+      }
+      $('#ps_earnings_list').html(earnHtml);
+      $('#ps_gross').text(fmt(e.total_gross));
+
       let deductHtml = '';
       const addRow = (lbl, val) => {
         if (!val || parseFloat(val) <= 0) return;
+        deductHtml += `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+            <span style="flex: 2;">${lbl}</span>
+            <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+              <span style="width: 65px;">--</span>
+              <span style="width: 70px;">--</span>
+              <span style="width: 80px;">${fmt(val)}</span>
+            </span>
+          </div>`;
+      };
+
+      addRow("TARDINESS", e.tardiness_deduction);
+      addRow("UNDERTIME", e.undertime_deduction);
+      addRow("ABSENCE", e.absent_deduction);
+
+      if (e.statutory_json) {
+        try {
+          const st = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
+          for (const [key, amount] of Object.entries(st)) {
             if (['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'].includes(key) || parseFloat(amount) === 0) continue;
             addRow(key.replace(/_/g, ' '), amount);
           }
@@ -730,16 +760,23 @@
         } catch(err) {}
       }
 
+      if (e.payheads_json) {
+        try {
+          const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          (ph.deductions || []).forEach(item => {
             addRow(item.name, item.amount);
           });
+        } catch(ex) {}
       }
 
       $('#ps_deductions_list').html(deductHtml);
+      $('#ps_total_deduct').text(fmt(e.total_deduct));
       $('#ps_net').text(fmt(e.net_pay));
       $('#ps_half_net1').text(fmt(e.net_pay)); 
       $('#ps_half_net2').text('0.00');
 
       $('#payslipModal').addClass('open');
+    };
 
     window.printAdminPayslip = function () {
       const prt = document.getElementById("payslipContent");
