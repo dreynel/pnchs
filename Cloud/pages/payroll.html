@@ -694,6 +694,9 @@
               if (st.PAGIBIG) dHtml += `<div class="ph-row"><input value="Pag-IBIG (EE)" readonly><input value="${fmt(st.PAGIBIG)}" style="color:var(--red)" readonly></div>`;
               if (st.WTAX) dHtml += `<div class="ph-row"><input value="Withholding Tax (BIR)" readonly><input value="${fmt(st.WTAX)}" style="color:var(--red)" readonly></div>`;
           } catch(ex) { console.error("Error parsing statutory_json", ex); }
+      }
+
+      $('#earningList').html(eHtml || '<div style="font-size:12px;color:var(--muted2);padding:6px 0;">No earnings recorded.</div>');
       $('#deductList').html(dHtml || '<div style="font-size:12px;color:var(--muted2);padding:6px 0;">No deductions recorded.</div>');
 
       $('#dGross').text(fmt(e.total_gross));
