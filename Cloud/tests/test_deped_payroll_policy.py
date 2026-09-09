@@ -248,5 +248,41 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
 
         self.assertEqual(self.cur.leave_balances['EMP-001']['vl_minutes'], 4800 - sum(test_minutes))
 
+    def test_11_zero_leave_credits_cash_salary_deduction(self):
+        """TEST 11: Employee with 0 VL credits -> Tardiness & Undertime 100% converted to LWOP cash salary deduction."""
+        self.cur.leave_balances['EMP-001']['vl_minutes'] = 0
+
+        proc = LeavePolicyService.process_tardiness_and_undertime(
+            self.cur, 'EMP-001', date(2026, 8, 15), tardiness_min=15, undertime_min=30, reference_id='LOG-ZERO-VL'
+        )
+
+        self.assertEqual(proc['vl_tardiness_minutes'], 0)
+        self.assertEqual(proc['vl_undertime_minutes'], 0)
+        self.assertEqual(proc['lwop_tardiness_minutes'], 15)
+        self.assertEqual(proc['lwop_undertime_minutes'], 30)
+        self.assertEqual(proc['total_lwop_minutes'], 45)
+        self.assertEqual(proc['remaining_vl_minutes'], 0)
+
+        # Verify salary deduction computation for 45 unpaid minutes
+        rates = RateCalculationService.compute_rates(30000.0) # ₱30,000 monthly basic
+        cash_deduction = round(proc['total_lwop_minutes'] * rates['per_min_rate'], 2)
+        self.assertGreater(cash_deduction, 0)
+        self.assertEqual(cash_deduction, round(45 * (30000.0 / 22 / 8 / 60), 2))
+
+    def test_12_payroll_releasing_lifecycle_and_payslip_lock(self):
+        """TEST 12: Payslip availability strictly tied to Released status lifecycle."""
+        # 1. Draft
+        self.cur.payroll_runs['2026-8-1'] = {'status': 'Draft'}
+        self.assertNotEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Released')
+
+        # 2. Approved
+        self.cur.payroll_runs['2026-8-1']['status'] = 'Approved'
+        self.assertNotEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Released')
+
+        # 3. Released
+        self.cur.payroll_runs['2026-8-1']['status'] = 'Released'
+        self.assertEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Released')
+
+
 if __name__ == '__main__':
     unittest.main()

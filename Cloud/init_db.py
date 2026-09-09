@@ -356,6 +356,8 @@ def init():
 
             ('tblpayroll',         'approved_by',     'ALTER TABLE tblpayroll ADD COLUMN approved_by VARCHAR(150) NULL AFTER remarks'),
             ('tblpayroll',         'approved_at',     'ALTER TABLE tblpayroll ADD COLUMN approved_at DATETIME NULL AFTER approved_by'),
+            ('tblpayroll',         'released_by',     'ALTER TABLE tblpayroll ADD COLUMN released_by VARCHAR(150) NULL AFTER approved_at'),
+            ('tblpayroll',         'released_at',     'ALTER TABLE tblpayroll ADD COLUMN released_at DATETIME NULL AFTER released_by'),
             ('tblpayroll_details', 'holiday_pay',     'ALTER TABLE tblpayroll_details ADD COLUMN holiday_pay DECIMAL(10,2) DEFAULT 0 AFTER other_earnings'),
             ('tblpayroll_details', 'undertime_minutes', 'ALTER TABLE tblpayroll_details ADD COLUMN undertime_minutes INT DEFAULT 0 AFTER tardiness_deduction'),
             ('tblpayroll_details', 'undertime_deduction', 'ALTER TABLE tblpayroll_details ADD COLUMN undertime_deduction DECIMAL(10,2) DEFAULT 0 AFTER undertime_minutes'),

@@ -843,8 +843,8 @@ def my_payslip():
             pr = cur.fetchone()
             if not pr:
                 return jsonify({'error': 'Payslip for this period has not been generated.'}), 404
-            if pr['status'] not in ['Approved', 'Posted']:
-                return jsonify({'error': 'Payslip is not yet approved and released.'}), 403
+            if pr['status'] != 'Released':
+                return jsonify({'error': 'Payslip for this period has not been released yet. Payslips are accessible only after releasing by Finance.'}), 403
 
             cur.execute("""
                 SELECT d.*, e.first_name, e.last_name, e.designation,
@@ -912,7 +912,7 @@ def my_payslip():
 def get_runs():
     try:
         with db_cursor() as (conn, cur):
-            cur.execute("SELECT period_key, year, month, half, status, remarks, approved_by, approved_at, created_at FROM tblpayroll ORDER BY year DESC, month DESC, half DESC")
+            cur.execute("SELECT period_key, year, month, half, status, remarks, approved_by, approved_at, released_by, released_at, created_at FROM tblpayroll ORDER BY year DESC, month DESC, half DESC")
             records = cur.fetchall()
             return jsonify([{
                 'key':         r['period_key'],
@@ -924,6 +924,8 @@ def get_runs():
                 'remarks':     r['remarks'],
                 'approved_by': r['approved_by'],
                 'approved_at': r['approved_at'].strftime('%b %d, %Y %I:%M %p') if r['approved_at'] else None,
+                'released_by': r.get('released_by'),
+                'released_at': r['released_at'].strftime('%b %d, %Y %I:%M %p') if r.get('released_at') else None,
                 'created_at':  r['created_at'].strftime('%b %d, %Y') if r['created_at'] else None,
             } for r in records])
     except Exception as e:
@@ -964,7 +966,7 @@ def update_status(period_key):
     from flask import session
     role = session.get('user', {}).get('role')
     user_name = session.get('user', {}).get('name', 'Unknown')
-    data = request.json
+    data = request.json or {}
     new_status = data.get('status')
     remarks    = data.get('remarks', None)
 
@@ -977,7 +979,7 @@ def update_status(period_key):
 
             curr_status = rec['status']
 
-            if role == 'Finance':
+            if role in ['Finance', 'Finance Officer']:
                 if new_status == 'For Approval' and curr_status in ['Draft', 'Rejected']:
                     cur.execute("UPDATE tblpayroll SET status='For Approval', remarks=NULL WHERE period_key=%s", (period_key,))
                     cur.execute("""
@@ -986,10 +988,16 @@ def update_status(period_key):
                         ON DUPLICATE KEY UPDATE ApprovalStatus='Pending', RequesterID=%s
                     """, (period_key, user_name, f"Payroll Run - {period_key}", user_name))
                     AuditService.log_action(cur, 'PAYROLL_SUBMITTED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
+                elif new_status == 'Released' and curr_status == 'Approved':
+                    cur.execute("UPDATE tblpayroll SET status='Released', released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
+                    AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                 else:
                     return jsonify({'error': 'Invalid status transition for Finance'}), 400
             elif role in ['Administrator', 'Admin', 'Principal']:
-                if new_status in ['Approved', 'Rejected'] and curr_status == 'For Approval':
+                if new_status == 'Released' and curr_status == 'Approved':
+                    cur.execute("UPDATE tblpayroll SET status='Released', released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
+                    AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
+                elif new_status in ['Approved', 'Rejected'] and curr_status == 'For Approval':
                     if new_status == 'Approved':
                         cur.execute(
                             "UPDATE tblpayroll SET status=%s, remarks=%s, approved_by=%s, approved_at=NOW() WHERE period_key=%s",
@@ -1019,6 +1027,90 @@ def update_status(period_key):
 
             conn.commit()
             return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── GET /api/payroll/releasing_list ──────────────────────────────────────────
+@payroll_bp.route('/releasing_list', methods=['GET'])
+def releasing_list():
+    from flask import session
+    role = session.get('user', {}).get('role')
+    if role not in ['Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal', 'Auditor']:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    try:
+        with db_cursor() as (conn, cur):
+            cur.execute("""
+                SELECT p.period_key, p.year, p.month, p.half, p.status, p.remarks,
+                       p.approved_by, p.approved_at, p.released_by, p.released_at, p.created_at,
+                       COUNT(d.id) AS total_employees,
+                       COALESCE(SUM(d.total_gross), 0) AS total_gross,
+                       COALESCE(SUM(d.total_deduct), 0) AS total_deductions,
+                       COALESCE(SUM(d.net_pay), 0) AS total_net_pay
+                FROM tblpayroll p
+                LEFT JOIN tblpayroll_details d ON p.period_key = d.period_key
+                WHERE p.status IN ('Approved', 'Released')
+                GROUP BY p.id, p.period_key, p.year, p.month, p.half, p.status, p.remarks,
+                         p.approved_by, p.approved_at, p.released_by, p.released_at, p.created_at
+                ORDER BY p.year DESC, p.month DESC, p.half DESC
+            """)
+            records = cur.fetchall()
+            return jsonify([{
+                'key':              r['period_key'],
+                'period':           f"{calendar.month_name[r['month']]} {r['year']} - {'1st' if r['half']==1 else '2nd'} Half",
+                'year':             r['year'],
+                'month':            r['month'],
+                'half':             r['half'],
+                'status':           r['status'],
+                'remarks':          r['remarks'],
+                'total_employees':  int(r['total_employees']),
+                'total_gross':      float(r['total_gross']),
+                'total_deductions': float(r['total_deductions']),
+                'total_net_pay':    float(r['total_net_pay']),
+                'approved_by':      r['approved_by'],
+                'approved_at':      r['approved_at'].strftime('%b %d, %Y %I:%M %p') if r['approved_at'] else None,
+                'released_by':      r.get('released_by'),
+                'released_at':      r['released_at'].strftime('%b %d, %Y %I:%M %p') if r.get('released_at') else None,
+                'created_at':       r['created_at'].strftime('%b %d, %Y') if r['created_at'] else None,
+            } for r in records])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ── POST /api/payroll/release ────────────────────────────────────────────────
+@payroll_bp.route('/release', methods=['POST'])
+def release_payroll():
+    from flask import session
+    role = session.get('user', {}).get('role')
+    user_name = session.get('user', {}).get('name', 'Unknown')
+
+    if role not in ['Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal']:
+        return jsonify({'error': 'Unauthorized. Only Finance or Admin can release payroll.'}), 403
+
+    data = request.json or {}
+    period_key = data.get('period_key')
+    if not period_key:
+        return jsonify({'error': 'Missing period_key parameter'}), 400
+
+    try:
+        with db_cursor() as (conn, cur):
+            cur.execute("SELECT status FROM tblpayroll WHERE period_key=%s", (period_key,))
+            rec = cur.fetchone()
+            if not rec:
+                return jsonify({'error': 'Payroll run not found'}), 404
+
+            if rec['status'] != 'Approved':
+                return jsonify({'error': f"Cannot release payroll in '{rec['status']}' status. Payroll must be 'Approved' before releasing."}), 400
+
+            cur.execute(
+                "UPDATE tblpayroll SET status='Released', released_by=%s, released_at=NOW() WHERE period_key=%s",
+                (user_name, period_key)
+            )
+            AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
+            conn.commit()
+
+            return jsonify({'success': True, 'message': f'Payroll period {period_key} released successfully. Employee payslips are now available.'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
