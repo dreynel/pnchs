@@ -60,6 +60,133 @@
 
   .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
 
+  /* Dropzone & Multi-file Upload Styling */
+  .dropzone-area {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    background: var(--surface2);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+  }
+  .dropzone-area:hover, .dropzone-area.drag-over {
+    border-color: var(--navy-mid);
+    background: var(--navy-light);
+  }
+  .dz-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--navy-mid);
+    margin-bottom: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+  .dz-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .dz-browse {
+    color: var(--navy-mid);
+    text-decoration: underline;
+    font-weight: 700;
+  }
+  .dz-sub {
+    font-size: 10.5px;
+    color: var(--muted2);
+    margin-top: 2px;
+  }
+  .dz-preview-list {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dz-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 11.5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  .dz-file-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .dz-file-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .dz-file-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--navy-light);
+    color: var(--navy-mid);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 9.5px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .dz-file-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .dz-file-name {
+    font-weight: 600;
+    color: var(--navy);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+  .dz-file-size {
+    font-size: 10px;
+    color: var(--muted2);
+  }
+  .dz-remove-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--muted2);
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .dz-remove-btn:hover {
+    background: #fef2f2;
+    color: #dc2626;
+  }
+
   @media (max-width: 768px) {
     .lv-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
     .lv-toolbar .btn { width: 100%; justify-content: center; }
@@ -74,10 +201,6 @@
 
 <div class="lv-page">
   <div class="lv-toolbar">
-    <div>
-      <div class="lv-title">Leave Management</div>
-      <div class="lv-sub">File and manage employee sick leave (SL) and vacation leave (VL)</div>
-    </div>
     <div style="flex:1;"></div>
     <button class="btn btn-outline" id="btnAdjustCredits" style="display:none;margin-right:6px;">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -106,6 +229,20 @@
       </div>
     </div>
 
+    <!-- HR Approval Notice Banner -->
+    <div id="hrBanner" style="display:none; background:#fff7ed; border:1px solid #ffedd5; border-radius:10px; padding:12px 18px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg width="20" height="20" fill="none" stroke="#c2410c" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div>
+          <strong style="font-size:12.5px; color:#9a3412;">Centralized Leave Approvals</strong>
+          <div style="font-size:11px; color:#c2410c;">Leave requests are now processed through the central Approvals Module.</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="background:#fff; border-color:#fed7aa; color:#c2410c; font-size:11.5px;" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html')">
+        Open Approvals Module &rarr;
+      </button>
+    </div>
+
     <div class="lv-cards">
       <div class="lv-card"><div class="lv-card-lbl">Total Filed Requests</div><div class="lv-card-val" id="cTotal">—</div></div>
       <div class="lv-card"><div class="lv-card-lbl">Pending</div><div class="lv-card-val" id="cPending" style="color:#92400e;">—</div></div>
@@ -119,7 +256,7 @@
       <div class="ftab" data-status="Approved">Approved</div>
       <div class="ftab" data-status="Rejected">Rejected</div>
       <div class="ftab" data-status="balances" id="tabBalances">Employee Credit Balances</div>
-      <div class="ftab" data-status="audit">Leave Credit Audit History</div>
+      <div class="ftab" data-status="audit" id="tabAudit">Leave Credit Audit History</div>
     </div>
 
     <div id="leaveRequestsWrap" class="table-responsive">
@@ -207,6 +344,20 @@
         <label class="form-lbl">Reason</label>
         <input type="text" class="form-inp" id="mReason" placeholder="Optional reason">
       </div>
+      <div>
+        <label class="form-lbl">Supporting Documents / Attachments (Optional)</label>
+        <div id="dropzoneBox" class="dropzone-area">
+          <input type="file" id="mAttachment" accept="image/*,.pdf,.doc,.docx,.txt" multiple style="display:none;">
+          <div class="dz-icon">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+          </div>
+          <div class="dz-title">Drag &amp; drop files here or <span class="dz-browse">click to browse</span></div>
+          <div class="dz-sub">Attach medical certificates, letters, or proof (PDF, DOC, Images)</div>
+        </div>
+        <div id="filePreviewList" class="dz-preview-list"></div>
+      </div>
       <div class="err-msg" id="mErr"></div>
     </div>
     <div class="modal-ftr">
@@ -266,15 +417,24 @@
   let leaves=[], activeStatus='all', userRole='', userEmpId='';
 
   async function init() {
+    const uRole = $('#userRole').text().trim();
+    if (uRole === 'Auditor') {
+      $('<style>#btnAdjustCredits, [onclick^="openQuickAdjust"], [onclick^="reviewLeave"] { display: none !important; }</style>').appendTo('head');
+    }
+    
     try {
       const me = await $.get(API_ME);
       userRole  = me.role;
       userEmpId = me.employee_id;
 
-      if (userRole !== 'Employee') {
+      const isHR = ['HR', 'HR Officer'].includes(userRole);
+
+      if (isHR) {
         $('#empColHdr').show();
         $('#btnAdjustCredits').show();
         $('#tabBalances').show();
+        $('#tabAudit').show();
+        $('#hrBanner').css('display', 'flex');
         // HR/Admin: load employees for file & adjust modals
         try {
           const emps = await $.get('/api/employees/');
@@ -289,7 +449,9 @@
         $('#empColHdr').hide();
         $('#btnAdjustCredits').hide();
         $('#tabBalances').hide();
+        $('#tabAudit').hide();
         $('#hrEmpRow').hide();
+        $('#hrBanner').hide();
       }
       loadLeaves();
     } catch(err) {
@@ -383,17 +545,17 @@
     $('#lvBody').html(filtered.map(l => {
       const sPill = l.status==='Pending' ? 'pill-pending' : l.status==='Approved' ? 'pill-approved' : 'pill-rejected';
       const tPill = l.leave_type==='SL' ? 'type-sl' : 'type-vl';
-      const empCol = userRole !== 'Employee' ? `<td><strong>${l.emp_name}</strong><br><small style="color:var(--muted2)">${l.employee_id}</small></td>` : '';
+      const isHR = ['HR', 'HR Officer'].includes(userRole);
+      const empCol = isHR ? `<td><strong>${l.emp_name}</strong><br><small style="color:var(--muted2)">${l.employee_id}</small></td>` : '';
       
       let actionBtns = '';
-      if (userRole !== 'Employee') {
+      if (isHR) {
         if (l.status === 'Pending') {
           actionBtns = `
-            <button class="btn btn-success" style="padding:4px 9px;font-size:10.5px;margin-right:4px;" onclick="reviewLeave(${l.id},'Approved')">Approve</button>
-            <button class="btn btn-danger"  style="padding:4px 9px;font-size:10.5px;" onclick="reviewLeave(${l.id},'Rejected')">Reject</button>
+            <button class="btn btn-outline" style="padding:3px 8px;font-size:10.5px;color:#c2410c;border-color:#fed7aa;" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html')">Go to Approvals</button>
           `;
         } else if (l.reviewed_by) {
-          actionBtns = `<small style="color:var(--muted2)">By: ${l.reviewed_by}</small>`;
+          actionBtns = `<small style="color:var(--muted2)">Reviewed by: ${l.reviewed_by}</small>`;
         }
       } else {
         if (l.status === 'Pending') {
@@ -498,18 +660,113 @@
     }
   });
 
+  let selectedFiles = [];
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function addFiles(files) {
+    if (!files || !files.length) return;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const exists = selectedFiles.some(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified);
+      if (!exists) {
+        selectedFiles.push(file);
+      }
+    }
+    renderFilePreviews();
+  }
+
+  function renderFilePreviews() {
+    const list = $('#filePreviewList');
+    list.empty();
+    if (!selectedFiles.length) return;
+
+    selectedFiles.forEach((file, idx) => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+      let thumbHtml = '';
+
+      if (isImage) {
+        const objectUrl = URL.createObjectURL(file);
+        thumbHtml = `<img src="${objectUrl}" class="dz-file-thumb" alt="Thumbnail" />`;
+      } else {
+        thumbHtml = `<div class="dz-file-icon">${ext.substring(0, 4)}</div>`;
+      }
+
+      const itemHtml = `
+        <div class="dz-file-item">
+          <div class="dz-file-left">
+            ${thumbHtml}
+            <div class="dz-file-info">
+              <div class="dz-file-name" title="${file.name}">${file.name}</div>
+              <div class="dz-file-size">${formatBytes(file.size)}</div>
+            </div>
+          </div>
+          <button type="button" class="dz-remove-btn" onclick="removeSelectedFile(${idx})" title="Remove file">&times;</button>
+        </div>
+      `;
+      list.append(itemHtml);
+    });
+  }
+
+  window.removeSelectedFile = function(index) {
+    selectedFiles.splice(index, 1);
+    renderFilePreviews();
+  };
+
+  // Dropzone Interaction Events
+  $('#dropzoneBox').on('click', function(e) {
+    if (e.target.id !== 'mAttachment') {
+      $('#mAttachment').click();
+    }
+  });
+
+  $('#mAttachment').on('change', function(e) {
+    addFiles(e.target.files);
+    $(this).val('');
+  });
+
+  $('#dropzoneBox').on('dragover dragenter', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $(this).addClass('drag-over');
+  });
+
+  $('#dropzoneBox').on('dragleave dragend drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    $(this).removeClass('drag-over');
+  });
+
+  $('#dropzoneBox').on('drop', function(e) {
+    const dt = e.originalEvent.dataTransfer;
+    if (dt && dt.files) {
+      addFiles(dt.files);
+    }
+  });
+
   // File leave modal
   $('#btnFileLeave').on('click', function() {
     const tmr = new Date();
     tmr.setDate(tmr.getDate() + 1);
     const tmrStr = tmr.toISOString().split('T')[0];
 
-    if (userRole === 'Employee') {
+    const isHR = ['HR', 'HR Officer'].includes(userRole);
+    if (!isHR) {
       $('#mLeaveDate').attr('min', tmrStr).val(tmrStr);
     } else {
       $('#mLeaveDate').removeAttr('min').val(tmrStr);
     }
     $('#mReason').val('');
+    $('#mAttachment').val('');
+    selectedFiles = [];
+    renderFilePreviews();
     $('#mErr').hide();
     $('#fileModal').addClass('open');
   });
@@ -520,23 +777,37 @@
     const leave_date = $('#mLeaveDate').val();
     const leave_type = $('#mLeaveType').val();
     const reason     = $('#mReason').val().trim();
-    const employee_id = userRole === 'Employee' ? userEmpId : $('#mEmpSelect').val();
+    const isHR       = ['HR', 'HR Officer'].includes(userRole);
+    const employee_id = isHR ? $('#mEmpSelect').val() : userEmpId;
 
     if (!leave_date) { $('#mErr').text('Leave date is required.').show(); return; }
     
     const todayStr = new Date().toISOString().split('T')[0];
-    if (userRole === 'Employee' && leave_date <= todayStr) {
+    if (!isHR && leave_date <= todayStr) {
       $('#mErr').text('Leave date must be tomorrow or later (minimum 1 day advance filing).').show();
       return;
     }
 
-    if (userRole !== 'Employee' && !employee_id) { $('#mErr').text('Please select an employee.').show(); return; }
+    if (isHR && !employee_id) { $('#mErr').text('Please select an employee.').show(); return; }
+    if (!isHR && !employee_id) { $('#mErr').text('User account has no associated employee ID. Please contact HR.').show(); return; }
     $('#mErr').hide();
     $(this).prop('disabled',true).text('Submitting…');
     try {
+      const formData = new FormData();
+      formData.append('leave_date', leave_date);
+      formData.append('leave_type', leave_type);
+      formData.append('reason', reason);
+      if (employee_id) formData.append('employee_id', employee_id);
+
+      if (selectedFiles && selectedFiles.length) {
+        for (let i = 0; i < selectedFiles.length; i++) {
+          formData.append('attachment', selectedFiles[i]);
+        }
+      }
+
       const res = await fetch(API_LEAVES, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({employee_id, leave_date, leave_type, reason})
+        method: 'POST',
+        body: formData
       });
       const d = await res.json();
       if (d.error) {

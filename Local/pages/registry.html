@@ -440,6 +440,13 @@ $(function() {
         });
     };
 
+    $(document).ready(function() {
+        const uRole = $('#userRole').text().trim();
+        if (uRole === 'Auditor') {
+            $('<style>.btn-primary, [onclick^="deleteGlobal"], .text-danger, [onclick^="deleteStatutory"] { display: none !important; }</style>').appendTo('head');
+        }
+    });
+
     $('#statutoryForm').on('submit', function(e) {
         e.preventDefault();
         const data = [];

@@ -1,8 +1,15 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from db import db_cursor
 from mysql.connector import Error
+from services.policy_engine import AuditService
 
 registry_bp = Blueprint('registry', __name__, url_prefix='/api/registry')
+
+@registry_bp.before_request
+def check_auditor_access():
+    if request.method != 'GET':
+        if session.get('user', {}).get('role') == 'Auditor':
+            return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
 # ── Global Payheads ──────────────────────────────────────────────────────────
 
@@ -85,6 +92,7 @@ def update_statutory_config():
                         "UPDATE tblstatutory_registry SET config_value = %s, config_mode = %s WHERE config_key = %s",
                         (str(val), mode, key)
                     )
+            AuditService.log_action(cur, 'STATUTORY_UPDATED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblstatutory_registry')
             conn.commit()
             return jsonify({'success': True})
     except Error as e:

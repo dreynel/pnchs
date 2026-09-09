@@ -1,0 +1,298 @@
+<style>
+  .audit-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); padding: 24px; gap: 20px; }
+  
+  .audit-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0; }
+  .sum-card { background: var(--surface); border: 1px solid var(--border); padding: 18px 22px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 16px; }
+  .sum-card-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--navy-light); color: var(--navy-mid); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sum-card-info { flex: 1; }
+  .sum-lbl { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .sum-val { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--navy); }
+  
+  .audit-toolbar { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 16px 20px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.02); flex-wrap: wrap; flex-shrink: 0; }
+  .audit-filter { display: flex; flex-direction: column; gap: 4px; }
+  .audit-filter label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; }
+  .audit-filter input, .audit-filter select { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; outline: none; transition: all 0.2s; }
+  .audit-filter input:focus, .audit-filter select:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 3px rgba(42,79,128,0.1); background: #fff; }
+  
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; }
+  .btn-primary { background: var(--navy); color: #fff; box-shadow: 0 4px 10px rgba(30, 58, 95, 0.2); }
+  .btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); }
+  .btn-outline { background: var(--surface); border: 1.5px solid var(--border); color: var(--muted); }
+  .btn-outline:hover { background: var(--surface2); color: var(--navy); border-color: var(--border2); }
+  
+  .audit-content { flex: 1; display: flex; flex-direction: column; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+  .audit-table-wrap { flex: 1; overflow-y: auto; }
+  
+  table.audit-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .audit-table th { position: sticky; top: 0; background: var(--surface2); z-index: 5; padding: 14px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted2); border-bottom: 1.5px solid var(--border); letter-spacing: 0.5px; }
+  .audit-table td { padding: 14px 16px; border-bottom: 1px solid rgba(226,221,214,0.3); font-size: 12.5px; color: var(--text); }
+  .audit-row { cursor: pointer; transition: background 0.2s; }
+  .audit-row:hover { background: var(--surface2); }
+  
+  .badge { display: inline-flex; padding: 4px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; }
+  .badge.green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+  .badge.blue { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+  .badge.amber { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+  .badge.red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(220,38,38,0.2); }
+  
+  .detail-row { display: none; background: #fafaf8; border-bottom: 1.5px solid var(--border); }
+  .detail-row.open { display: table-row; }
+  .detail-box { padding: 16px; margin: 0 16px 16px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: flex; gap: 20px; font-family: monospace; font-size: 11.5px; white-space: pre-wrap; word-break: break-all; }
+  .detail-col { flex: 1; }
+  .detail-lbl { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--surface); border-top: 1.5px solid var(--border); flex-shrink: 0; }
+  .page-info { font-size: 12px; color: var(--muted); }
+  .page-btns { display: flex; gap: 8px; }
+</style>
+
+<div class="audit-page">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink: 0;">
+    <div>
+      <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--navy); margin-bottom:4px;">Audit Trail</h2>
+      <p style="font-size:12px; color:var(--muted2);">Monitor system activity and security events</p>
+    </div>
+    <button class="btn btn-primary" onclick="exportAudit()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      Export CSV
+    </button>
+  </div>
+
+  <div class="audit-summary">
+    <div class="sum-card">
+      <div class="sum-card-icon">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      </div>
+      <div class="sum-card-info">
+        <div class="sum-lbl">Total Events</div>
+        <div class="sum-val" id="sumTotal">0</div>
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-icon">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      </div>
+      <div class="sum-card-info">
+        <div class="sum-lbl">Today's Events</div>
+        <div class="sum-val" id="sumToday">0</div>
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-icon">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+      </div>
+      <div class="sum-card-info">
+        <div class="sum-lbl">Logins Today</div>
+        <div class="sum-val" id="sumLogins">0</div>
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-icon">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+      </div>
+      <div class="sum-card-info">
+        <div class="sum-lbl">Payroll Actions</div>
+        <div class="sum-val" id="sumPayroll">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="audit-toolbar">
+    <div class="audit-filter">
+      <label>Date From</label>
+      <input type="date" id="fDateFrom">
+    </div>
+    <div class="audit-filter">
+      <label>Date To</label>
+      <input type="date" id="fDateTo">
+    </div>
+    <div class="audit-filter">
+      <label>Action Type</label>
+      <select id="fAction" style="width: 160px;">
+        <option value="">All Actions</option>
+        <option value="LOGIN">Login Events</option>
+        <option value="EMPLOYEE">Employee Events</option>
+        <option value="PAYROLL">Payroll Events</option>
+        <option value="LEAVE">Leave Events</option>
+        <option value="ATTENDANCE">Attendance Events</option>
+        <option value="SETTINGS">Settings Events</option>
+      </select>
+    </div>
+    <div class="audit-filter" style="flex:1;">
+      <label>Search User / Details</label>
+      <input type="text" id="fSearch" placeholder="Search by name, ID, or action...">
+    </div>
+    <div style="display:flex; align-items:flex-end; gap:8px; align-self:stretch; padding-bottom:1.5px;">
+      <button class="btn btn-primary" onclick="loadLogs(1)" style="height:35px;">Search</button>
+      <button class="btn btn-outline" onclick="clearFilters()" style="height:35px;">Clear</button>
+    </div>
+  </div>
+
+  <div class="audit-content">
+    <div class="audit-table-wrap">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th style="width: 18%;">Timestamp</th>
+            <th style="width: 18%;">User</th>
+            <th style="width: 15%;">Action</th>
+            <th style="width: 25%;">Target</th>
+            <th style="width: 12%;">IP Address</th>
+            <th style="width: 5%;"></th>
+          </tr>
+        </thead>
+        <tbody id="auditTableBody">
+          <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted2);">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <div class="page-info" id="pageInfo">Showing 0 to 0 of 0 entries</div>
+      <div class="page-btns">
+        <button class="btn btn-outline" id="btnPrev" onclick="loadLogs(currentPage - 1)">Previous</button>
+        <button class="btn btn-outline" id="btnNext" onclick="loadLogs(currentPage + 1)">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentPage = 1;
+  let totalPages = 1;
+
+  function initAudit() {
+    loadSummary();
+    loadLogs(1);
+  }
+
+  function getBadgeColor(action) {
+    const a = action.toUpperCase();
+    if (a.includes('CREATE') || a.includes('ADD')) return 'green';
+    if (a.includes('LOGIN') || a.includes('VIEW')) return 'blue';
+    if (a.includes('UPDATE') || a.includes('SUBMIT') || a.includes('APPROVE') || a.includes('EDIT')) return 'amber';
+    if (a.includes('DELETE') || a.includes('FAIL') || a.includes('REJECT') || a.includes('REMOVE')) return 'red';
+    return 'blue';
+  }
+
+  function toggleRow(id) {
+    $(`#det-${id}`).toggleClass('open');
+  }
+
+  async function loadSummary() {
+    try {
+      const res = await $.get('/api/audit/summary');
+      $('#sumTotal').text(res.total.toLocaleString());
+      $('#sumToday').text(res.today.toLocaleString());
+      $('#sumLogins').text((res.by_category.login || 0).toLocaleString());
+      $('#sumPayroll').text((res.by_category.payroll || 0).toLocaleString());
+    } catch(e) { console.error('Failed to load audit summary', e); }
+  }
+
+  async function loadLogs(page) {
+    if (page < 1 || (page > totalPages && totalPages > 0)) return;
+    currentPage = page;
+    
+    const params = {
+      page: page,
+      per_page: 50,
+      date_from: $('#fDateFrom').val(),
+      date_to: $('#fDateTo').val(),
+      search: $('#fSearch').val()
+    };
+    
+    const actionFilter = $('#fAction').val();
+    if (actionFilter) {
+      if (actionFilter === 'SETTINGS') {
+        params.search = 'STATUTORY|POLICY|SALARY';
+      } else {
+        params.action = actionFilter;
+      }
+    }
+
+    try {
+      $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted2);">Loading...</td></tr>');
+      const res = await $.get('/api/audit/logs', params);
+      
+      totalPages = res.total_pages || 1;
+      
+      $('#pageInfo').text(`Showing ${(res.page - 1) * res.per_page + 1} to Math.min(${res.page * res.per_page}, ${res.total}) of ${res.total} entries`);
+      $('#btnPrev').prop('disabled', res.page <= 1);
+      $('#btnNext').prop('disabled', res.page >= totalPages);
+
+      if (res.logs.length === 0) {
+        $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted2);">No audit records found matching filters.</td></tr>');
+        return;
+      }
+
+      let html = '';
+      res.logs.forEach(l => {
+        const d = new Date(l.timestamp);
+        const dateStr = d.toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
+        
+        let targetStr = l.target_table ? `${l.target_table} ${l.target_id ? `(#${l.target_id})` : ''}` : 'System';
+        if (l.employee_id) targetStr += ` — Emp: ${l.employee_id}`;
+
+        html += `
+          <tr class="audit-row" onclick="toggleRow(${l.id})">
+            <td>${dateStr}</td>
+            <td><strong>${l.user_name || 'Unknown'}</strong></td>
+            <td><span class="badge ${getBadgeColor(l.action)}">${l.action}</span></td>
+            <td style="font-size:11px; color:var(--muted);">${targetStr}</td>
+            <td style="font-size:11px; color:var(--muted2);">${l.ip_address || '—'}</td>
+            <td>
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted2)"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </td>
+          </tr>
+          <tr class="detail-row" id="det-${l.id}">
+            <td colspan="6" style="padding:0;">
+              <div class="detail-box">
+                <div class="detail-col">
+                  <div class="detail-lbl">Old Value</div>
+                  <div>${l.old_value ? (typeof l.old_value === 'string' ? l.old_value : JSON.stringify(l.old_value, null, 2)) : '—'}</div>
+                </div>
+                <div class="detail-col">
+                  <div class="detail-lbl">New Value</div>
+                  <div>${l.new_value ? (typeof l.new_value === 'string' ? l.new_value : JSON.stringify(l.new_value, null, 2)) : '—'}</div>
+                </div>
+                ${l.reason ? `<div class="detail-col"><div class="detail-lbl">Reason</div><div>${l.reason}</div></div>` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      
+      $('#auditTableBody').html(html);
+      
+    } catch(e) {
+      console.error(e);
+      $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--red);">Failed to load audit logs.</td></tr>');
+    }
+  }
+
+  function clearFilters() {
+    $('#fDateFrom').val('');
+    $('#fDateTo').val('');
+    $('#fAction').val('');
+    $('#fSearch').val('');
+    loadLogs(1);
+  }
+
+  function exportAudit() {
+    let url = '/api/audit/export?';
+    if ($('#fDateFrom').val()) url += 'date_from=' + $('#fDateFrom').val() + '&';
+    if ($('#fDateTo').val()) url += 'date_to=' + $('#fDateTo').val() + '&';
+    if ($('#fAction').val()) {
+        const actionFilter = $('#fAction').val();
+        if (actionFilter === 'SETTINGS') {
+            url += 'search=STATUTORY|POLICY|SALARY&';
+        } else {
+            url += 'action=' + actionFilter + '&';
+        }
+    }
+    if ($('#fSearch').val()) url += 'search=' + encodeURIComponent($('#fSearch').val()) + '&';
+    
+    window.open(url, '_blank');
+  }
+
+  initAudit();
+</script>

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
-from routes import employee_bp, dtr_bp, payroll_bp, fingerprint_bp, attendance_bp, registry_bp, dashboard_bp, salary_grade_bp
+from routes import employee_bp, dtr_bp, payroll_bp, fingerprint_bp, attendance_bp, registry_bp, dashboard_bp, salary_grade_bp, audit_bp, approval_bp
+from services.policy_engine import AuditService
 import os
 
 app = Flask(__name__)
@@ -22,6 +23,8 @@ app.register_blueprint(attendance_bp)
 app.register_blueprint(registry_bp)
 app.register_blueprint(salary_grade_bp)
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(audit_bp)
+app.register_blueprint(approval_bp)
 
 
 # Auto-create DB tables on startup
@@ -70,7 +73,7 @@ def login():
         
         # Check against tblusers
         from db import db_cursor
-        with db_cursor() as (conn, cur):
+        with db_cursor(commit=True) as (conn, cur):
             cur.execute("""
                 SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name
                 FROM tblusers u
@@ -90,10 +93,15 @@ def login():
                     'role': emp['role'],
                     'employee_id': emp['employee_id']
                 }
+                
+                AuditService.log_action(cur, 'LOGIN_SUCCESS', user_name=display_name, ip_address=request.remote_addr)
+
                 if emp['role'] == 'Employee':
                     return redirect(url_for('dtr'))
                 return redirect(url_for('dashboard'))
                 
+            AuditService.log_action(cur, 'LOGIN_FAILED', user_name=email, ip_address=request.remote_addr)
+
         flash('Invalid username or password.', 'error')
 
     return render_template('login.html')
@@ -118,7 +126,7 @@ def pages(filename):
 @app.route('/employees')
 @login_required
 def employees():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Principal', 'HR', 'HR Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/employee.html', title='Employees')
 
@@ -126,22 +134,23 @@ def employees():
 @app.route('/payroll')
 @login_required
 def payroll():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'Finance', 'Finance Officer']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/payroll.html', title='Payroll Processing')
 
+@app.route('/approvals')
 @app.route('/payroll_approvals')
 @login_required
-def payroll_approvals():
-    if session['user'].get('role') not in ['Admin', 'Principal']:
+def approvals():
+    if session['user'].get('role') not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
-    return render_template('index.html', user=session['user'], initial_page='/pages/payroll_approval.html', title='Payroll Approvals')
+    return render_template('index.html', user=session['user'], initial_page='/pages/approvals.html', title='Approvals')
 
 
 @app.route('/holidays')
 @login_required
 def holidays():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Admin', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/holidays.html', title='Holiday Calendar')
 
@@ -155,7 +164,7 @@ def leaves():
 @app.route('/salary_grades')
 @login_required
 def salary_grades():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/salary_grades.html', title='Salary Grade Management')
 
@@ -182,9 +191,17 @@ def payroll_report():
 @app.route('/registry')
 @login_required
 def registry():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'Finance', 'Finance Officer']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/registry.html', title='Global Registry')
+
+
+@app.route('/audit_trail')
+@login_required
+def audit_trail():
+    if session['user'].get('role') not in ['Auditor', 'Admin', 'Principal']:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html', user=session['user'], initial_page='/pages/audit_trail.html', title='Audit Trail')
 
 
 @app.route('/api/auth/me')
@@ -195,6 +212,10 @@ def auth_me():
 
 @app.route('/logout')
 def logout():
+    if 'user' in session:
+        from db import db_cursor
+        with db_cursor(commit=True) as (conn, cur):
+            AuditService.log_action(cur, 'LOGOUT', user_name=session['user'].get('name', 'Unknown'), ip_address=request.remote_addr)
     session.clear()
     return redirect(url_for('login'))
 

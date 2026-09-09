@@ -33,6 +33,12 @@
   }
   .ctrl-group select:focus { border-color: var(--navy-mid); }
 
+  .filter-date-input {
+    padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: var(--surface2); font-size: 12.5px; color: var(--navy); outline: none; cursor: pointer;
+  }
+  .filter-date-input:focus { border-color: var(--navy-mid); }
+
   .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; transition: all 0.2s; white-space: nowrap; }
   .btn-primary { background: var(--navy); color: #fff; box-shadow: 0 4px 10px rgba(30, 58, 95, 0.2); }
   .btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); }
@@ -97,13 +103,74 @@
 
   <div class="rep-body" id="repBody">
     <div class="rep-controls">
+      <!-- Filter Mode Selector -->
       <div class="ctrl-group">
+        <label>Filter Mode</label>
+        <select id="repFilterMode" onchange="window.onRepFilterModeChange && window.onRepFilterModeChange()">
+          <option value="run" selected>By Payroll Run</option>
+          <option value="month">Per Month</option>
+          <option value="year">Per Year</option>
+          <option value="range">Date Range</option>
+          <option value="daily">Daily</option>
+        </select>
+      </div>
+
+      <!-- 1. Run Selector (Default) -->
+      <div class="ctrl-group" id="wrapRepRun">
         <label>Select Payroll Run</label>
-        <select id="selRun">
+        <select id="selRun" style="min-width:240px;">
           <option value="">Loading runs...</option>
         </select>
       </div>
-      <button class="btn btn-primary" id="btnLoadReport" style="margin-bottom: 2px;">Generate View</button>
+
+      <!-- 2. Month Selector -->
+      <div class="ctrl-group" id="wrapRepMonth" style="display:none;">
+        <label>Month & Year</label>
+        <div style="display:flex;gap:6px;">
+          <select id="repSelMonth" style="min-width:115px;">
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+          <select id="repSelYear" style="min-width:85px;"></select>
+        </div>
+      </div>
+
+      <!-- 3. Year Selector -->
+      <div class="ctrl-group" id="wrapRepYear" style="display:none;">
+        <label>Year</label>
+        <select id="repSelYearOnly" style="min-width:100px;"></select>
+      </div>
+
+      <!-- 4. Date Range Selector -->
+      <div class="ctrl-group" id="wrapRepRange" style="display:none;">
+        <label>Date Range</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="date" id="repDateFrom" class="filter-date-input">
+          <span style="font-size:11px;color:var(--muted);">to</span>
+          <input type="date" id="repDateTo" class="filter-date-input">
+        </div>
+      </div>
+
+      <!-- 5. Daily Selector -->
+      <div class="ctrl-group" id="wrapRepDaily" style="display:none;">
+        <label>Date</label>
+        <input type="date" id="repDateDaily" class="filter-date-input">
+      </div>
+
+      <button class="btn btn-primary" id="btnLoadReport" style="margin-bottom: 2px;">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Generate View
+      </button>
     </div>
 
     <div id="printableArea">
@@ -123,6 +190,40 @@
   
   let currentRuns = [];
   let currentReportData = null;
+
+  // ── Filter Mode Switching ──────────────────────────────────────────────────
+  window.onRepFilterModeChange = function() {
+    const mode = $('#repFilterMode').val();
+    $('#wrapRepRun, #wrapRepMonth, #wrapRepYear, #wrapRepRange, #wrapRepDaily').hide();
+    if (mode === 'run') {
+      $('#wrapRepRun').show();
+    } else if (mode === 'month') {
+      $('#wrapRepMonth').show();
+    } else if (mode === 'year') {
+      $('#wrapRepYear').show();
+    } else if (mode === 'range') {
+      $('#wrapRepRange').show();
+    } else if (mode === 'daily') {
+      $('#wrapRepDaily').show();
+    }
+  };
+
+  // ── Populate Year Dropdowns & Initial Dates ────────────────────────────────
+  const now = new Date();
+  const $repSelYear = $('#repSelYear');
+  const $repSelYearOnly = $('#repSelYearOnly');
+  for (let y = now.getFullYear() + 1; y >= 2020; y--) {
+    const isCur = y === now.getFullYear() ? 'selected' : '';
+    $repSelYear.append(`<option value="${y}" ${isCur}>${y}</option>`);
+    $repSelYearOnly.append(`<option value="${y}" ${isCur}>${y}</option>`);
+  }
+  $('#repSelMonth').val(now.getMonth() + 1);
+
+  const todayStr = now.toISOString().split('T')[0];
+  const firstOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  $('#repDateDaily').val(todayStr);
+  $('#repDateFrom').val(firstOfMonthStr);
+  $('#repDateTo').val(todayStr);
 
   function loadRuns() {
     $.get('/api/payroll/runs', function(data) {
@@ -226,7 +327,8 @@
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Payroll_Report_${data.period.replace(/ /g, '_')}.csv`);
+    const cleanPeriod = (data.period || 'Payroll').replace(/[^a-zA-Z0-9_-]/g, '_');
+    link.setAttribute("download", `Payroll_Report_${cleanPeriod}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -235,14 +337,39 @@
 
   // Bindings using delegation
   $(document).off('click', '#btnLoadReport').on('click', '#btnLoadReport', function() {
-    const val = $('#selRun').val();
-    if (!val) return;
-    const [year, month, half] = val.split('|');
+    const mode = $('#repFilterMode').val() || 'run';
+    const params = { date_mode: mode };
+
+    if (mode === 'run') {
+      const val = $('#selRun').val();
+      if (!val) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Select Run',
+          text: 'Please select a payroll run from the dropdown.'
+        });
+        return;
+      }
+      const [year, month, half] = val.split('|');
+      params.year  = year;
+      params.month = month;
+      params.half  = half;
+    } else if (mode === 'month') {
+      params.year  = $('#repSelYear').val();
+      params.month = $('#repSelMonth').val();
+    } else if (mode === 'year') {
+      params.year = $('#repSelYearOnly').val();
+    } else if (mode === 'range') {
+      params.date_from = $('#repDateFrom').val();
+      params.date_to   = $('#repDateTo').val();
+    } else if (mode === 'daily') {
+      params.date = $('#repDateDaily').val();
+    }
     
     $('#reportContent').html('<div class="loading-msg"><div class="spinner"></div>Loading comprehensive breakdown...</div>');
     $('#btnExportCSV, #btnPrintReport').prop('disabled', true);
 
-    $.get('/api/payroll/process', { year, month, half }, function(res) {
+    $.get('/api/payroll/process', params, function(res) {
       currentReportData = res;
       renderReport(res);
       $('#btnExportCSV, #btnPrintReport').prop('disabled', false);

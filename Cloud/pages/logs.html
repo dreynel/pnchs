@@ -185,12 +185,60 @@
 
   <!-- Header Card -->
   <div class="bl-header-card">
-    <div>
-      <div class="bl-header-title">Daily Attendance Logs</div>
-      <div class="bl-header-sub">Categorized Morning (AM) & Afternoon (PM) biometric scans for today</div>
-    </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <input type="date" id="logDatePicker" class="date-input" title="Filter date">
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
+      <select id="blDateMode" class="date-input" style="font-weight:600;" onchange="onBlDateModeChange()">
+        <option value="daily">Daily</option>
+        <option value="month">Per Month</option>
+        <option value="year">Per Year</option>
+        <option value="range">Date Range</option>
+      </select>
+
+      <!-- Daily Picker -->
+      <span id="blWrapDaily">
+        <input type="date" id="blDateDaily" class="date-input" onchange="loadTodayLogs()">
+      </span>
+
+      <!-- Month & Year Pickers -->
+      <span id="blWrapMonth" style="display:none; gap:6px; align-items:center;">
+        <select id="blDateMonth" class="date-input" onchange="loadTodayLogs()">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+        <select id="blDateYear" class="date-input" onchange="loadTodayLogs()">
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </span>
+
+      <!-- Year Only Picker -->
+      <span id="blWrapYear" style="display:none;">
+        <select id="blDateYearOnly" class="date-input" onchange="loadTodayLogs()">
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </span>
+
+      <!-- Range Pickers -->
+      <span id="blWrapRange" style="display:none; gap:6px; align-items:center;">
+        <input type="date" id="blDateFrom" class="date-input" onchange="loadTodayLogs()">
+        <span style="font-size:11px; color:var(--muted);">to</span>
+        <input type="date" id="blDateTo" class="date-input" onchange="loadTodayLogs()">
+      </span>
+
       <button class="btn btn-sm btn-outline-secondary" onclick="loadTodayLogs()" style="border-radius:9px; font-weight:600; padding:6px 14px; display:inline-flex; align-items:center; gap:6px;">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Refresh
@@ -334,16 +382,61 @@
   let activePunchFilter = 'all';
 
   // Set default date to today
-  const todayIso = new Date().toISOString().split('T')[0];
-  $('#logDatePicker').val(todayIso);
+  const today = new Date();
+  const todayIso = today.toISOString().split('T')[0];
+  $('#blDateDaily').val(todayIso);
+  $('#blDateMonth').val(today.getMonth() + 1);
+  $('#blDateYear').val(today.getFullYear());
+  $('#blDateYearOnly').val(today.getFullYear());
+  $('#blDateFrom').val(todayIso);
+  $('#blDateTo').val(todayIso);
+
+  window.onBlDateModeChange = function() {
+    const mode = $('#blDateMode').val();
+    $('#blWrapDaily').hide();
+    $('#blWrapMonth').css('display', 'none');
+    $('#blWrapYear').hide();
+    $('#blWrapRange').css('display', 'none');
+
+    if (mode === 'daily') {
+      $('#blWrapDaily').show();
+    } else if (mode === 'month') {
+      $('#blWrapMonth').css('display', 'inline-flex');
+    } else if (mode === 'year') {
+      $('#blWrapYear').show();
+    } else if (mode === 'range') {
+      $('#blWrapRange').css('display', 'inline-flex');
+    }
+    loadTodayLogs();
+  };
+
+  function getBlDateParams() {
+    const mode = $('#blDateMode').val();
+    const p = { date_mode: mode };
+    if (mode === 'daily') {
+      p.date = $('#blDateDaily').val() || todayIso;
+    } else if (mode === 'month') {
+      p.month = $('#blDateMonth').val();
+      p.year = $('#blDateYear').val();
+    } else if (mode === 'year') {
+      p.year = $('#blDateYearOnly').val();
+    } else if (mode === 'range') {
+      p.date_from = $('#blDateFrom').val() || todayIso;
+      p.date_to = $('#blDateTo').val() || todayIso;
+    }
+    return p;
+  }
 
   window.loadTodayLogs = function(silent = false) {
-    const selectedDate = $('#logDatePicker').val() || todayIso;
+    const params = getBlDateParams();
     
-    $.getJSON('/api/attendance/today_categorized?date=' + selectedDate)
+    $.getJSON('/api/attendance/today_categorized', params)
       .done(function(res) {
         todayData = res || { summary: {}, records: [], raw_punches: [] };
         todayData.records = res.records || res.matrix || [];
+        if (res.period_label) {
+          $('#blHeaderSub').text(`Showing biometric logs for: ${res.period_label}`);
+        }
         updateSummaryStats(todayData.summary || {});
         renderMatrixTable();
         renderFeedTable();

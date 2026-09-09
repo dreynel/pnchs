@@ -1,8 +1,15 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from db import db_cursor
 from mysql.connector import Error
+from services.policy_engine import AuditService
 
 salary_grade_bp = Blueprint('salary_grade', __name__, url_prefix='/api/salary_grades')
+
+@salary_grade_bp.before_request
+def check_auditor_access():
+    if request.method != 'GET':
+        if session.get('user', {}).get('role') == 'Auditor':
+            return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
 DEFAULT_THIRD_TRANCHE = [
     (1, None, 14634, 14730, 14849, 14968, 15089, 15211, 15333, 15456),
@@ -175,6 +182,7 @@ def reseed_salary_grades():
                         "INSERT INTO tblsalary_grades (salary_grade, position_title, step_1, step_2, step_3, step_4, step_5, step_6, step_7, step_8) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                         row
                     )
+            AuditService.log_action(cur, 'SALARY_GRADES_RESEEDED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblsalary_grades')
             conn.commit()
             return jsonify({'success': True, 'message': 'Salary grades successfully reseeded to SSL Third Tranche defaults.'})
     except Error as e:

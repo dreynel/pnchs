@@ -170,11 +170,6 @@
 
 <!-- ── Toolbar ── -->
 <div class="dtr-toolbar">
-  <div class="dtr-toolbar-info">
-    <div class="dtr-toolbar-title">Daily Time Record</div>
-    <div class="dtr-toolbar-sub">Select an employee and period to view attendance</div>
-  </div>
-
   <div class="filter-row">
 
     <!-- Employee search-select -->
@@ -189,29 +184,59 @@
       </div>
     </div>
 
-    <!-- Year -->
+    <!-- Date Mode -->
     <div class="filter-group">
-      <div class="filter-label">Year</div>
-      <select class="filter-select" id="selYear" style="width:90px;"></select>
+      <div class="filter-label">Period Type</div>
+      <select class="filter-select" id="dtrDateMode" style="width:125px;" onchange="window.onDtrDateModeChange && window.onDtrDateModeChange()">
+        <option value="month" selected>Per Month</option>
+        <option value="daily">Daily</option>
+        <option value="year">Per Year</option>
+        <option value="range">Date Range</option>
+      </select>
     </div>
 
-    <!-- Month -->
-    <div class="filter-group">
-      <div class="filter-label">Month</div>
-      <select class="filter-select" id="selMonth" style="width:120px;">
-        <option value="1">January</option>
-        <option value="2">February</option>
-        <option value="3">March</option>
-        <option value="4">April</option>
-        <option value="5">May</option>
-        <option value="6">June</option>
-        <option value="7">July</option>
-        <option value="8">August</option>
-        <option value="9">September</option>
-        <option value="10">October</option>
-        <option value="11">November</option>
-        <option value="12">December</option>
-      </select>
+    <!-- Month & Year (Default) -->
+    <div class="filter-group" id="dtrWrapMonth">
+      <div class="filter-label">Month & Year</div>
+      <div style="display:flex;gap:6px;">
+        <select class="filter-select" id="selMonth" style="width:115px;">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+        <select class="filter-select" id="selYear" style="width:85px;"></select>
+      </div>
+    </div>
+
+    <!-- Daily Picker -->
+    <div class="filter-group" id="dtrWrapDaily" style="display:none;">
+      <div class="filter-label">Date</div>
+      <input type="date" class="filter-select" id="dtrDateDaily" style="width:135px; padding-right:10px; background-image:none;">
+    </div>
+
+    <!-- Year Only Picker -->
+    <div class="filter-group" id="dtrWrapYear" style="display:none;">
+      <div class="filter-label">Year</div>
+      <select class="filter-select" id="dtrDateYearOnly" style="width:95px;"></select>
+    </div>
+
+    <!-- Date Range Picker -->
+    <div class="filter-group" id="dtrWrapRange" style="display:none;">
+      <div class="filter-label">Date Range</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="date" class="filter-select" id="dtrDateFrom" style="width:125px; padding-right:10px; background-image:none;">
+        <span style="font-size:11px;color:var(--muted2);">to</span>
+        <input type="date" class="filter-select" id="dtrDateTo" style="width:125px; padding-right:10px; background-image:none;">
+      </div>
     </div>
 
     <div class="filter-group" style="justify-content:flex-end;">
@@ -263,14 +288,39 @@
   let employees    = [];
   let selectedEmp  = null;  // { id, full_name, designation }
 
-  // ── Populate year dropdown ────────────────────────────────────────────────
+  // ── Date Mode switching ───────────────────────────────────────────────────
+  window.onDtrDateModeChange = function () {
+    const mode = $('#dtrDateMode').val();
+    $('#dtrWrapMonth, #dtrWrapDaily, #dtrWrapYear, #dtrWrapRange').hide();
+    if (mode === 'daily') {
+      $('#dtrWrapDaily').show();
+    } else if (mode === 'year') {
+      $('#dtrWrapYear').show();
+    } else if (mode === 'range') {
+      $('#dtrWrapRange').show();
+    } else {
+      $('#dtrWrapMonth').show();
+    }
+  };
+
+  // ── Populate year dropdowns ───────────────────────────────────────────────
   const now = new Date();
   const $selYear = $('#selYear');
+  const $dtrDateYearOnly = $('#dtrDateYearOnly');
   for (let y = now.getFullYear() + 1; y >= 2020; y--) {
-    $selYear.append(`<option value="${y}" ${y === now.getFullYear() ? 'selected' : ''}>${y}</option>`);
+    const isCur = y === now.getFullYear() ? 'selected' : '';
+    $selYear.append(`<option value="${y}" ${isCur}>${y}</option>`);
+    $dtrDateYearOnly.append(`<option value="${y}" ${isCur}>${y}</option>`);
   }
   // Default month = current
   $('#selMonth').val(now.getMonth() + 1);
+
+  // Default daily & range inputs
+  const todayStr = now.toISOString().split('T')[0];
+  const firstOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  $('#dtrDateDaily').val(todayStr);
+  $('#dtrDateFrom').val(firstOfMonthStr);
+  $('#dtrDateTo').val(todayStr);
 
   // ── Load employee list ────────────────────────────────────────────────────
   $.get('/api/auth/me', function (user) {
@@ -357,15 +407,30 @@
   $(document).off('click', '#btnGenerate').on('click', '#btnGenerate', function () {
     if (!selectedEmp) return;
 
-    const year  = $('#selYear').val();
-    const month = $('#selMonth').val();
+    const mode = $('#dtrDateMode').val() || 'month';
+    const params = {
+      employee_id: selectedEmp.id,
+      date_mode: mode
+    };
+
+    if (mode === 'daily') {
+      params.date = $('#dtrDateDaily').val();
+    } else if (mode === 'month') {
+      params.year  = $('#selYear').val();
+      params.month = $('#selMonth').val();
+    } else if (mode === 'year') {
+      params.year = $('#dtrDateYearOnly').val();
+    } else if (mode === 'range') {
+      params.date_from = $('#dtrDateFrom').val();
+      params.date_to   = $('#dtrDateTo').val();
+    }
 
     // Show spinner
     $('#dtrPrompt').hide();
     $('#dtrContent').html('<div class="dtr-loading"><div class="spinner"></div><span>Loading DTR…</span></div>');
 
     // Fetch report data then load content template
-    $.get('/api/dtr/report', { employee_id: selectedEmp.id, year, month }, function (data) {
+    $.get('/api/dtr/report', params, function (data) {
 
       // Load the content template into #dtrContent, passing data via global
       window._dtrData = data;

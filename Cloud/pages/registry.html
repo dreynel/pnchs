@@ -56,13 +56,6 @@
 </style>
 
 <div class="reg-page">
-    <div class="reg-toolbar">
-        <div>
-            <div class="reg-toolbar-title">Global Registry</div>
-            <div class="reg-toolbar-sub">Configure system-wide payroll parameters and statutory constants</div>
-        </div>
-    </div>
-
     <div class="reg-tabs">
         <div class="rtab active" data-target="#global-pane">Global Payheads</div>
         <div class="rtab" data-target="#statutory-pane">Statutory Configuration</div>
@@ -439,6 +432,13 @@ $(function() {
             }
         });
     };
+
+    $(document).ready(function() {
+        const uRole = $('#userRole').text().trim();
+        if (uRole === 'Auditor') {
+            $('<style>.btn-primary, [onclick^="deleteGlobal"], .text-danger, [onclick^="deleteStatutory"] { display: none !important; }</style>').appendTo('head');
+        }
+    });
 
     $('#statutoryForm').on('submit', function(e) {
         e.preventDefault();

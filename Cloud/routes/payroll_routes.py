@@ -191,6 +191,8 @@ def create_run():
                 "INSERT INTO tblpayroll (period_key, year, month, half, status) VALUES (%s, %s, %s, %s, 'Draft')",
                 (period_key, year_int, month_int, half_int)
             )
+            
+            AuditService.log_action(cur, 'PAYROLL_CREATED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblpayroll', new_value=period_key)
 
             # Load holidays, employees, global payheads, and statutory configs
             holidays = get_holidays_in_period(cur, start_date, end_date)
@@ -201,7 +203,7 @@ def create_run():
 
             configs = _get_statutory_configs(cur)
 
-            cur.execute("SELECT employee_id, first_name, last_name, designation FROM tblemployee")
+            cur.execute("SELECT employee_id, first_name, last_name, designation, employee_type FROM tblemployee WHERE LOWER(COALESCE(employment_status, 'active')) = 'active'")
             employees = cur.fetchall()
 
             # We'll calculate global payheads per employee due to potential percentages
@@ -415,34 +417,235 @@ def _workdays(start, end):
         current += timedelta(days=1)
 
 
-# ── GET /api/payroll/process ─────────────────────────────────────────────────
+# ── GET /api/payroll/process & /api/payroll/report ──────────────────────────
+@payroll_bp.route('/report', methods=['GET'])
 @payroll_bp.route('/process', methods=['GET'])
 def process_payroll():
-    year  = request.args.get('year',  '').strip()
+    mode = request.args.get('date_mode', '').strip().lower()
+    year = request.args.get('year', '').strip()
     month = request.args.get('month', '').strip()
-    half  = request.args.get('half',  '').strip()
+    half = request.args.get('half', '').strip()
+    period_key = request.args.get('period_key', '').strip()
 
-    if not year or not month or not half:
-        return jsonify({'error': 'year, month, and half are required'}), 400
+    today = date.today()
 
-    period_key = f"{int(year)}-{int(month)}-{int(half)}"
+    # Determine filter mode if not explicitly provided
+    if not mode:
+        if period_key or (year and month and half):
+            mode = 'run'
+        elif request.args.get('date'):
+            mode = 'daily'
+        elif request.args.get('date_from') or request.args.get('date_to'):
+            mode = 'range'
+        elif year and month and not half:
+            mode = 'month'
+        elif year and not month and not half:
+            mode = 'year'
+        else:
+            mode = 'run' if (year and month and half) else 'month'
 
     try:
         with db_cursor() as (conn, cur):
-            cur.execute("""
-                SELECT d.*, e.first_name, e.last_name, e.designation
+            # ── 1. Single Run Mode ───────────────────────────────────────────
+            if mode == 'run':
+                if not period_key:
+                    if not (year and month and half):
+                        return jsonify({'error': 'year, month, and half or period_key are required for single run'}), 400
+                    period_key = f"{int(year)}-{int(month)}-{int(half)}"
+
+                cur.execute("""
+                    SELECT d.*, e.first_name, e.last_name, e.designation
+                    FROM tblpayroll_details d
+                    JOIN tblemployee e ON d.employee_id = e.employee_id
+                    WHERE d.period_key = %s
+                    ORDER BY e.last_name, e.first_name
+                """, (period_key,))
+                records = cur.fetchall()
+
+                cur.execute("SELECT year, month, half, created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s", (period_key,))
+                hdr = cur.fetchone()
+                created_at_str = hdr['created_at'].strftime('%b %d, %Y') if hdr and hdr.get('created_at') else '—'
+                approved_by    = hdr['approved_by'] if hdr else None
+                approved_at    = hdr['approved_at'].strftime('%b %d, %Y %I:%M %p') if hdr and hdr.get('approved_at') else None
+
+                p_parts = period_key.split('-')
+                p_year = hdr['year'] if hdr else (p_parts[0] if len(p_parts)>0 else '')
+                p_month = hdr['month'] if hdr else (int(p_parts[1]) if len(p_parts)>1 else 1)
+                p_half = hdr['half'] if hdr else (int(p_parts[2]) if len(p_parts)>2 else 1)
+                m_name = calendar.month_name[int(p_month)] if str(p_month).isdigit() and 1 <= int(p_month) <= 12 else ''
+                period_label = f"{m_name} {p_year} - {'1st' if int(p_half)==1 else '2nd'} Half"
+
+                results = []
+                gGross = gDeduct = gNet = 0.0
+                for rec in records:
+                    def f(k): return float(rec.get(k) or 0)
+                    results.append({
+                        'id':                 rec['employee_id'],
+                        'name':               f"{rec['first_name']} {rec['last_name']}",
+                        'designation':        rec['designation'],
+                        'basic_salary':       f('basic_salary'),
+                        'half_basic':         f('half_basic'),
+                        'other_earnings':     f('other_earnings'),
+                        'holiday_pay':        f('holiday_pay'),
+                        'other_deductions':   f('other_deductions'),
+                        'daily_rate':         f('daily_rate'),
+                        'absent_days':        rec.get('absent_days', 0),
+                        'absent_deduction':   f('absent_deduction'),
+                        'late_minutes':        rec.get('late_minutes', 0),
+                        'undertime_minutes':   rec.get('undertime_minutes', 0),
+                        'tardiness_deduction': f('tardiness_deduction'),
+                        'undertime_deduction': f('undertime_deduction'),
+                        'gsis_ee':             f('sss_ee'),
+                        'philhealth_ee':      f('philhealth_ee'),
+                        'pagibig_ee':         f('pagibig_ee'),
+                        'withholding_tax':    f('withholding_tax'),
+                        'statutory_json':      rec.get('statutory_json'),
+                        'payheads_json':       rec.get('payheads_json'),
+                        'total_gross':        f('total_gross'),
+                        'total_deduct':       f('total_deduct'),
+                        'net_pay':            f('net_pay'),
+                        'is_negative':        bool(rec.get('is_negative', 0)),
+                        'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
+                        'dtr_filed':          bool(rec.get('dtr_filed', 0)),
+                    })
+                    gGross  += f('total_gross')
+                    gDeduct += f('total_deduct')
+                    gNet    += f('net_pay')
+
+                return jsonify({
+                    'period':      period_label,
+                    'created_at':  created_at_str,
+                    'approved_by': approved_by,
+                    'approved_at': approved_at,
+                    'employees':   results,
+                    'summary': {
+                        'total_employees':    len(results),
+                        'grand_total_gross':  round(gGross,  2),
+                        'grand_total_deduct': round(gDeduct, 2),
+                        'grand_total_net':    round(gNet,    2),
+                    }
+                })
+
+            # ── 2. Multi-Run / Aggregation Modes (Month, Year, Range, Daily) ─
+            where_clauses = []
+            params = []
+            period_label = ""
+
+            if mode == 'daily':
+                target = request.args.get('date') or today.strftime('%Y-%m-%d')
+                if isinstance(target, str):
+                    sp = [int(x) for x in target.split('-')]
+                    d_obj = date(sp[0], sp[1], sp[2])
+                else:
+                    d_obj = target
+                y_i, m_i, d_i = d_obj.year, d_obj.month, d_obj.day
+                h_i = 1 if d_i <= 15 else 2
+                where_clauses.append("p.year = %s AND p.month = %s AND p.half = %s")
+                params.extend([y_i, m_i, h_i])
+                period_label = f"Daily ({d_obj.strftime('%b %d, %Y')} - {calendar.month_name[m_i]} {'1st' if h_i==1 else '2nd'} Half)"
+
+            elif mode == 'month':
+                y_i = int(year or today.year)
+                m_i = int(month or today.month)
+                where_clauses.append("p.year = %s AND p.month = %s")
+                params.extend([y_i, m_i])
+                period_label = f"{calendar.month_name[m_i]} {y_i}"
+
+            elif mode == 'year':
+                y_i = int(year or today.year)
+                where_clauses.append("p.year = %s")
+                params.append(y_i)
+                period_label = f"Year {y_i}"
+
+            elif mode == 'range':
+                s_str = request.args.get('date_from') or today.strftime('%Y-%m-%d')
+                e_str = request.args.get('date_to') or s_str
+                sp = [int(x) for x in s_str.split('-')]
+                ep = [int(x) for x in e_str.split('-')]
+                s_date = date(sp[0], sp[1], sp[2])
+                e_date = date(ep[0], ep[1], ep[2])
+                s_int = s_date.year * 10000 + s_date.month * 100 + s_date.day
+                e_int = e_date.year * 10000 + e_date.month * 100 + e_date.day
+
+                where_clauses.append("""
+                    (p.year * 10000 + p.month * 100 + IF(p.half = 1, 1, 16)) <= %s
+                    AND
+                    (p.year * 10000 + p.month * 100 + IF(p.half = 1, 15, 31)) >= %s
+                """)
+                params.extend([e_int, s_int])
+                period_label = f"{s_date.strftime('%b %d, %Y')} – {e_date.strftime('%b %d, %Y')}"
+
+            # Query matching payroll runs
+            where_sql = " AND ".join(where_clauses)
+            cur.execute(f"""
+                SELECT period_key, year, month, half, status, approved_by, approved_at, created_at
+                FROM tblpayroll p
+                WHERE {where_sql}
+                ORDER BY year ASC, month ASC, half ASC
+            """, tuple(params))
+            hdrs = cur.fetchall()
+
+            # Prefer approved / posted runs, but fallback to any found if none approved yet
+            approved_hdrs = [h for h in hdrs if h['status'] in ['Approved', 'Posted']]
+            active_hdrs = approved_hdrs if approved_hdrs else hdrs
+
+            if not active_hdrs:
+                return jsonify({
+                    'period':      period_label,
+                    'created_at':  '—',
+                    'approved_by': None,
+                    'approved_at': None,
+                    'employees':   [],
+                    'summary': {
+                        'total_employees':    0,
+                        'grand_total_gross':  0.0,
+                        'grand_total_deduct': 0.0,
+                        'grand_total_net':    0.0,
+                        'runs_count':         0
+                    }
+                })
+
+            # If exactly 1 run was found, delegate to single run display for full detail
+            if len(active_hdrs) == 1:
+                single_hdr = active_hdrs[0]
+                return jsonify(json.loads(process_payroll_single_run(cur, single_hdr['period_key'], period_label)))
+
+            # Multiple runs: Aggregate across all matched periods
+            keys = [h['period_key'] for h in active_hdrs]
+            in_clause = ','.join(['%s'] * len(keys))
+            cur.execute(f"""
+                SELECT 
+                    d.employee_id,
+                    e.first_name,
+                    e.last_name,
+                    e.designation,
+                    MAX(d.basic_salary) AS basic_salary,
+                    SUM(COALESCE(d.half_basic, 0)) AS half_basic,
+                    SUM(COALESCE(d.other_earnings, 0)) AS other_earnings,
+                    SUM(COALESCE(d.holiday_pay, 0)) AS holiday_pay,
+                    SUM(COALESCE(d.other_deductions, 0)) AS other_deductions,
+                    AVG(COALESCE(d.daily_rate, 0)) AS daily_rate,
+                    SUM(COALESCE(d.absent_days, 0)) AS absent_days,
+                    SUM(COALESCE(d.absent_deduction, 0)) AS absent_deduction,
+                    SUM(COALESCE(d.late_minutes, 0)) AS late_minutes,
+                    SUM(COALESCE(d.undertime_minutes, 0)) AS undertime_minutes,
+                    SUM(COALESCE(d.tardiness_deduction, 0)) AS tardiness_deduction,
+                    SUM(COALESCE(d.undertime_deduction, 0)) AS undertime_deduction,
+                    SUM(COALESCE(d.sss_ee, 0)) AS sss_ee,
+                    SUM(COALESCE(d.philhealth_ee, 0)) AS philhealth_ee,
+                    SUM(COALESCE(d.pagibig_ee, 0)) AS pagibig_ee,
+                    SUM(COALESCE(d.withholding_tax, 0)) AS withholding_tax,
+                    SUM(COALESCE(d.total_gross, 0)) AS total_gross,
+                    SUM(COALESCE(d.total_deduct, 0)) AS total_deduct,
+                    SUM(COALESCE(d.net_pay, 0)) AS net_pay,
+                    COUNT(DISTINCT d.period_key) AS runs_count
                 FROM tblpayroll_details d
                 JOIN tblemployee e ON d.employee_id = e.employee_id
-                WHERE d.period_key = %s
-            """, (period_key,))
+                WHERE d.period_key IN ({in_clause})
+                GROUP BY d.employee_id, e.first_name, e.last_name, e.designation
+                ORDER BY e.last_name, e.first_name
+            """, tuple(keys))
             records = cur.fetchall()
-
-            # Fetch payroll header for created_at
-            cur.execute("SELECT created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s", (period_key,))
-            hdr = cur.fetchone()
-            created_at_str = hdr['created_at'].strftime('%b %d, %Y') if hdr and hdr['created_at'] else '—'
-            approved_by    = hdr['approved_by'] if hdr else None
-            approved_at    = hdr['approved_at'].strftime('%b %d, %Y %I:%M %p') if hdr and hdr['approved_at'] else None
 
             results = []
             gGross = gDeduct = gNet = 0.0
@@ -464,39 +667,122 @@ def process_payroll():
                     'undertime_minutes':   rec.get('undertime_minutes', 0),
                     'tardiness_deduction': f('tardiness_deduction'),
                     'undertime_deduction': f('undertime_deduction'),
-                    'gsis_ee':             f('sss_ee'),  # Mapping sss_ee col to gsis_ee
+                    'gsis_ee':             f('sss_ee'),
                     'philhealth_ee':      f('philhealth_ee'),
                     'pagibig_ee':         f('pagibig_ee'),
                     'withholding_tax':    f('withholding_tax'),
-                    'statutory_json':      rec.get('statutory_json'),
-                    'payheads_json':       rec.get('payheads_json'),
+                    'statutory_json':      None,
+                    'payheads_json':       None,
                     'total_gross':        f('total_gross'),
                     'total_deduct':       f('total_deduct'),
                     'net_pay':            f('net_pay'),
-                    'is_negative':        bool(rec.get('is_negative', 0)),
+                    'is_negative':        bool(f('net_pay') < 0),
                     'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
-                    'dtr_filed':          bool(rec.get('dtr_filed', 0)),
+                    'dtr_filed':          True,
+                    'runs_count':         rec.get('runs_count', len(active_hdrs)),
                 })
-
                 gGross  += f('total_gross')
                 gDeduct += f('total_deduct')
                 gNet    += f('net_pay')
 
-        return jsonify({
-            'period':      f"{calendar.month_name[int(month)]} {year} - {'1st' if int(half)==1 else '2nd'} Half",
-            'created_at':  created_at_str,
-            'approved_by': approved_by,
-            'approved_at': approved_at,
-            'employees':   results,
-            'summary': {
-                'total_employees':    len(results),
-                'grand_total_gross':  round(gGross,  2),
-                'grand_total_deduct': round(gDeduct, 2),
-                'grand_total_net':    round(gNet,    2),
-            }
-        })
+            approvers = list({h['approved_by'] for h in active_hdrs if h.get('approved_by')})
+            approver_str = ", ".join(approvers) if approvers else "Multiple Runs"
+
+            return jsonify({
+                'period':      f"{period_label} ({len(active_hdrs)} Runs Aggregated)",
+                'created_at':  f"{len(active_hdrs)} runs",
+                'approved_by': approver_str,
+                'approved_at': active_hdrs[-1]['approved_at'].strftime('%b %d, %Y') if active_hdrs[-1].get('approved_at') else None,
+                'employees':   results,
+                'summary': {
+                    'total_employees':    len(results),
+                    'grand_total_gross':  round(gGross,  2),
+                    'grand_total_deduct': round(gDeduct, 2),
+                    'grand_total_net':    round(gNet,    2),
+                    'runs_count':         len(active_hdrs)
+                }
+            })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
+
+
+def process_payroll_single_run(cur, period_key, label_override=None):
+    """Helper to format a single run payload as JSON string."""
+    cur.execute("""
+        SELECT d.*, e.first_name, e.last_name, e.designation
+        FROM tblpayroll_details d
+        JOIN tblemployee e ON d.employee_id = e.employee_id
+        WHERE d.period_key = %s
+        ORDER BY e.last_name, e.first_name
+    """, (period_key,))
+    records = cur.fetchall()
+
+    cur.execute("SELECT year, month, half, created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s", (period_key,))
+    hdr = cur.fetchone()
+    created_at_str = hdr['created_at'].strftime('%b %d, %Y') if hdr and hdr.get('created_at') else '—'
+    approved_by    = hdr['approved_by'] if hdr else None
+    approved_at    = hdr['approved_at'].strftime('%b %d, %Y %I:%M %p') if hdr and hdr.get('approved_at') else None
+
+    p_parts = period_key.split('-')
+    p_year = hdr['year'] if hdr else (p_parts[0] if len(p_parts)>0 else '')
+    p_month = hdr['month'] if hdr else (int(p_parts[1]) if len(p_parts)>1 else 1)
+    p_half = hdr['half'] if hdr else (int(p_parts[2]) if len(p_parts)>2 else 1)
+    m_name = calendar.month_name[int(p_month)] if str(p_month).isdigit() and 1 <= int(p_month) <= 12 else ''
+    period_label = label_override or f"{m_name} {p_year} - {'1st' if int(p_half)==1 else '2nd'} Half"
+
+    results = []
+    gGross = gDeduct = gNet = 0.0
+    for rec in records:
+        def f(k): return float(rec.get(k) or 0)
+        results.append({
+            'id':                 rec['employee_id'],
+            'name':               f"{rec['first_name']} {rec['last_name']}",
+            'designation':        rec['designation'],
+            'basic_salary':       f('basic_salary'),
+            'half_basic':         f('half_basic'),
+            'other_earnings':     f('other_earnings'),
+            'holiday_pay':        f('holiday_pay'),
+            'other_deductions':   f('other_deductions'),
+            'daily_rate':         f('daily_rate'),
+            'absent_days':        rec.get('absent_days', 0),
+            'absent_deduction':   f('absent_deduction'),
+            'late_minutes':        rec.get('late_minutes', 0),
+            'undertime_minutes':   rec.get('undertime_minutes', 0),
+            'tardiness_deduction': f('tardiness_deduction'),
+            'undertime_deduction': f('undertime_deduction'),
+            'gsis_ee':             f('sss_ee'),
+            'philhealth_ee':      f('philhealth_ee'),
+            'pagibig_ee':         f('pagibig_ee'),
+            'withholding_tax':    f('withholding_tax'),
+            'statutory_json':      rec.get('statutory_json'),
+            'payheads_json':       rec.get('payheads_json'),
+            'total_gross':        f('total_gross'),
+            'total_deduct':       f('total_deduct'),
+            'net_pay':            f('net_pay'),
+            'is_negative':        bool(rec.get('is_negative', 0)),
+            'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
+            'dtr_filed':          bool(rec.get('dtr_filed', 0)),
+            'runs_count':         1
+        })
+        gGross  += f('total_gross')
+        gDeduct += f('total_deduct')
+        gNet    += f('net_pay')
+
+    return json.dumps({
+        'period':      period_label,
+        'created_at':  created_at_str,
+        'approved_by': approved_by,
+        'approved_at': approved_at,
+        'employees':   results,
+        'summary': {
+            'total_employees':    len(results),
+            'grand_total_gross':  round(gGross,  2),
+            'grand_total_deduct': round(gDeduct, 2),
+            'grand_total_net':    round(gNet,    2),
+            'runs_count':         1
+        }
+    })
 
 
 # ── GET /api/payroll/my_payslip ──────────────────────────────────────────────
@@ -609,6 +895,7 @@ def delete_run(period_key):
             if rec['status'] not in ['Draft', 'Rejected']:
                 return jsonify({'error': 'Cannot delete an active or approved payroll.'}), 400
             cur.execute("DELETE FROM tblpayroll WHERE period_key=%s", (period_key,))
+            AuditService.log_action(cur, 'PAYROLL_DELETED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblpayroll', old_value=period_key)
             conn.commit()
             return jsonify({'success': True})
     except Exception as e:
@@ -643,22 +930,40 @@ def update_status(period_key):
             if role == 'Finance':
                 if new_status == 'For Approval' and curr_status in ['Draft', 'Rejected']:
                     cur.execute("UPDATE tblpayroll SET status='For Approval', remarks=NULL WHERE period_key=%s", (period_key,))
+                    cur.execute("""
+                        INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, RequesterID, Title)
+                        VALUES ('Payroll', %s, 'Pending', 'Principal', %s, %s)
+                        ON DUPLICATE KEY UPDATE ApprovalStatus='Pending', RequesterID=%s
+                    """, (period_key, user_name, f"Payroll Run - {period_key}", user_name))
+                    AuditService.log_action(cur, 'PAYROLL_SUBMITTED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                 else:
                     return jsonify({'error': 'Invalid status transition for Finance'}), 400
-            elif role in ['Administrator', 'Admin']:
+            elif role in ['Administrator', 'Admin', 'Principal']:
                 if new_status in ['Approved', 'Rejected'] and curr_status == 'For Approval':
                     if new_status == 'Approved':
                         cur.execute(
                             "UPDATE tblpayroll SET status=%s, remarks=%s, approved_by=%s, approved_at=NOW() WHERE period_key=%s",
                             (new_status, remarks, user_name, period_key)
                         )
+                        cur.execute("""
+                            UPDATE tblapprovals
+                            SET ApprovalStatus='Approved', ApproverID=%s, Remarks=%s, ApprovedAt=NOW()
+                            WHERE DocType='Payroll' AND DocNumber=%s
+                        """, (user_name, remarks, period_key))
+                        AuditService.log_action(cur, 'PAYROLL_APPROVED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                     else:
                         cur.execute(
                             "UPDATE tblpayroll SET status=%s, remarks=%s WHERE period_key=%s",
                             (new_status, remarks, period_key)
                         )
+                        cur.execute("""
+                            UPDATE tblapprovals
+                            SET ApprovalStatus='Rejected', ApproverID=%s, Remarks=%s, ApprovedAt=NOW()
+                            WHERE DocType='Payroll' AND DocNumber=%s
+                        """, (user_name, remarks, period_key))
+                        AuditService.log_action(cur, 'PAYROLL_REJECTED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                 else:
-                    return jsonify({'error': 'Invalid status transition for Admin'}), 400
+                    return jsonify({'error': 'Invalid status transition for Approver'}), 400
             else:
                 return jsonify({'error': 'Unauthorized'}), 403
 
@@ -756,7 +1061,7 @@ def get_leaves():
             params = []
             conditions = []
 
-            if role == 'Employee':
+            if role not in ['HR', 'HR Officer']:
                 emp_id = user.get('employee_id')
                 conditions.append("l.employee_id = %s")
                 params.append(emp_id)
@@ -793,13 +1098,22 @@ def get_leaves():
 
 @payroll_bp.route('/leaves', methods=['POST'])
 def file_leave():
-    from flask import session
+    from flask import session, current_app
     from services.policy_engine import LeavePolicyService
+    from werkzeug.utils import secure_filename
+    import os
+
     user = session.get('user', {})
     role = user.get('role')
-    data = request.json or {}
 
-    emp_id     = user.get('employee_id') if role == 'Employee' else data.get('employee_id')
+    if request.files or request.form:
+        data = request.form
+        file_obj = request.files.get('attachment')
+    else:
+        data = request.json or {}
+        file_obj = None
+
+    emp_id     = user.get('employee_id') if role not in ['HR', 'HR Officer'] else (data.get('employee_id') or user.get('employee_id'))
     leave_date = data.get('leave_date')
     leave_type = (data.get('leave_type') or 'VL').upper()
     reason     = data.get('reason', '').strip()
@@ -816,6 +1130,32 @@ def file_leave():
     if role == 'Employee' and parsed_date <= date.today():
         return jsonify({'error': 'Leave applications must be filed at least 1 day in advance (starting tomorrow).'}), 400
 
+    import json
+
+    files_list = []
+    if request.files:
+        files_list = request.files.getlist('attachment') or request.files.getlist('attachments')
+
+    saved_paths = []
+    if files_list:
+        target_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'leaves')
+        os.makedirs(target_dir, exist_ok=True)
+        allowed = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf', '.doc', '.docx', '.txt']
+
+        for idx, fobj in enumerate(files_list):
+            if fobj and fobj.filename:
+                fname = secure_filename(fobj.filename)
+                if fname:
+                    ext = os.path.splitext(fname)[1].lower()
+                    if ext in allowed:
+                        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        saved_filename = f"{timestamp_str}_{idx}_{fname}"
+                        full_path = os.path.join(target_dir, saved_filename)
+                        fobj.save(full_path)
+                        saved_paths.append(f"uploads/leaves/{saved_filename}")
+
+    attachment_path = json.dumps(saved_paths) if saved_paths else None
+
     try:
         with db_cursor(commit=True) as (conn, cur):
             # Check for duplicate leave on the same date
@@ -828,10 +1168,20 @@ def file_leave():
                 return jsonify({'error': f"A {dup['status']} leave request already exists for this date."}), 400
 
             cur.execute("""
-                INSERT INTO tblleaves (employee_id, leave_date, leave_type, reason, status)
-                VALUES (%s, %s, %s, %s, 'Pending')
-            """, (emp_id, leave_date, leave_type, reason))
+                INSERT INTO tblleaves (employee_id, leave_date, leave_type, reason, attachment, status)
+                VALUES (%s, %s, %s, %s, %s, 'Pending')
+            """, (emp_id, leave_date, leave_type, reason, attachment_path))
             leave_id = cur.lastrowid
+
+            cur.execute("SELECT CONCAT(first_name, ' ', last_name) AS fullname FROM tblemployee WHERE employee_id=%s", (emp_id,))
+            emp_rec = cur.fetchone()
+            emp_name = emp_rec['fullname'] if emp_rec and emp_rec['fullname'] else emp_id
+
+            cur.execute("""
+                INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, RequesterID, Title, Remarks)
+                VALUES ('Leave', %s, 'Pending', 'HR', %s, %s, %s)
+                ON DUPLICATE KEY UPDATE ApprovalStatus='Pending', RequesterID=%s, Title=%s, Remarks=%s
+            """, (str(leave_id), emp_name, f"{leave_type} Leave - {emp_name} ({leave_date})", reason, emp_name, f"{leave_type} Leave - {emp_name} ({leave_date})", reason))
 
             return jsonify({
                 'success': True,
@@ -921,10 +1271,16 @@ def review_leave(lid):
                 )
 
             cur.execute("""
-                UPDATE tblleaves
+                UPDATE tblleaves 
                 SET status=%s, reviewed_by=%s, reviewed_at=NOW()
                 WHERE id=%s
             """, (new_status, reviewer_name, lid))
+
+            cur.execute("""
+                UPDATE tblapprovals
+                SET ApprovalStatus=%s, ApproverID=%s, ApprovedAt=NOW()
+                WHERE DocType='Leave' AND DocNumber=%s
+            """, (new_status, reviewer_name, str(lid)))
 
             return jsonify({'success': True, 'message': f'Leave request marked as {new_status}.'})
     except Exception as e:
@@ -987,7 +1343,7 @@ def get_leave_balances():
 
     try:
         with db_cursor() as (conn, cur):
-            if role == 'Employee':
+            if role not in ['HR', 'HR Officer']:
                 emp_id = user.get('employee_id')
                 cur.execute("""
                     SELECT b.*, e.first_name, e.last_name
@@ -1027,8 +1383,8 @@ def adjust_leave_balance():
     from flask import session
     from services.policy_engine import AuditService, LeavePolicyService
     user = session.get('user', {})
-    if user.get('role') not in ['Admin', 'HR']:
-        return jsonify({'error': 'Unauthorized'}), 403
+    if user.get('role') not in ['HR', 'HR Officer']:
+        return jsonify({'error': 'Unauthorized: Only HR can adjust leave credit balances.'}), 403
 
     data = request.json or {}
     emp_id     = data.get('employee_id')
@@ -1101,7 +1457,7 @@ def get_leave_transactions():
 
     try:
         with db_cursor() as (conn, cur):
-            if role == 'Employee':
+            if role not in ['HR', 'HR Officer']:
                 emp_id = user.get('employee_id')
                 cur.execute("""
                     SELECT t.*, e.first_name, e.last_name
@@ -1186,6 +1542,7 @@ def update_policy_configs():
                         "INSERT INTO tblpolicy_config (config_key, config_value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE config_value=%s",
                         (k, str(v), str(v))
                     )
+            AuditService.log_action(cur, 'POLICY_UPDATED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblpolicy_config')
             conn.commit()
             return jsonify({'success': True})
     except Exception as e:

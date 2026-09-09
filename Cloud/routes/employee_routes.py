@@ -1,8 +1,16 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from mysql.connector import Error
 from db import db_cursor
+from services.policy_engine import AuditService
+import json
 
 employee_bp = Blueprint('employees', __name__, url_prefix='/api/employees')
+
+@employee_bp.before_request
+def check_auditor_access():
+    if request.method != 'GET':
+        if session.get('user', {}).get('role') == 'Auditor':
+            return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -51,6 +59,7 @@ def _row_to_dict(row, pay_heads, enrolled_fingers=None):
     if db_role == "Admin": ui_role = "Principal"
     elif db_role == "HR": ui_role = "HR Officer"
     elif db_role == "Finance": ui_role = "Finance Officer"
+    elif db_role == "Auditor": ui_role = "Auditor"
     
     return {
         "id":          row["employee_id"],
@@ -60,6 +69,7 @@ def _row_to_dict(row, pay_heads, enrolled_fingers=None):
         "employee_type": row.get("employee_type", "TEACHING"),
         "salary_grade": row.get("salary_grade"),
         "step": row.get("step", 1),
+        "employment_status": row.get("employment_status") or "Active",
         "system_role": ui_role,
 
         "birthday":    str(row["birthday"]) if row.get("birthday") else "",
@@ -97,6 +107,7 @@ def list_employees():
                            MAX(e.last_name) as last_name, 
                            MAX(e.designation) as designation, 
                            MAX(e.employee_type) as employee_type, 
+                           MAX(e.employment_status) as employment_status, 
                            MAX(u.role) as system_role
                     FROM tblemployee e
                     LEFT JOIN tblusers u ON e.employee_id = u.employee_id
@@ -114,6 +125,7 @@ def list_employees():
                            MAX(e.last_name) as last_name, 
                            MAX(e.designation) as designation, 
                            MAX(e.employee_type) as employee_type, 
+                           MAX(e.employment_status) as employment_status, 
                            MAX(u.role) as system_role
                     FROM tblemployee e
                     LEFT JOIN tblusers u ON e.employee_id = u.employee_id
@@ -136,6 +148,7 @@ def list_employees():
             if r == 'Admin': return 'Principal'
             if r == 'HR': return 'HR Officer'
             if r == 'Finance': return 'Finance Officer'
+            if r == 'Auditor': return 'Auditor'
             return 'Employee'
 
         return jsonify([{
@@ -144,6 +157,7 @@ def list_employees():
             "last_name":   r["last_name"],
             "designation": r["designation"],
             "employee_type": r.get("employee_type", "TEACHING"),
+            "employment_status": r.get("employment_status") or "Active",
             "system_role": _map_role(r.get("system_role")),
             "enrolled_fingers": fp_map.get(r["employee_id"], [])
         } for r in rows])
@@ -201,11 +215,14 @@ def create_employee():
             step = data.get('step', 1)
             sg_val = int(sg) if sg and str(sg).isdigit() else None
             step_val = int(step) if step and str(step).isdigit() else 1
+            emp_status = data.get('employment_status', 'Active').strip()
+            if emp_status not in ['Active', 'Inactive']:
+                emp_status = 'Active'
 
             cur.execute("""
                 INSERT INTO tblemployee
-                    (employee_id, first_name, last_name, designation, employee_type, salary_grade, step, birthday, email, contact, address)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (employee_id, first_name, last_name, designation, employee_type, salary_grade, step, employment_status, birthday, email, contact, address)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 new_id,
                 data['first_name'].strip(),
@@ -214,6 +231,7 @@ def create_employee():
                 emp_type,
                 sg_val,
                 step_val,
+                emp_status,
                 data['birthday'] or None,
                 data['email'].strip(),
                 data['contact'].strip(),
@@ -253,11 +271,14 @@ def create_employee():
             if system_role_input == 'Principal': db_role = 'Admin'
             elif system_role_input == 'HR Officer': db_role = 'HR'
             elif system_role_input == 'Finance Officer': db_role = 'Finance'
+            elif system_role_input == 'Auditor': db_role = 'Auditor'
             
             cur.execute(
                 "INSERT INTO tblusers (username, password, name, role, employee_id) VALUES (%s, %s, %s, %s, %s)",
                 (username, password, fullname, db_role, new_id)
             )
+            
+            AuditService.log_action(cur, 'EMPLOYEE_CREATED', employee_id=new_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=new_id, new_value=json.dumps(data))
             cur.execute("""
                 SELECT e.*, u.role as system_role
                 FROM tblemployee e
@@ -278,8 +299,9 @@ def update_employee(emp_id):
     data = request.get_json(force=True)
     try:
         with db_cursor(commit=True) as (conn, cur):
-            cur.execute("SELECT id FROM tblemployee WHERE employee_id = %s", (emp_id,))
-            if not cur.fetchone():
+            cur.execute("SELECT * FROM tblemployee WHERE employee_id = %s", (emp_id,))
+            old_row = cur.fetchone()
+            if not old_row:
                 return jsonify({"error": "Employee not found"}), 404
             emp_type = data.get('employee_type', 'NON_TEACHING').strip()
             if emp_type.lower() == 'faculty':
@@ -291,11 +313,14 @@ def update_employee(emp_id):
             step = data.get('step', 1)
             sg_val = int(sg) if sg and str(sg).isdigit() else None
             step_val = int(step) if step and str(step).isdigit() else 1
+            emp_status = data.get('employment_status', old_row.get('employment_status') or 'Active').strip()
+            if emp_status not in ['Active', 'Inactive']:
+                emp_status = 'Active'
 
             cur.execute("""
                 UPDATE tblemployee
                 SET first_name=%s, last_name=%s, designation=%s, employee_type=%s,
-                    salary_grade=%s, step=%s, birthday=%s, email=%s, contact=%s, address=%s
+                    salary_grade=%s, step=%s, employment_status=%s, birthday=%s, email=%s, contact=%s, address=%s
                 WHERE employee_id=%s
             """, (
                 data.get('first_name','').strip(),
@@ -304,6 +329,7 @@ def update_employee(emp_id):
                 emp_type,
                 sg_val,
                 step_val,
+                emp_status,
                 data.get('birthday') or None,
                 data.get('email','').strip(),
                 data.get('contact','').strip(),
@@ -317,8 +343,11 @@ def update_employee(emp_id):
             if system_role_input == 'Principal': db_role = 'Admin'
             elif system_role_input == 'HR Officer': db_role = 'HR'
             elif system_role_input == 'Finance Officer': db_role = 'Finance'
+            elif system_role_input == 'Auditor': db_role = 'Auditor'
             
             cur.execute("UPDATE tblusers SET role=%s WHERE employee_id=%s", (db_role, emp_id))
+            
+            AuditService.log_action(cur, 'EMPLOYEE_UPDATED', employee_id=emp_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=emp_id, old_value=json.dumps(old_row, default=str), new_value=json.dumps(data))
             
             cur.execute("DELETE FROM tblpayhead WHERE employee_id=%s", (emp_id,))
             for ph in data.get('pay_heads', []):
@@ -346,8 +375,9 @@ def update_employee(emp_id):
 def delete_employee(emp_id):
     try:
         with db_cursor(commit=True) as (conn, cur):
-            cur.execute("SELECT id FROM tblemployee WHERE employee_id=%s", (emp_id,))
-            if not cur.fetchone():
+            cur.execute("SELECT * FROM tblemployee WHERE employee_id=%s", (emp_id,))
+            old_row = cur.fetchone()
+            if not old_row:
                 return jsonify({"error": "Employee not found"}), 404
             
             # Cascade delete to all foreign tables
@@ -361,6 +391,8 @@ def delete_employee(emp_id):
             cur.execute("DELETE FROM tblusers WHERE employee_id=%s", (emp_id,))
             
             cur.execute("DELETE FROM tblemployee WHERE employee_id=%s", (emp_id,))
+            
+            AuditService.log_action(cur, 'EMPLOYEE_DELETED', employee_id=emp_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=emp_id, old_value=json.dumps(old_row, default=str))
         return jsonify({"message": f"Employee {emp_id} deleted successfully."})
     except Error as e:
         return jsonify({"error": str(e)}), 500

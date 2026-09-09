@@ -356,10 +356,10 @@ class HabitualTardinessService:
 class AuditService:
     @staticmethod
     def log_action(cur, action, employee_id=None, user_name='System', target_table=None, target_id=None,
-                   old_value=None, new_value=None, reason=None):
+                   old_value=None, new_value=None, reason=None, ip_address=None):
         cur.execute("""
             INSERT INTO tblaudit_logs
-            (employee_id, user_name, action, target_table, target_id, old_value, new_value, reason)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (employee_id, user_name, action, target_table, target_id, old_value, new_value, reason, ip_address)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (employee_id, user_name, action, target_table, str(target_id) if target_id else None,
-              str(old_value) if old_value else None, str(new_value) if new_value else None, reason))
+              str(old_value) if old_value else None, str(new_value) if new_value else None, reason, ip_address))

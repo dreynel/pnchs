@@ -2,11 +2,59 @@
    
     /* ════ LEFT PANEL ════ */
     .panel-left {
-      width:320px; min-width:300px;
+      width:420px; min-width:380px;
       display:flex; flex-direction:column;
       border-right:1px solid var(--border);
       background:var(--surface);
       height:100%;
+    }
+
+    .emp-pagination {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .pg-btn {
+      padding: 4px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--navy);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .pg-btn:hover:not(:disabled) {
+      background: var(--navy-light);
+      border-color: var(--navy-mid);
+    }
+    .pg-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .pg-num {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      border: 1px solid transparent;
+    }
+    .pg-num.active {
+      background: var(--navy);
+      color: #fff;
+    }
+    .pg-num:hover:not(.active) {
+      background: var(--surface2);
+      border-color: var(--border);
     }
 
     .panel-header {
@@ -162,6 +210,16 @@
       background: #f3e8ff;
       color: #7e22ce;
       border: 1px solid #e9d5ff;
+    }
+    .badge-tag.active-status {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .badge-tag.inactive-status {
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #cbd5e1;
     }
     .badge-bio-dot {
       width: 7px;
@@ -390,22 +448,89 @@
     }
     .form-group input::placeholder { color:var(--muted2); }
 
-    .ph-form-row { display:flex; gap:7px; align-items:center; }
-    .ph-form-row input, .ph-form-row select { font-size:12px; }
-    .ph-form-row input[data-ph-name] { flex:1; min-width: 0; }
-    .ph-amount { flex:0 0 90px !important; }
-    .ph-mode { flex:0 0 95px !important; }
-    .ph-pct { flex:0 0 60px !important; }
-    .ph-category { flex:0 0 95px !important; }
+    /* Premium Pay Heads Modal Layout */
+    .ph-container-card {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ph-header-row {
+      display: flex;
+      gap: 8px;
+      padding: 4px 10px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted2);
+      border-bottom: 1px solid var(--border);
+    }
+    .ph-form-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .ph-form-row:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.04);
+    }
+    .ph-form-row.is-basic-row {
+      background: var(--navy-light);
+      border-color: #c5d8f5;
+    }
+    .ph-form-row input, .ph-form-row select { font-size:12px; padding: 6px 9px; border-radius: 7px; }
+    .ph-form-row input[data-ph-name] { flex:1.2; min-width: 0; }
+    .ph-category { flex:0 0 100px !important; }
+    .ph-mode { flex:0 0 100px !important; }
+    .ph-pct { flex:0 0 70px !important; text-align: right; }
+    .ph-amount { flex:0 0 110px !important; text-align: right; font-weight: 600; }
+    
     .btn-ph-remove {
       width:28px; height:28px; border-radius:7px; flex-shrink:0;
       background:var(--red-dim); border:1.5px solid var(--red-border);
       color:var(--red); cursor:pointer;
       display:flex; align-items:center; justify-content:center;
-      transition:background 0.15s;
+      transition:all 0.15s ease;
     }
-    .btn-ph-remove:hover { background:rgba(192,57,43,0.15); }
+    .btn-ph-remove:hover { background:rgba(192,57,43,0.18); transform:scale(1.05); }
     .btn-ph-hide { visibility:hidden; width:28px; }
+
+    .ph-summary-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 11.5px;
+      margin-top: 2px;
+    }
+    .ph-sum-label { color: var(--muted2); font-weight: 600; margin-right: 4px; }
+    .ph-sum-val { font-weight: 700; font-family: 'Playfair Display', serif; }
+    .ph-sum-val.earn { color: #059669; }
+    .ph-sum-val.deduct { color: #dc2626; }
+    .ph-sum-val.net { color: var(--navy); font-size: 1.05rem; }
+
+    .btn-ph-add {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; padding: 9px; border: 1.5px dashed var(--border2);
+      border-radius: 9px; background: #ffffff; color: var(--navy);
+      font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-ph-add:hover { border-color: var(--navy-mid); background: var(--navy-light); color: var(--navy-mid); }
 
     .modal-footer {
       padding:13px 20px;
@@ -512,13 +637,19 @@
         </button>
       </div>
 
-      <!-- Secondary Filters (Role & Biometric Status) -->
+      <!-- Secondary Filters (Role, Biometric, and Employment Status) -->
       <div class="filter-secondary-row">
+        <select class="filter-select" id="statusFilter" onchange="filterAndRender()">
+          <option value="ALL">All Status</option>
+          <option value="Active">Active Only</option>
+          <option value="Inactive">Inactive Only</option>
+        </select>
         <select class="filter-select" id="roleFilter" onchange="filterAndRender()">
           <option value="ALL">All Roles</option>
           <option value="Principal">Principal / Admin</option>
           <option value="HR Officer">HR Officer</option>
           <option value="Finance Officer">Finance Officer</option>
+          <option value="Auditor">Auditor</option>
           <option value="Employee">Employee (Staff)</option>
         </select>
         <select class="filter-select" id="bioFilter" onchange="filterAndRender()">
@@ -530,6 +661,7 @@
     </div>
 
     <div class="emp-list" id="empList"></div>
+    <div class="emp-pagination" id="empPagination"></div>
   </div>
 
   <!-- ════ RIGHT PANEL ════ -->
@@ -574,6 +706,7 @@
             <div class="info-grid">
               <div class="info-field"><label>First Name</label><span id="dFirstName">–</span></div>
               <div class="info-field"><label>Last Name</label><span id="dLastName">–</span></div>
+              <div class="info-field"><label>Employment Status</label><span id="dEmploymentStatus">–</span></div>
               <div class="info-field"><label>Employee Type</label><span id="dEmployeeType">–</span></div>
               <div class="info-field"><label>System Role</label><span id="dSystemRole">–</span></div>
               <div class="info-field"><label>Position</label><span id="dDesignation">–</span></div>
@@ -649,6 +782,12 @@
       <div class="form-section-title">Personal Information</div>
       <div class="form-grid">
         <div class="form-group"><label>Employee ID</label><input type="text" id="fEmployeeId" placeholder="Auto-generated" disabled></div>
+        <div class="form-group"><label>Employment Status *</label>
+          <select id="fEmploymentStatus">
+            <option value="Active">Active (Included in Payroll)</option>
+            <option value="Inactive">Inactive (Excluded from Payroll)</option>
+          </select>
+        </div>
         <div class="form-group"><label>Employee Type *</label>
           <select id="fEmployeeType">
             <option value="TEACHING">Teaching Personnel (Faculty)</option>
@@ -765,6 +904,7 @@
             <option value="Employee">Employee (Basic Access)</option>
             <option value="HR Officer">HR Officer (HR Access)</option>
             <option value="Finance Officer">Finance Officer (Finance Access)</option>
+            <option value="Auditor">Auditor (Oversight & Audit Access)</option>
             <option value="Principal">Principal (Admin Access)</option>
           </select>
         </div>
@@ -776,12 +916,47 @@
       <div class="form-grid cols-1">
         <div class="form-group"><label>Address *</label><input type="text" id="fAddress" placeholder="Full address"></div>
       </div>
-      <div class="form-section-title" style="margin-top:6px;">Pay Heads</div>
-      <div id="phFormRows" style="display:flex; flex-direction:column; gap:6px;"></div>
-      <button class="btn-ph-add" id="btnAddPh">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-        Add Pay Head Row
-      </button>
+      <div class="form-section-title" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+        <span>Pay Heads & Allowance Breakdown</span>
+        <span style="font-size:10.5px; font-weight:normal; color:var(--muted2); text-transform:none;">Itemized compensation and statutory/custom deductions</span>
+      </div>
+
+      <div class="ph-container-card">
+        <!-- Header Column Labels -->
+        <div class="ph-header-row">
+          <div style="flex:1.2;">Pay Head & Description</div>
+          <div style="flex:0 0 100px;">Category</div>
+          <div style="flex:0 0 100px;">Calc Mode</div>
+          <div style="flex:0 0 70px; text-align:right;">% Rate</div>
+          <div style="flex:0 0 110px; text-align:right;">Amount (₱)</div>
+          <div style="flex:0 0 28px;"></div>
+        </div>
+
+        <!-- Itemized Rows Container -->
+        <div id="phFormRows" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+        <!-- Live Summary Footer -->
+        <div class="ph-summary-footer">
+          <div>
+            <span class="ph-sum-label">Total Earnings:</span>
+            <span class="ph-sum-val earn" id="modalGrossTotal">₱0.00</span>
+          </div>
+          <div>
+            <span class="ph-sum-label">Total Deductions:</span>
+            <span class="ph-sum-val deduct" id="modalDeductTotal">₱0.00</span>
+          </div>
+          <div>
+            <span class="ph-sum-label">Net Allocation:</span>
+            <span class="ph-sum-val net" id="modalNetTotal">₱0.00</span>
+          </div>
+        </div>
+
+        <!-- Add Button -->
+        <button type="button" class="btn-ph-add" id="btnAddPh">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          Add Pay Head Item
+        </button>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeFormModal()">Cancel</button>
@@ -824,6 +999,14 @@
   let editMode   = false;
   let enrolledFingers = 0;
 
+  const uRole = $('#userRole').text().trim();
+  if (uRole === 'Auditor') {
+    $('.btn-add').hide();
+    // we also need to hide edit/delete in right panel. We'll hide them globally by class for now, or just ensure they are hidden.
+    // wait, right panel edit/delete buttons have classes btn-edit and btn-delete
+    $('<style>.btn-edit, .btn-delete { display: none !important; }</style>').appendTo('head');
+  }
+
   /* Toast (Swal mixin) */
   const Toast = Swal.mixin({
     toast: true,
@@ -860,6 +1043,9 @@
 
   let rawEmployeeList = [];
   let currentCategory = 'ALL';
+  let currentPage = 1;
+  const pageSize = 10;
+  let currentFilteredList = [];
 
   function setCategoryFilter(cat) {
     currentCategory = cat;
@@ -872,6 +1058,7 @@
     const q = ($('#searchInput').val() || '').toLowerCase().trim();
     const role = $('#roleFilter').val() || 'ALL';
     const bio = $('#bioFilter').val() || 'ALL';
+    const status = $('#statusFilter').val() || 'ALL';
 
     // Update counts across the full raw list
     const totalCount = rawEmployeeList.length;
@@ -883,7 +1070,7 @@
     $('#countNonTeaching').text(nonTeachingCount);
 
     // Filter list
-    const filtered = rawEmployeeList.filter(e => {
+    currentFilteredList = rawEmployeeList.filter(e => {
       // Category filter
       const empType = (e.employee_type || 'TEACHING').toUpperCase();
       if (currentCategory !== 'ALL' && empType !== currentCategory) {
@@ -892,6 +1079,12 @@
 
       // Role filter
       if (role !== 'ALL' && e.system_role !== role) {
+        return false;
+      }
+
+      // Employment Status filter
+      const empStatus = e.employment_status || 'Active';
+      if (status !== 'ALL' && empStatus !== status) {
         return false;
       }
 
@@ -909,8 +1102,59 @@
       return true;
     });
 
-    renderList(filtered);
+    currentPage = 1;
+    renderCurrentPage();
   }
+
+  function renderCurrentPage() {
+    const total = currentFilteredList.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIdx = (currentPage - 1) * pageSize;
+    const pageItems = currentFilteredList.slice(startIdx, startIdx + pageSize);
+
+    renderList(pageItems);
+    renderPaginationControls(total, totalPages);
+  }
+
+  function renderPaginationControls(total, totalPages) {
+    if (total === 0) {
+      $('#empPagination').hide();
+      return;
+    }
+    $('#empPagination').css('display', 'flex');
+    const startNum = (currentPage - 1) * pageSize + 1;
+    const endNum = Math.min(currentPage * pageSize, total);
+
+    let pageBtnsHtml = '';
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      pageBtnsHtml += `<button type="button" class="pg-num ${p === currentPage ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+    }
+
+    const html = `
+      <div style="font-size:10.5px;">Showing <strong>${startNum}–${endNum}</strong> of <strong>${total}</strong></div>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <button type="button" class="pg-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&larr; Prev</button>
+        ${pageBtnsHtml}
+        <button type="button" class="pg-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button>
+      </div>
+    `;
+    $('#empPagination').html(html);
+  }
+
+  window.goToPage = function(p) {
+    currentPage = p;
+    renderCurrentPage();
+  };
 
   // ── Load employee list ────────────────────────────────────────────────────
   function loadList() {
@@ -937,6 +1181,8 @@
       const isTeaching = (e.employee_type || 'TEACHING').toUpperCase() === 'TEACHING';
       const isElevatedRole = e.system_role && e.system_role !== 'Employee';
       const isEnrolled = (e.enrolled_fingers || []).length > 0;
+      const empStatus = e.employment_status || 'Active';
+      const isActiveStatus = empStatus === 'Active';
       
       return `
       <div class="emp-row ${e.id === selectedId ? 'active' : ''}" data-id="${e.id}">
@@ -948,6 +1194,7 @@
           </div>
           <div class="emp-meta">${e.id} · ${e.designation}</div>
           <div class="emp-tags">
+            <span class="badge-tag ${isActiveStatus ? 'active-status' : 'inactive-status'}">${empStatus}</span>
             <span class="badge-tag ${isTeaching ? 'teaching' : 'non-teaching'}">${isTeaching ? 'Teaching' : 'Non-Teaching'}</span>
             ${isElevatedRole ? `<span class="badge-tag role">${e.system_role}</span>` : ''}
           </div>
@@ -1004,6 +1251,11 @@
     $('#detailSub').text(emp.designation + ' · ' + emp.id);
     $('#dFirstName').text(emp.first_name);
     $('#dLastName').text(emp.last_name);
+    
+    const st = emp.employment_status || 'Active';
+    const isAct = st === 'Active';
+    $('#dEmploymentStatus').html(`<span class="badge-tag ${isAct ? 'active-status' : 'inactive-status'}" style="font-size:10.5px; padding:2px 7px; text-transform:uppercase;">${st}</span>`);
+    
     $('#dEmployeeType').text(emp.employee_type || 'Faculty');
     $('#dSystemRole').text(emp.system_role || 'Employee');
     $('#dDesignation').text(emp.designation);
@@ -1042,34 +1294,63 @@
   });
 
   // ── Pay Head rows ─────────────────────────────────────────────────────────
+  function updateModalPayheadTotals() {
+    let gross = 0;
+    let deduct = 0;
+    $('#phFormRows .ph-form-row').each(function () {
+      const amt = parseFloat($(this).find('[data-ph-amount]').val()) || 0;
+      const cat = $(this).find('[data-ph-category]').val() || 'Earning';
+      if (cat === 'Earning') {
+        gross += amt;
+      } else {
+        deduct += amt;
+      }
+    });
+    const net = gross - deduct;
+    const fmtVal = (n) => '₱' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    $('#modalGrossTotal').text(fmtVal(gross));
+    $('#modalDeductTotal').text(fmtVal(deduct));
+    $('#modalNetTotal').text(fmtVal(net)).css('color', net >= 0 ? 'var(--navy)' : 'var(--red)');
+  }
+
+  $(document).on('input change', '#phFormRows input, #phFormRows select', function() {
+    updateModalPayheadTotals();
+  });
+
   function addPhRow(ph = { pay_head: '', amount: 0, category: 'Earning', mode: 'Amount', percentage_value: 0 }) {
     const isBasic = ph.pay_head === 'Basic Salary';
-    $('#phFormRows').append(`
-      <div class="ph-form-row">
-        <div style="display:flex; flex-direction:column; gap:4px;">
-          <input type="text" placeholder="Pay Head" value="${ph.pay_head}" data-ph-name ${isBasic ? 'readonly style="background:var(--navy-light); font-weight:600;"' : ''}>
-          <input type="text" placeholder="Description/Note" value="${ph.description || ''}" data-ph-desc style="font-size:10px; border-color:transparent; padding:0 4px;" ${isBasic ? 'readonly' : ''}>
+    const rowHtml = `
+      <div class="ph-form-row ${isBasic ? 'is-basic-row' : ''}">
+        <div style="display:flex; flex-direction:column; gap:3px; flex:1.2; min-width:0;">
+          <input type="text" placeholder="Pay Head Name (e.g. PERA)" value="${ph.pay_head}" data-ph-name ${isBasic ? 'readonly style="background:transparent; border:none; font-weight:700; color:var(--navy); padding:0;"' : ''}>
+          <input type="text" placeholder="Note / Description (Optional)" value="${ph.description || ''}" data-ph-desc style="font-size:10.5px; border-color:var(--border); ${isBasic ? 'display:none;' : ''}">
+          ${isBasic ? '<span style="font-size:9.5px; color:var(--navy-mid); font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Primary Base Rate</span>' : ''}
         </div>
-        
-        <select class="ph-mode" data-ph-mode ${isBasic ? 'disabled style="visibility:hidden;"' : ''}>
-          <option value="Amount" ${ph.mode === 'Amount' ? 'selected' : ''}>Fixed</option>
-          <option value="Percentage" ${ph.mode === 'Percentage' ? 'selected' : ''}>% of Basic</option>
-        </select>
 
-        <input type="number" step="0.01" placeholder="e.g. 5 for 5%" class="ph-pct" value="${ph.percentage_value}" data-ph-pct ${(isBasic || ph.mode === 'Amount') ? 'disabled style="background:var(--surface2); color:var(--muted);"' : ''}>
-        <input type="number" step="0.01" placeholder="Amount" class="ph-amount" value="${ph.amount}" data-ph-amount>
-
-        <select class="ph-category" data-ph-category ${isBasic ? 'disabled' : ''}>
+        <select class="ph-category" data-ph-category ${isBasic ? 'disabled style="opacity:0.75;"' : ''}>
           <option value="Earning" ${ph.category === 'Earning' ? 'selected' : ''}>Earning</option>
           <option value="Deduction" ${ph.category === 'Deduction' ? 'selected' : ''}>Deduction</option>
         </select>
-        ${isBasic ? '<div class="btn-ph-hide"></div>' : `
-        <button class="btn-ph-remove" type="button">
+
+        <select class="ph-mode" data-ph-mode ${isBasic ? 'disabled style="visibility:hidden;"' : ''}>
+          <option value="Amount" ${ph.mode === 'Amount' ? 'selected' : ''}>Fixed (₱)</option>
+          <option value="Percentage" ${ph.mode === 'Percentage' ? 'selected' : ''}>% of Basic</option>
+        </select>
+
+        <input type="number" step="0.01" placeholder="0.00" class="ph-pct" value="${ph.percentage_value || ''}" data-ph-pct ${(isBasic || ph.mode === 'Amount') ? 'disabled style="background:var(--surface2); color:var(--muted); opacity:0.6;"' : ''}>
+        
+        <input type="number" step="0.01" placeholder="0.00" class="ph-amount" value="${ph.amount}" data-ph-amount style="${isBasic ? 'border-color:#93c5fd; font-weight:700; color:var(--navy);' : ''}">
+
+        ${isBasic ? '<div style="width:28px;"></div>' : `
+        <button class="btn-ph-remove" type="button" title="Remove Pay Head">
           <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>`}
-      </div>`);
+      </div>`;
+
+    $('#phFormRows').append(rowHtml);
+    updateModalPayheadTotals();
   }
 
   // ── Auto-compute logic ───────────────────────────────────────────────────
@@ -1131,13 +1412,15 @@
   // Remove pay head row via delegation
   $(document).on('click', '.btn-ph-remove', function () {
     $(this).closest('.ph-form-row').remove();
+    updateModalPayheadTotals();
   });
 
   // Add pay head row button
   $(document).on('click', '#btnAddPh', function () { addPhRow(); });
 
   function clearForm() {
-    $('#fEmployeeId, #fFirstName, #fLastName, #fPositionTag, #fDesignation, #fEmployeeType, #fSalaryGrade, #fStep, #fSystemRole, #fBirthday, #fEmail, #fContact, #fAddress').val('');
+    $('#fEmployeeId, #fFirstName, #fLastName, #fPositionTag, #fDesignation, #fEmployeeType, #fSalaryGrade, #fStep, #fSystemRole, #fEmploymentStatus, #fBirthday, #fEmail, #fContact, #fAddress').val('');
+    $('#fEmploymentStatus').val('Active');
     $('#fEmployeeType').val('Faculty');
     $('#fSystemRole').val('Employee');
     $('#fStep').val('1');
@@ -1200,6 +1483,7 @@
     clearForm();
     addPhRow({ pay_head: 'Basic Salary', amount: 0, category: 'Earning', mode: 'Amount', percentage_value: 0 });
     $('#modalTitle').text('Add Employee');
+    $('#fEmploymentStatus').val('Active');
     $('#fEmployeeId').val('Loading...').prop('disabled', true);
     $.get(API + '/next_id', function(res) {
        if(res.next_id) {
@@ -1221,6 +1505,7 @@
 
     $.get(API + '/' + selectedId, function (emp) {
       $('#fEmployeeId').val(emp.id).prop('disabled', true);
+      $('#fEmploymentStatus').val(emp.employment_status || 'Active');
       $('#fEmployeeType').val(emp.employee_type || 'Faculty');
       $('#fSalaryGrade').val(emp.salary_grade || '');
       $('#fStep').val(emp.step || 1);
@@ -1279,6 +1564,7 @@
 
     const payload = {
       employee_id: $('#fEmployeeId').val().trim(),
+      employment_status: $('#fEmploymentStatus').val() || 'Active',
       employee_type: $('#fEmployeeType').val(),
       salary_grade: $('#fSalaryGrade').val() || null,
       step: $('#fStep').val() || 1,

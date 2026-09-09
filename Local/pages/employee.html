@@ -824,6 +824,14 @@
   let editMode   = false;
   let enrolledFingers = 0;
 
+  const uRole = $('#userRole').text().trim();
+  if (uRole === 'Auditor') {
+    $('.btn-add').hide();
+    // we also need to hide edit/delete in right panel. We'll hide them globally by class for now, or just ensure they are hidden.
+    // wait, right panel edit/delete buttons have classes btn-edit and btn-delete
+    $('<style>.btn-edit, .btn-delete { display: none !important; }</style>').appendTo('head');
+  }
+
   /* Toast (Swal mixin) */
   const Toast = Swal.mixin({
     toast: true,

@@ -1,0 +1,434 @@
+<style>
+  .ap-page {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+  }
+
+  .ap-toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 16px 24px; background: var(--surface);
+    border-bottom: 1.5px solid var(--border); flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  }
+  .ap-toolbar-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: var(--navy); }
+  .ap-toolbar-sub { font-size: 11px; color: var(--muted2); margin-top: 2px; }
+
+  .ap-body { flex: 1; display: flex; overflow: hidden; }
+  .ap-left { width: 360px; min-width: 310px; display: flex; flex-direction: column; border-right: 1.5px solid var(--border); background: var(--surface); height: 100%; }
+  .ap-right { flex: 1; display: flex; flex-direction: column; background: var(--bg); position: relative; overflow: hidden; }
+
+  .ap-left-header { padding: 16px 20px; border-bottom: 1.5px solid var(--border); }
+  .search-box { position: relative; display: flex; align-items: center; }
+  .search-box svg { position: absolute; left: 12px; width: 14px; height: 14px; color: var(--muted2); }
+  .search-box input { width: 100%; padding: 10px 12px 10px 36px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface2); font-size: 12px; outline: none; transition: all 0.2s; }
+  .search-box input:focus { border-color: var(--navy-mid); background: var(--surface); box-shadow: 0 0 0 3px var(--navy-light); }
+
+  .filter-tabs { display: flex; gap: 4px; padding: 12px 20px 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .ftab { padding: 8px 14px; font-size: 11.5px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; position: relative; }
+  .ftab.active { color: var(--navy); font-weight: 700; }
+  .ftab.active::after { content: ''; position: absolute; bottom: -1px; left: 14px; right: 14px; height: 2.5px; background: var(--accent); border-radius: 2px 2px 0 0; }
+
+  .doc-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .doc-row { padding: 14px 20px; cursor: pointer; transition: all 0.2s; border-bottom: 1px solid rgba(226,221,214,0.3); position: relative; }
+  .doc-row:hover { background: var(--surface2); }
+  .doc-row.active { background: var(--navy-light); border-left: 4px solid var(--navy-mid); padding-left: 16px; }
+  
+  .type-badge { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 6px; display: inline-block; margin-bottom: 4px; }
+  .type-badge.payroll { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+  .type-badge.leave { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+
+  .doc-title { font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .doc-meta { display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; color: var(--muted2); }
+
+  .status-pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; }
+  .status-pill.pending { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+  .status-pill.approved { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  .status-pill.rejected { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+  .ap-detail { display: none; flex-direction: column; height: 100%; animation: fadeIn 0.25s ease; }
+  .ap-detail.visible { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .ap-detail-topbar { padding: 18px 28px; background: var(--surface); border-bottom: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  
+  .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px 28px; }
+  .sum-card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  .sum-lbl { font-size: 10.5px; color: var(--muted2); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .sum-val { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--navy); }
+
+  .ap-content-area { flex: 1; overflow-y: auto; padding: 0 28px 28px; }
+  .detail-box { background: var(--surface); border-radius: 16px; border: 1.5px solid var(--border); padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.02); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 18px; border-radius: 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; transition: all 0.2s; }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { background: var(--navy-mid); }
+  .btn-success { background: #059669; color: #fff; }
+  .btn-success:hover { background: #047857; }
+  .btn-danger { background: #dc2626; color: #fff; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-outline { background: var(--surface); border-color: var(--border); color: var(--muted); }
+  .btn-outline:hover { background: var(--navy-light); color: var(--navy); }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted2); text-align: center; padding: 40px; }
+  .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #fff; width: 100%; max-width: 480px; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+  .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .modal-body { padding: 22px; }
+  .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); background: var(--surface2); display: flex; justify-content: flex-end; gap: 10px; }
+</style>
+
+<div class="ap-page">
+
+
+
+  <div class="ap-body">
+    <!-- Left Navigation List -->
+    <div class="ap-left">
+      <div class="ap-left-header">
+        <div class="search-box">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" id="apSearch" placeholder="Search approvals..." onkeyup="filterList()">
+        </div>
+      </div>
+
+      <div class="filter-tabs">
+        <div class="ftab active" data-status="Pending" onclick="switchTab(this, 'Pending')">Pending</div>
+        <div class="ftab" data-status="Approved" onclick="switchTab(this, 'Approved')">Approved</div>
+        <div class="ftab" data-status="Rejected" onclick="switchTab(this, 'Rejected')">Rejected</div>
+        <div class="ftab" data-status="All" onclick="switchTab(this, 'All')">All</div>
+      </div>
+
+      <div class="doc-list" id="docList">
+        <div class="empty-state">Loading approvals...</div>
+      </div>
+    </div>
+
+    <!-- Right Detail Pane -->
+    <div class="ap-right">
+      <div id="emptyDetail" class="empty-state">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <div style="font-weight:600; font-size:14px; color:var(--navy);">Select an Approval Document</div>
+        <div style="font-size:12px; margin-top:4px;">Choose an item from the left panel to inspect details and take action.</div>
+      </div>
+
+      <div id="activeDetail" class="ap-detail">
+        <div class="ap-detail-topbar">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span id="detailBadge" class="type-badge payroll">Payroll</span>
+              <span id="detailStatus" class="status-pill pending">Pending</span>
+            </div>
+            <h4 id="detailTitle" class="fw-bold text-navy mb-0 mt-1" style="font-family:'Playfair Display', serif;">Document Title</h4>
+            <div style="font-size:11px; color:var(--muted2);" id="detailSub">Requested by Finance</div>
+          </div>
+
+          <div id="actionBtnWrap" style="display:flex; gap:10px;">
+            <button class="btn btn-danger" onclick="openActionModal('Rejected')">Reject</button>
+            <button class="btn btn-success" onclick="openActionModal('Approved')">Approve</button>
+          </div>
+        </div>
+
+        <div id="detailCards" class="card-grid"></div>
+
+        <div class="ap-content-area">
+          <div class="detail-box" id="detailBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Approval Action Modal -->
+<div class="modal-overlay" id="actionModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h5 class="fw-bold text-navy mb-0" id="actionModalTitle">Confirm Action</h5>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:var(--text);" id="actionModalText">Are you sure you want to proceed with this approval action?</p>
+      <div style="margin-top:14px;">
+        <label class="form-label extra-small fw-bold text-muted text-uppercase">Remarks / Comments (Optional)</label>
+        <textarea id="actionRemarks" class="form-control form-control-sm" rows="3" placeholder="Enter remarks or justification..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeActionModal()">Cancel</button>
+      <button class="btn btn-primary" id="confirmActionBtn" onclick="submitAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  let allApprovals = [];
+  let currentFilter = 'Pending';
+  let activeApproval = null;
+  let targetAction = '';
+
+  const fCurrency = num => '₱' + Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  window.loadApprovals = function() {
+    $('#docList').html('<div class="empty-state">Loading approvals...</div>');
+    $.get('/api/approvals', function(res) {
+      if (res.success) {
+        allApprovals = res.approvals || [];
+        renderList();
+      } else {
+        $('#docList').html('<div class="empty-state">Failed to load approvals.</div>');
+      }
+    }).fail(function() {
+      $('#docList').html('<div class="empty-state">Error connecting to server.</div>');
+    });
+  };
+
+  window.switchTab = function(el, status) {
+    $('.ftab').removeClass('active');
+    $(el).addClass('active');
+    currentFilter = status;
+    renderList();
+  };
+
+  window.filterList = function() {
+    renderList();
+  };
+
+  function renderList() {
+    const q = $('#apSearch').val().toLowerCase();
+    let filtered = allApprovals.filter(a => {
+      const matchStatus = (currentFilter === 'All') || (a.ApprovalStatus.toLowerCase() === currentFilter.toLowerCase());
+      const matchSearch = a.Title.toLowerCase().includes(q) || a.DocNumber.toLowerCase().includes(q) || (a.RequesterID && a.RequesterID.toLowerCase().includes(q));
+      return matchStatus && matchSearch;
+    });
+
+    if (!filtered.length) {
+      $('#docList').html(`<div class="empty-state"><div style="font-size:13px; font-weight:600;">No ${currentFilter} approvals</div></div>`);
+      $('#activeDetail').removeClass('visible');
+      $('#emptyDetail').show();
+      return;
+    }
+
+    let html = filtered.map(a => {
+      const isActive = activeApproval && activeApproval.ApprovalID === a.ApprovalID ? 'active' : '';
+      const typeClass = a.DocType.toLowerCase();
+      const statusClass = a.ApprovalStatus.toLowerCase();
+      return `
+        <div class="doc-row ${isActive}" onclick="selectApproval(${a.ApprovalID})">
+          <span class="type-badge ${typeClass}">${a.DocType}</span>
+          <div class="doc-title">${a.Title}</div>
+          <div class="doc-meta">
+            <span>Req: ${a.RequesterID || 'System'}</span>
+            <span class="status-pill ${statusClass}">${a.ApprovalStatus}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    $('#docList').html(html);
+
+    if (activeApproval) {
+      const stillInList = filtered.find(a => a.ApprovalID === activeApproval.ApprovalID);
+      if (stillInList) {
+        selectApproval(stillInList.ApprovalID);
+      } else {
+        selectApproval(filtered[0].ApprovalID);
+      }
+    } else if (filtered.length) {
+      selectApproval(filtered[0].ApprovalID);
+    }
+  }
+
+  window.selectApproval = function(id) {
+    activeApproval = allApprovals.find(a => a.ApprovalID === id);
+    if (!activeApproval) return;
+
+    $('.doc-row').removeClass('active');
+    $(`.doc-row[onclick*="${id}"]`).addClass('active');
+
+    $('#emptyDetail').hide();
+    $('#activeDetail').addClass('visible');
+
+    $('#detailBadge').attr('class', `type-badge ${activeApproval.DocType.toLowerCase()}`).text(activeApproval.DocType);
+    $('#detailStatus').attr('class', `status-pill ${activeApproval.ApprovalStatus.toLowerCase()}`).text(activeApproval.ApprovalStatus);
+    $('#detailTitle').text(activeApproval.Title);
+    $('#detailSub').text(`Submitted by ${activeApproval.RequesterID || 'System'} · ${activeApproval.CreatedAt || ''}`);
+
+    if (activeApproval.ApprovalStatus === 'Pending') {
+      $('#actionBtnWrap').show();
+    } else {
+      $('#actionBtnWrap').hide();
+    }
+
+    renderDetailBody();
+  };
+
+  function renderDetailBody() {
+    const a = activeApproval;
+    let cardsHtml = '';
+    let bodyHtml = '';
+
+    if (a.DocType === 'Payroll') {
+      const d = a.details || {};
+      cardsHtml = `
+        <div class="sum-card">
+          <div class="sum-lbl">Employees</div>
+          <div class="sum-val">${d.emp_count || 0}</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-lbl">Total Gross</div>
+          <div class="sum-val">${fCurrency(d.gross_pay)}</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-lbl">Net Payroll</div>
+          <div class="sum-val text-success">${fCurrency(d.net_pay)}</div>
+        </div>
+      `;
+
+      bodyHtml = `
+        <div class="fw-bold text-navy mb-2" style="font-size:14px;">Payroll Summary & Action Items</div>
+        <p class="text-muted small">Period Key: <strong>${a.DocNumber}</strong></p>
+        ${a.Remarks ? `<div class="p-3 bg-light rounded border mb-3"><strong>Remarks:</strong> ${a.Remarks}</div>` : ''}
+        <div class="alert alert-info py-2 px-3 small">
+          Approving this payroll run releases payslips for employee viewing and finalizes accounting records.
+        </div>
+      `;
+    } else if (a.DocType === 'Leave') {
+      const d = a.details || {};
+      cardsHtml = `
+        <div class="sum-card">
+          <div class="sum-lbl">Employee</div>
+          <div class="sum-val" style="font-size:1.05rem;">${d.employee_name}</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-lbl">Leave Type</div>
+          <div class="sum-val">${d.leave_type}</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-lbl">Requested Date</div>
+          <div class="sum-val" style="font-size:1.05rem;">${d.leave_date}</div>
+        </div>
+      `;
+
+      let attachmentHtml = '';
+      const attList = (d.attachments && d.attachments.length) ? d.attachments : (d.attachment ? [d.attachment] : []);
+
+      if (attList.length > 0) {
+        let attItemsHtml = '';
+        attList.forEach((attPath, idx) => {
+          const fileUrl = '/static/' + attPath;
+          const fileName = attPath.split('/').pop();
+          const ext = attPath.split('.').pop().toLowerCase();
+          const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+
+          if (isImage) {
+            attItemsHtml += `
+              <div style="background:#fff; padding:10px; border-radius:10px; border:1px solid var(--border); display:flex; flex-direction:column; align-items:center; text-align:center; position:relative;">
+                <a href="${fileUrl}" target="_blank" style="display:block; width:100%; text-align:center;">
+                  <img src="${fileUrl}" alt="Attachment ${idx + 1}" style="max-height:160px; max-width:100%; object-fit:contain; border-radius:6px;" />
+                </a>
+                <div style="margin-top:8px; font-size:11px; font-weight:600; color:var(--navy); word-break:break-all;">${fileName}</div>
+                <a href="${fileUrl}" target="_blank" class="btn btn-outline" style="padding:3px 8px; font-size:10.5px; margin-top:6px;">View Full Image &rarr;</a>
+              </div>
+            `;
+          } else {
+            attItemsHtml += `
+              <div style="display:flex; align-items:center; justify-content:space-between; background:#fff; padding:10px 14px; border-radius:10px; border:1px solid var(--border); grid-column: 1 / -1;">
+                <div style="display:flex; align-items:center; gap:10px; overflow:hidden;">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                  <span style="font-size:12.5px; font-weight:600; color:var(--navy); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${fileName}</span>
+                </div>
+                <a href="${fileUrl}" target="_blank" class="btn btn-outline" style="padding:4px 10px; font-size:11px; flex-shrink:0;">Open Document &rarr;</a>
+              </div>
+            `;
+          }
+        });
+
+        attachmentHtml = `
+          <div class="p-3 bg-light rounded border mb-3">
+            <div class="extra-small fw-bold text-muted text-uppercase mb-2">Attached Proof / Documents (${attList.length})</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:12px;">
+              ${attItemsHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      bodyHtml = `
+        <div class="fw-bold text-navy mb-2" style="font-size:14px;">Leave Application Details</div>
+        <p class="text-muted small">Employee ID: <strong>${d.employee_id || '—'}</strong></p>
+        <div class="p-3 bg-light rounded border mb-3">
+          <div class="extra-small fw-bold text-muted text-uppercase mb-1">Reason for Leave</div>
+          <div class="small text-navy">${d.reason || 'No reason provided.'}</div>
+        </div>
+        ${attachmentHtml}
+        ${a.Remarks ? `<div class="p-3 bg-light rounded border mb-3"><strong>Reviewer Remarks:</strong> ${a.Remarks}</div>` : ''}
+      `;
+    }
+
+    $('#detailCards').html(cardsHtml);
+    $('#detailBody').html(bodyHtml);
+  }
+
+  window.openActionModal = function(act) {
+    targetAction = act;
+    $('#actionModalTitle').text(`Confirm ${act}`);
+    $('#actionModalText').text(`Are you sure you want to mark document "${activeApproval.Title}" as ${act.toUpperCase()}?`);
+    $('#confirmActionBtn').attr('class', `btn ${act === 'Approved' ? 'btn-success' : 'btn-danger'}`).text(`Confirm ${act}`);
+    $('#actionRemarks').val('');
+    $('#actionModal').addClass('open');
+  };
+
+  window.closeActionModal = function() {
+    $('#actionModal').removeClass('open');
+  };
+
+  window.submitAction = function() {
+    if (!activeApproval || !targetAction) return;
+
+    const remarks = $('#actionRemarks').val();
+    $('#confirmActionBtn').prop('disabled', true).text('Processing...');
+
+    $.ajax({
+      url: `/api/approvals/${activeApproval.ApprovalID}/action`,
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ action: targetAction, remarks: remarks }),
+      success: function(res) {
+        closeActionModal();
+        $('#confirmActionBtn').prop('disabled', false);
+        Swal.fire({ icon: 'success', title: 'Success', text: res.message, timer: 1500, showConfirmButton: false });
+        loadApprovals();
+      },
+      error: function(xhr) {
+        $('#confirmActionBtn').prop('disabled', false);
+        Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.error || 'Action failed.' });
+      }
+    });
+  };
+
+  // Adjust title based on logged-in user role
+  $.get('/api/auth/me', function(u) {
+    if (u && u.role) {
+      if (u.role === 'Principal') {
+        $('#portalTitle').text('Payroll Approvals');
+        $('#portalSub').text('Principal Portal — Review & Approve Submitted Payroll Runs');
+      } else if (u.role === 'HR' || u.role === 'HR Officer') {
+        $('#portalTitle').text('Leave Approvals');
+        $('#portalSub').text('HR Portal — Review & Process Employee Leave Applications');
+      } else if (u.role === 'Finance' || u.role === 'Finance Officer') {
+        $('#portalTitle').text('Payroll Approval Status');
+        $('#portalSub').text('Finance Portal — Track Submitted Payroll Approval Requests');
+      }
+    }
+  });
+
+  loadApprovals();
+})();
+</script>

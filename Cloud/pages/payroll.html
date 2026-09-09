@@ -156,10 +156,6 @@
 <div class="pr-page">
   <!-- Toolbar -->
   <div class="pr-toolbar">
-    <div class="pr-info">
-      <div class="pr-toolbar-title">Payroll Processing</div>
-      <div class="pr-toolbar-sub">Semi-monthly Faculty Payroll Calculation</div>
-    </div>
     <div style="flex:1;"></div>
     <button class="btn btn-primary" id="btnNewDoc">New Payroll</button>
   </div>
@@ -530,8 +526,79 @@
     </div>
   </div>
 
+  <!-- ── Full-Page Payroll Generation Progress Overlay ── -->
+  <div class="modal-overlay" id="payrollProgressOverlay" style="z-index: 99999; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px);">
+    <div style="background: #ffffff; width: 480px; max-width: 92vw; border-radius: 24px; padding: 36px 32px; box-shadow: 0 25px 60px rgba(0,0,0,0.35); text-align: center; border: 1px solid var(--border); position: relative; animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+      
+      <!-- Animated Spinner Badge -->
+      <div style="position: relative; width: 72px; height: 72px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+        <div style="position: absolute; inset: 0; border-radius: 50%; border: 3.5px solid #e2e8f0; border-top-color: var(--navy); animation: prSpin 1s linear infinite;"></div>
+        <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--navy-light); display: flex; align-items: center; justify-content: center; color: var(--navy);">
+          <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Header & Period Badge -->
+      <div style="font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--navy); margin-bottom: 6px;">Generating Payroll</div>
+      <div id="prProgressPeriod" style="font-size: 12px; color: var(--navy-mid); font-weight: 600; margin-bottom: 22px; background: var(--navy-light); display: inline-block; padding: 5px 16px; border-radius: 20px; border: 1px solid #c5d8f5;">
+        Processing Payroll Period...
+      </div>
+
+      <!-- Progress Bar Track & Fill -->
+      <div style="background: var(--surface2); height: 12px; border-radius: 999px; overflow: hidden; position: relative; border: 1.5px solid var(--border); margin-bottom: 10px;">
+        <div id="prProgressBarFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #1e3a5f, #2563eb, #3b82f6); border-radius: 999px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;">
+          <div style="position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent); animation: prShimmer 1.5s infinite;"></div>
+        </div>
+      </div>
+
+      <!-- Percent & Stage Text -->
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; margin-bottom: 22px;">
+        <span id="prProgressStepText" style="color: var(--navy); font-weight: 600;">Initializing calculation engine...</span>
+        <span id="prProgressPercent" style="color: var(--navy-mid); font-weight: 700; font-family: monospace; font-size: 13.5px;">0%</span>
+      </div>
+
+      <!-- Stage Checklist -->
+      <div style="background: var(--surface2); border-radius: 14px; padding: 14px 16px; border: 1.5px solid var(--border); text-align: left; display: flex; flex-direction: column; gap: 9px;">
+        <div class="pr-step-item" id="step1">
+          <div class="step-icon">1</div>
+          <span>Gathering active employee roster & salary grades</span>
+        </div>
+        <div class="pr-step-item" id="step2">
+          <div class="step-icon">2</div>
+          <span>Evaluating attendance, lateness & undertime logs</span>
+        </div>
+        <div class="pr-step-item" id="step3">
+          <div class="step-icon">3</div>
+          <span>Computing GSIS, PhilHealth, Pag-IBIG & BIR WTax</span>
+        </div>
+        <div class="pr-step-item" id="step4">
+          <div class="step-icon">4</div>
+          <span>Finalizing net pay allocations & itemized payslips</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <style>
     .period-opt:has(input:checked) { border-color: #2196f3; background: #e3f2fd; }
+
+    @keyframes prSpin { to { transform: rotate(360deg); } }
+    @keyframes prShimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+    .pr-step-item {
+      display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--muted2); transition: all 0.25s ease;
+    }
+    .pr-step-item .step-icon {
+      width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0;
+      transition: all 0.25s ease; background: #fff;
+    }
+    .pr-step-item.active { color: var(--navy); font-weight: 600; }
+    .pr-step-item.active .step-icon { border-color: var(--navy-mid); background: var(--navy-light); color: var(--navy-mid); }
+    .pr-step-item.done { color: #059669; font-weight: 600; }
+    .pr-step-item.done .step-icon { border-color: #059669; background: #dcfce7; color: #059669; }
   </style>
 
 <script>
@@ -542,6 +609,11 @@
     let records = [];
     let activeKey = null;
     let activeTab = 'all';
+
+    const uRole = $('#userRole').text().trim();
+    if (uRole === 'Auditor') {
+      $('#btnNewDoc').hide();
+    }
 
     function fmt(n) { return '₱' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function pad(str, len) { str = String(str); while (str.length < len) str = '&nbsp;' + str; return str; }
@@ -624,9 +696,15 @@
       $('#sumNet').text(fmt(data.summary.grand_total_net));
       $('#sumCreatedAt').text(data.created_at || '—');
 
+      const uRole = $('#userRole').text().trim();
       if (rec.status === 'Draft' || rec.status === 'Rejected') {
-          $('#btnSendApproval').show().text('Send for Approval').prop('disabled', false).css('opacity', '1');
-          $('#btnDeletePayroll').show();
+          if (uRole !== 'Auditor') {
+              $('#btnSendApproval').show().text('Send for Approval').prop('disabled', false).css('opacity', '1');
+              $('#btnDeletePayroll').show();
+          } else {
+              $('#btnSendApproval').hide();
+              $('#btnDeletePayroll').hide();
+          }
       } else {
           $('#btnSendApproval').show().text('✓ ' + rec.status).prop('disabled', true).css('opacity', '0.55');
           $('#btnDeletePayroll').hide();
@@ -862,16 +940,98 @@
     $('#confirmNewPayroll').on('click', async function () {
       const y = $('#npYear').val(), m = $('#npMonth').val(), h = $('input[name="npHalf"]:checked').val(), key = `${y}-${m}-${h}`;
       if (records.find(r => r.key === key)) { $('#npError').text('A payroll record for this period already exists.').show(); return; }
-      $(this).prop('disabled', true).html('<span style="opacity:.6;">Generating…</span>');
+
+      const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const halfText = h === '1' ? '1st Half (1–15)' : '2nd Half (16–end)';
+      const periodLabel = `${monthNames[parseInt(m)]} ${y} — ${halfText}`;
+
+      $('#prProgressPeriod').text(periodLabel);
+      $('#newPayrollModal').removeClass('open');
+      $('#payrollProgressOverlay').addClass('open');
+
+      function updateProgress(percent, stepIndex, text) {
+        $('#prProgressBarFill').css('width', percent + '%');
+        $('#prProgressPercent').text(percent + '%');
+        if (text) $('#prProgressStepText').text(text);
+
+        for (let i = 1; i <= 4; i++) {
+          const $st = $(`#step${i}`);
+          const $ic = $st.find('.step-icon');
+          if (i < stepIndex) {
+            $st.removeClass('active').addClass('done');
+            $ic.html('✓');
+          } else if (i === stepIndex) {
+            $st.removeClass('done').addClass('active');
+            $ic.text(i);
+          } else {
+            $st.removeClass('active done');
+            $ic.text(i);
+          }
+        }
+      }
+
+      updateProgress(10, 1, 'Gathering employee roster & salary grades...');
+
+      let currentPct = 10;
+      let progressTimer = setInterval(() => {
+        if (currentPct < 90) {
+          currentPct += Math.floor(Math.random() * 8) + 4;
+          if (currentPct > 90) currentPct = 90;
+
+          let stepIdx = 1;
+          let stepTxt = 'Gathering active employee roster...';
+          if (currentPct >= 72) {
+            stepIdx = 4;
+            stepTxt = 'Finalizing net pay allocations & itemized payslips...';
+          } else if (currentPct >= 48) {
+            stepIdx = 3;
+            stepTxt = 'Computing GSIS, PhilHealth, Pag-IBIG & WTax...';
+          } else if (currentPct >= 25) {
+            stepIdx = 2;
+            stepTxt = 'Evaluating attendance, lateness & undertime logs...';
+          }
+          updateProgress(currentPct, stepIdx, stepTxt);
+        }
+      }, 250);
+
       try {
-        const res = await fetch(API_RUNS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: parseInt(y), month: parseInt(m), half: parseInt(h) }) });
+        const res = await fetch(API_RUNS, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ year: parseInt(y), month: parseInt(m), half: parseInt(h) })
+        });
         const resD = await res.json();
-        if (res.status !== 200) { $('#npError').text(resD.error).show(); $(this).prop('disabled', false).html('Generate Payroll'); return; }
-        activeKey = resD.key; $('#newPayrollModal').removeClass('open'); await loadRuns();
-        Swal.fire({ icon: 'success', title: 'Payroll Generated', showConfirmButton: false, timer: 1500 });
-      } catch (err) { 
+        clearInterval(progressTimer);
+
+        if (res.status !== 200) {
+          $('#payrollProgressOverlay').removeClass('open');
+          $('#newPayrollModal').addClass('open');
+          $('#npError').text(resD.error || 'Failed to generate payroll.').show();
+          $('#confirmNewPayroll').prop('disabled', false).html('<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate Payroll');
+          return;
+        }
+
+        updateProgress(100, 5, 'Payroll generation completed successfully!');
+        $('#step4').removeClass('active').addClass('done').find('.step-icon').html('✓');
+
+        setTimeout(async () => {
+          $('#payrollProgressOverlay').removeClass('open');
+          activeKey = resD.key;
+          await loadRuns();
+          Swal.fire({
+            icon: 'success',
+            title: 'Payroll Generated',
+            text: `Payroll run for ${periodLabel} has been generated successfully.`,
+            showConfirmButton: false,
+            timer: 1800
+          });
+        }, 500);
+
+      } catch (err) {
+        clearInterval(progressTimer);
+        $('#payrollProgressOverlay').removeClass('open');
         Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to create payroll run.' });
-        $(this).prop('disabled', false).html('Generate Payroll'); 
+        $('#confirmNewPayroll').prop('disabled', false).html('<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate Payroll');
       }
     });
 

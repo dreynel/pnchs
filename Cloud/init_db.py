@@ -262,6 +262,7 @@ CREATE TABLE IF NOT EXISTS tblaudit_logs (
     old_value    TEXT         NULL,
     new_value    TEXT         NULL,
     reason       TEXT         NULL,
+    ip_address   VARCHAR(45)  NULL,
     created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -282,6 +283,24 @@ CREATE TABLE IF NOT EXISTS tblsalary_grades (
     step_8        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
     updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+DDL_APPROVALS = """
+CREATE TABLE IF NOT EXISTS tblapprovals (
+    ApprovalID     INT AUTO_INCREMENT PRIMARY KEY,
+    DocType        VARCHAR(50)  NOT NULL,
+    DocNumber      VARCHAR(100) NOT NULL,
+    ApprovalStatus VARCHAR(30)  NOT NULL DEFAULT 'Pending',
+    ApproverRole   VARCHAR(50)  NOT NULL,
+    ApproverID     VARCHAR(100) NULL,
+    RequesterID    VARCHAR(100) NULL,
+    Title          VARCHAR(255) NOT NULL,
+    Remarks        TEXT         NULL,
+    ApprovedAt     DATETIME     NULL,
+    CreatedAt      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_doctype_docnum (DocType, DocNumber)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
@@ -321,16 +340,19 @@ def init():
         cur.execute(DDL_POLICY_CONFIG)
         cur.execute(DDL_AUDIT_LOGS)
         cur.execute(DDL_SALARY_GRADES)
+        cur.execute(DDL_APPROVALS)
 
         # ── Safe column migrations (works on all MySQL versions) ───────────────
         migrations = [
             ('tblemployee',        'employee_type',   "ALTER TABLE tblemployee ADD COLUMN employee_type VARCHAR(50) DEFAULT 'NON_TEACHING' AFTER designation"),
             ('tblemployee',        'salary_grade',    "ALTER TABLE tblemployee ADD COLUMN salary_grade INT NULL AFTER employee_type"),
             ('tblemployee',        'step',            "ALTER TABLE tblemployee ADD COLUMN step INT DEFAULT 1 AFTER salary_grade"),
+            ('tblemployee',        'employment_status', "ALTER TABLE tblemployee ADD COLUMN employment_status VARCHAR(20) DEFAULT 'Active' AFTER step"),
             ('tblenrollment_tasks', 'step',           "ALTER TABLE tblenrollment_tasks ADD COLUMN step INT DEFAULT 1 AFTER status"),
             ('tblenrollment_tasks', 'message',        "ALTER TABLE tblenrollment_tasks ADD COLUMN message VARCHAR(255) NULL AFTER step"),
             ('tblenrollment_tasks', 'error_message',  "ALTER TABLE tblenrollment_tasks ADD COLUMN error_message VARCHAR(255) NULL AFTER message"),
             ('tblpayroll',         'approved_by',     'ALTER TABLE tblpayroll ADD COLUMN approved_by VARCHAR(150) NULL AFTER remarks'),
+            ('tblleaves',          'attachment',      'ALTER TABLE tblleaves ADD COLUMN attachment VARCHAR(255) NULL AFTER reason'),
 
             ('tblpayroll',         'approved_by',     'ALTER TABLE tblpayroll ADD COLUMN approved_by VARCHAR(150) NULL AFTER remarks'),
             ('tblpayroll',         'approved_at',     'ALTER TABLE tblpayroll ADD COLUMN approved_at DATETIME NULL AFTER approved_by'),
@@ -367,6 +389,7 @@ def init():
             ('tblleaves',          'reviewed_by',      'ALTER TABLE tblleaves ADD COLUMN reviewed_by VARCHAR(100) NULL AFTER reason'),
             ('tblleaves',          'reviewed_at',      'ALTER TABLE tblleaves ADD COLUMN reviewed_at DATETIME NULL AFTER reviewed_by'),
             ('tblleaves',          'filed_at',         'ALTER TABLE tblleaves ADD COLUMN filed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER reviewed_at'),
+            ('tblaudit_logs',      'ip_address',       'ALTER TABLE tblaudit_logs ADD COLUMN ip_address VARCHAR(45) NULL AFTER reason'),
         ]
         for table, col, sql in migrations:
             _add_column_if_missing(cur, table, col, sql)
@@ -385,7 +408,8 @@ def init():
             ('admin', 'admin123', 'John Lenard Bocal', 'Admin', 'EMP-001'),
             ('hr', 'hr1234', 'John Lenard Bocal (HR)', 'HR', 'EMP-001'),
             ('finance', 'finance123', 'John Lenard Bocal (Finance)', 'Finance', 'EMP-001'),
-            ('john.lenard@school.edu.ph', 'user123', 'John Lenard Bocal', 'Employee', 'EMP-001')
+            ('john.lenard@school.edu.ph', 'user123', 'John Lenard Bocal', 'Employee', 'EMP-001'),
+            ('auditor', 'Password123!', 'School Auditor', 'Auditor', None)
         ]
         for u in users:
             cur.execute("SELECT id FROM tblusers WHERE username=%s", (u[0],))
@@ -496,10 +520,38 @@ def init():
                     sg
                 )
 
+        # ── Seed/Sync tblapprovals from existing payrolls ─────────────────────
+        try:
+            cur.execute("SELECT period_key, status, remarks, approved_by, approved_at, created_at FROM tblpayroll WHERE status IN ('For Approval', 'Approved', 'Rejected')")
+            for p in cur.fetchall():
+                st = 'Pending' if p['status'] == 'For Approval' else p['status']
+                cur.execute("""
+                    INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, ApproverID, RequesterID, Title, Remarks, ApprovedAt, CreatedAt)
+                    VALUES ('Payroll', %s, %s, 'Principal', %s, 'Finance', %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE ApprovalStatus=%s, ApproverID=%s, Remarks=%s, ApprovedAt=%s
+                """, (p['period_key'], st, p['approved_by'], f"Payroll Run - {p['period_key']}", p['remarks'], p['approved_at'], p['created_at'], st, p['approved_by'], p['remarks'], p['approved_at']))
+
+            cur.execute("""
+                SELECT l.id, l.status, l.reason, l.reviewed_by, l.reviewed_at, l.filed_at, l.leave_type, l.leave_date,
+                       CONCAT(e.first_name, ' ', e.last_name) AS emp_name
+                FROM tblleaves l
+                LEFT JOIN tblemployee e ON l.employee_id = e.employee_id
+            """)
+            for l in cur.fetchall():
+                emp_name = l['emp_name'] or 'Employee'
+                st = l['status'] if l['status'] in ['Approved', 'Rejected'] else 'Pending'
+                cur.execute("""
+                    INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, ApproverID, RequesterID, Title, Remarks, ApprovedAt, CreatedAt)
+                    VALUES ('Leave', %s, %s, 'HR', %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE ApprovalStatus=%s, ApproverID=%s, Remarks=%s, ApprovedAt=%s
+                """, (str(l['id']), st, l['reviewed_by'], emp_name, f"{l['leave_type']} Leave - {emp_name} ({l['leave_date']})", l['reason'], l['reviewed_at'], l['filed_at'], st, l['reviewed_by'], l['reason'], l['reviewed_at']))
+        except Exception as sync_err:
+            print(f"⚠️  Approvals sync warning: {sync_err}")
+
         conn.commit()
         cur.close()
         conn.close()
-        print("[OK] Tables created/migrated: tblemployee, tblpayhead, fingerprints, tblusers, tblpayroll, tblpayroll_details, tblholidays, tblleaves, tblleave_balances, tblleave_transactions, tblpolicy_config, tblaudit_logs, tblsalary_grades")
+        print("[OK] Tables created/migrated: tblemployee, tblpayhead, fingerprints, tblusers, tblpayroll, tblpayroll_details, tblholidays, tblleaves, tblleave_balances, tblleave_transactions, tblpolicy_config, tblaudit_logs, tblsalary_grades, tblapprovals")
 
     except Error as e:
         print(f"[ERROR] Database error: {e}")

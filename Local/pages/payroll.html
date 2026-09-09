@@ -543,6 +543,11 @@
     let activeKey = null;
     let activeTab = 'all';
 
+    const uRole = $('#userRole').text().trim();
+    if (uRole === 'Auditor') {
+      $('#btnNewDoc').hide();
+    }
+
     function fmt(n) { return '₱' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function pad(str, len) { str = String(str); while (str.length < len) str = '&nbsp;' + str; return str; }
     function padRight(str, len) { str = String(str); while (str.length < len) str = str + '&nbsp;'; return str; }
@@ -624,9 +629,15 @@
       $('#sumNet').text(fmt(data.summary.grand_total_net));
       $('#sumCreatedAt').text(data.created_at || '—');
 
+      const uRole = $('#userRole').text().trim();
       if (rec.status === 'Draft' || rec.status === 'Rejected') {
-          $('#btnSendApproval').show().text('Send for Approval').prop('disabled', false).css('opacity', '1');
-          $('#btnDeletePayroll').show();
+          if (uRole !== 'Auditor') {
+              $('#btnSendApproval').show().text('Send for Approval').prop('disabled', false).css('opacity', '1');
+              $('#btnDeletePayroll').show();
+          } else {
+              $('#btnSendApproval').hide();
+              $('#btnDeletePayroll').hide();
+          }
       } else {
           $('#btnSendApproval').show().text('✓ ' + rec.status).prop('disabled', true).css('opacity', '0.55');
           $('#btnDeletePayroll').hide();
@@ -696,17 +707,7 @@
           } catch(ex) { console.error("Error parsing statutory_json", ex); }
       }
 
-      if (e.tardiness_deduction > 0) {
-          dHtml += `<div class="ph-row"><input value="Tardiness (${e.late_minutes} mins)" readonly><input value="${fmt(e.tardiness_deduction)}" style="color:var(--red)" readonly></div>`;
-      }
-      if (e.undertime_deduction > 0) {
-          dHtml += `<div class="ph-row"><input value="Undertime (${e.undertime_minutes} mins)" readonly><input value="${fmt(e.undertime_deduction)}" style="color:var(--red)" readonly></div>`;
-      }
-      if (e.absent_deduction > 0) {
-          dHtml += `<div class="ph-row"><input value="Absences" readonly><input value="${fmt(e.absent_deduction)}" style="color:var(--red)" readonly></div>`;
-      }
-
-      $('#earnList').html(eHtml);
+      $('#earningList').html(eHtml || '<div style="font-size:12px;color:var(--muted2);padding:6px 0;">No earnings recorded.</div>');
       $('#deductList').html(dHtml || '<div style="font-size:12px;color:var(--muted2);padding:6px 0;">No deductions recorded.</div>');
 
       $('#dGross').text(fmt(e.total_gross));
@@ -724,7 +725,6 @@
       $('#ps_print_date').html(pD.toLocaleDateString('en-US') + '<br>' + pD.toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit'}));
       $('#ps_issue_date').text(pD.toLocaleDateString('en-US'));
       $('#ps_month_label').text('FOR THE PERIOD OF ' + payrollData.period);
-      
       const rId = Math.floor(Math.random() * 900000) + 100000;
       $('#ps_print_id').text(rId);
 
@@ -765,7 +765,7 @@
 
       if (e.statutory_json) {
         try {
-          const st = JSON.parse(e.statutory_json);
+          const st = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
           for (const [key, amount] of Object.entries(st)) {
             if (['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'].includes(key) || parseFloat(amount) === 0) continue;
             addRow(key.replace(/_/g, ' '), amount);
@@ -796,7 +796,6 @@
       const prt = document.getElementById("payslipContent");
       const WinPrint = window.open('', '', 'left=0,top=0,width=850,height=900,toolbar=0,scrollbars=0,status=0');
       WinPrint.document.write('<html><head><style>@page { size: portrait; margin: 10mm; } body { background: #fff; line-height: 1.2; font-family: monospace; }</style></head><body>');
-      WinPrint.document.write(prt.innerHTML);
       WinPrint.document.write('</body></html>');
       WinPrint.document.close();
       WinPrint.focus();

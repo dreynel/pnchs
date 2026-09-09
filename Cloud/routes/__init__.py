@@ -6,3 +6,5 @@ from .attendance_routes import attendance_bp
 from .registry_routes import registry_bp
 from .salary_grade_routes import salary_grade_bp
 from .dashboard_routes import dashboard_bp
+from .audit_routes import audit_bp
+from .approval_routes import approval_bp
