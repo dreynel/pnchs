@@ -86,6 +86,21 @@ def get_approvals():
                     """, (doc_num, doc_num, doc_num, doc_num))
                     emp_rows = cur.fetchall()
 
+                    # Fallback Tier 1: Try matching latest period_key in tblpayroll_details if exact match failed
+                    if not emp_rows:
+                        cur.execute("""
+                            SELECT d.*, e.first_name, e.last_name, e.designation,
+                                   COALESCE(b.vl_minutes, 4800) AS vl_minutes,
+                                   COALESCE(b.sl_minutes, 4800) AS sl_minutes
+                            FROM tblpayroll_details d
+                            JOIN tblemployee e ON d.employee_id = e.employee_id
+                            LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
+                            WHERE d.period_key = (SELECT period_key FROM tblpayroll_details GROUP BY period_key ORDER BY MAX(id) DESC LIMIT 1)
+                            ORDER BY e.last_name, e.first_name
+                        """)
+                        emp_rows = cur.fetchall()
+
+                    # Fallback Tier 2: Safe Active Roster construct if tblpayroll_details is empty
                     if not emp_rows:
                         cur.execute("""
                             SELECT e.employee_id, e.first_name, e.last_name, e.designation,
@@ -93,7 +108,6 @@ def get_approvals():
                                    COALESCE(b.sl_minutes, 4800) AS sl_minutes
                             FROM tblemployee e
                             LEFT JOIN tblleave_balances b ON e.employee_id = b.employee_id
-                            WHERE LOWER(COALESCE(e.employment_status, 'active')) = 'active'
                             ORDER BY e.last_name, e.first_name
                         """)
                         fb_emps = cur.fetchall()
