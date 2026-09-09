@@ -87,16 +87,28 @@ def login():
                 if emp['first_name'] and emp['last_name']:
                     display_name = f"{emp['first_name']} {emp['last_name']}"
 
+                r_raw = str(emp['role'] or '').strip().upper()
+                if r_raw in ['ADMIN', 'PRINCIPAL', 'ADMINISTRATOR']:
+                    user_role = 'Admin'
+                elif r_raw in ['HR', 'HR OFFICER', 'HUMAN RESOURCES']:
+                    user_role = 'HR'
+                elif r_raw in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER']:
+                    user_role = 'Finance'
+                elif r_raw in ['AUDITOR', 'AUDIT']:
+                    user_role = 'Auditor'
+                else:
+                    user_role = 'Employee'
+
                 session['user'] = {
                     'email': emp['username'],
                     'name': display_name,
-                    'role': emp['role'],
+                    'role': user_role,
                     'employee_id': emp['employee_id']
                 }
                 
                 AuditService.log_action(cur, 'LOGIN_SUCCESS', user_name=display_name, ip_address=request.remote_addr)
 
-                if emp['role'] == 'Employee':
+                if user_role == 'Employee':
                     return redirect(url_for('dtr'))
                 return redirect(url_for('dashboard'))
                 

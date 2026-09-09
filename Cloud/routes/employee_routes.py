@@ -55,13 +55,24 @@ def _get_enrolled_fingers(cur, employee_id):
     return [int(r["finger_index"]) for r in rows]
 
 
+def normalize_role(role_input):
+    if not role_input:
+        return 'Employee'
+    r = str(role_input).strip()
+    r_upper = r.upper()
+    if r_upper in ['ADMIN', 'PRINCIPAL', 'ADMINISTRATOR']:
+        return 'Admin'
+    elif r_upper in ['HR', 'HR OFFICER', 'HUMAN RESOURCES']:
+        return 'HR'
+    elif r_upper in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER']:
+        return 'Finance'
+    elif r_upper in ['AUDITOR', 'AUDIT']:
+        return 'Auditor'
+    return 'Employee'
+
+
 def _row_to_dict(row, pay_heads, enrolled_fingers=None):
-    db_role = row.get("system_role", "Employee")
-    ui_role = "Employee"
-    if db_role == "Admin": ui_role = "Principal"
-    elif db_role == "HR": ui_role = "HR Officer"
-    elif db_role == "Finance": ui_role = "Finance Officer"
-    elif db_role == "Auditor": ui_role = "Auditor"
+    db_role = normalize_role(row.get("system_role"))
     
     return {
         "id":          row["employee_id"],
@@ -72,7 +83,7 @@ def _row_to_dict(row, pay_heads, enrolled_fingers=None):
         "salary_grade": row.get("salary_grade"),
         "step": row.get("step", 1),
         "employment_status": row.get("employment_status") or "Active",
-        "system_role": ui_role,
+        "system_role": db_role,
 
         "birthday":    str(row["birthday"]) if row.get("birthday") else "",
         "email":       row["email"],
@@ -268,12 +279,7 @@ def create_employee():
                 username = f"{username}{suffix}"
                 password = username # Keep password same as username for initial setup
             
-            system_role_input = data.get('system_role', 'Employee').strip()
-            db_role = 'Employee'
-            if system_role_input == 'Principal': db_role = 'Admin'
-            elif system_role_input == 'HR Officer': db_role = 'HR'
-            elif system_role_input == 'Finance Officer': db_role = 'Finance'
-            elif system_role_input == 'Auditor': db_role = 'Auditor'
+            db_role = normalize_role(data.get('system_role'))
             
             cur.execute(
                 "INSERT INTO tblusers (username, password, name, role, employee_id) VALUES (%s, %s, %s, %s, %s)",
@@ -340,13 +346,7 @@ def update_employee(emp_id):
             ))
 
             
-            system_role_input = data.get('system_role', 'Employee').strip()
-            db_role = 'Employee'
-            if system_role_input == 'Principal': db_role = 'Admin'
-            elif system_role_input == 'HR Officer': db_role = 'HR'
-            elif system_role_input == 'Finance Officer': db_role = 'Finance'
-            elif system_role_input == 'Auditor': db_role = 'Auditor'
-            
+            db_role = normalize_role(data.get('system_role'))
             cur.execute("UPDATE tblusers SET role=%s WHERE employee_id=%s", (db_role, emp_id))
             
             AuditService.log_action(cur, 'EMPLOYEE_UPDATED', employee_id=emp_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=emp_id, old_value=json.dumps(old_row, default=str), new_value=json.dumps(data))
