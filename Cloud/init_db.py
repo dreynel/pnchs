@@ -403,12 +403,24 @@ def init():
         except Exception:
             pass # Probably already exists
         
-        # Seed users
+        # Try adding Foreign Key constraint linking tblusers.employee_id to tblemployee
+        try:
+            cur.execute("ALTER TABLE tblusers ADD CONSTRAINT fk_users_emp FOREIGN KEY (employee_id) REFERENCES tblemployee(employee_id) ON DELETE CASCADE ON UPDATE CASCADE")
+        except Exception:
+            pass # FK constraint or index already exists
+
+        # Clean orphaned user accounts pointing to non-existent employees
+        cur.execute("""
+            DELETE FROM tblusers 
+            WHERE employee_id IS NOT NULL 
+              AND employee_id NOT IN (SELECT employee_id FROM tblemployee)
+        """)
+
+        # Seed initial admin users if employee exists or employee_id is None
         users = [
-            ('admin', 'admin123', 'John Lenard Bocal', 'Admin', 'EMP-001'),
-            ('hr', 'hr1234', 'John Lenard Bocal (HR)', 'HR', 'EMP-001'),
-            ('finance', 'finance123', 'John Lenard Bocal (Finance)', 'Finance', 'EMP-001'),
-            ('john.lenard@school.edu.ph', 'user123', 'John Lenard Bocal', 'Employee', 'EMP-001'),
+            ('admin', 'admin123', 'System Administrator', 'Admin', None),
+            ('hr', 'hr1234', 'HR Officer', 'HR', None),
+            ('finance', 'finance123', 'Finance Officer', 'Finance', None),
             ('auditor', 'Password123!', 'School Auditor', 'Auditor', None)
         ]
         for u in users:
