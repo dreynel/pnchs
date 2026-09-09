@@ -73,17 +73,63 @@ def get_approvals():
                 # Attach domain payload details for rich rendering
                 if r['DocType'] == 'Payroll':
                     cur.execute("""
-                        SELECT COUNT(*) as emp_count, SUM(total_gross) as gross_pay, SUM(net_pay) as net_pay
-                        FROM tblpayroll_details WHERE period_key=%s
+                        SELECT d.*, e.first_name, e.last_name, e.designation,
+                               COALESCE(b.vl_minutes, 4800) AS vl_minutes,
+                               COALESCE(b.sl_minutes, 4800) AS sl_minutes
+                        FROM tblpayroll_details d
+                        JOIN tblemployee e ON d.employee_id = e.employee_id
+                        LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
+                        WHERE d.period_key = %s
+                        ORDER BY e.last_name, e.first_name
                     """, (r['DocNumber'],))
-                    sum_row = cur.fetchone() or {}
+                    emp_rows = cur.fetchall()
+
+                    gGross = sum(float(x['total_gross'] or 0) for x in emp_rows)
+                    gDeduct = sum(float(x['total_deduct'] or 0) for x in emp_rows)
+                    gNet = sum(float(x['net_pay'] or 0) for x in emp_rows)
+
+                    emp_list = []
+                    for x in emp_rows:
+                        vl_m = int(x['vl_minutes'])
+                        sl_m = int(x['sl_minutes'])
+                        emp_list.append({
+                            'id':                 x['employee_id'],
+                            'name':               f"{x['first_name']} {x['last_name']}",
+                            'designation':        x['designation'],
+                            'basic_salary':       float(x['basic_salary'] or 0),
+                            'half_basic':         float(x['half_basic'] or 0),
+                            'other_earnings':     float(x['other_earnings'] or 0),
+                            'other_deductions':   float(x['other_deductions'] or 0),
+                            'absent_days':        x.get('absent_days', 0),
+                            'absent_deduction':   float(x.get('absent_deduction') or 0),
+                            'late_minutes':        x.get('late_minutes', 0),
+                            'undertime_minutes':   x.get('undertime_minutes', 0),
+                            'vl_tardiness_minutes': x.get('vl_tardiness_minutes', 0),
+                            'vl_undertime_minutes': x.get('vl_undertime_minutes', 0),
+                            'lwop_tardiness_minutes': x.get('lwop_tardiness_minutes', 0),
+                            'lwop_undertime_minutes': x.get('lwop_undertime_minutes', 0),
+                            'tardiness_deduction': float(x.get('tardiness_deduction') or 0),
+                            'undertime_deduction': float(x.get('undertime_deduction') or 0),
+                            'statutory_json':      x.get('statutory_json'),
+                            'payheads_json':       x.get('payheads_json'),
+                            'total_gross':        float(x['total_gross'] or 0),
+                            'total_deduct':       float(x['total_deduct'] or 0),
+                            'net_pay':            float(x['net_pay'] or 0),
+                            'vl_minutes':          vl_m,
+                            'sl_minutes':          sl_m,
+                            'vl_formatted':        LeavePolicyService.format_minutes_to_dhm(vl_m),
+                            'sl_formatted':        LeavePolicyService.format_minutes_to_dhm(sl_m),
+                        })
+
                     item['details'] = {
                         'year': r['pr_year'],
                         'month': r['pr_month'],
                         'half': r['pr_half'],
-                        'emp_count': sum_row.get('emp_count') or 0,
-                        'gross_pay': float(sum_row.get('gross_pay') or 0),
-                        'net_pay': float(sum_row.get('net_pay') or 0)
+                        'emp_count': len(emp_list),
+                        'gross_pay': gGross,
+                        'total_deduct': gDeduct,
+                        'net_pay': gNet,
+                        'employees': emp_list
                     }
                 elif r['DocType'] == 'Leave':
                     emp_name = r['RequesterID'] or 'Employee'
