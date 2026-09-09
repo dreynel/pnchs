@@ -510,7 +510,7 @@
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'HR', 'HR Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Governance</div>
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html')">

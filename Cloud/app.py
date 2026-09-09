@@ -122,6 +122,8 @@ def pages(filename):
     role = session.get('user', {}).get('role')
     if role == 'Admin' and filename in ['employee.html', 'payroll.html', 'salary_grades.html', 'registry.html']:
         return jsonify({'error': 'Unauthorized page access'}), 403
+    if filename == 'approvals.html' and role not in ['Admin', 'HR', 'HR Officer']:
+        return jsonify({'error': 'Unauthorized page access'}), 403
     pages_dir = os.path.join(app.root_path, 'pages')
     return send_from_directory(pages_dir, filename)
 
@@ -145,7 +147,7 @@ def payroll():
 @app.route('/payroll_approvals')
 @login_required
 def approvals():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Admin', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/approvals.html', title='Approvals')
 

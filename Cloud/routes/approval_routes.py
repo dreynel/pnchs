@@ -29,17 +29,12 @@ def get_approvals():
             params = []
 
             # Role-tailored filtering
-            if role in ['Principal']:
-                query += " AND a.ApproverRole IN ('Principal', 'Admin') AND a.DocType='Payroll'"
-            elif role in ['HR', 'HR Officer']:
-                query += " AND a.ApproverRole IN ('HR', 'HR Officer') AND a.DocType='Leave'"
-            elif role in ['Finance', 'Finance Officer']:
+            if role in ['HR', 'HR Officer']:
+                query += " AND a.DocType='Leave'"
+            elif role == 'Admin':
                 query += " AND a.DocType='Payroll'"
-            elif role in ['Admin', 'Auditor']:
-                pass # Admin and Auditor can see all approvals
             else:
-                query += " AND a.ApproverRole = %s"
-                params.append(role)
+                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR (Leaves) and Admin (Payroll Approvals).'}), 403
 
             if status_filter and status_filter.lower() != 'all':
                 query += " AND a.ApprovalStatus = %s"
@@ -224,8 +219,8 @@ def approval_action(approval_id):
         return jsonify({'error': 'Unauthorized'}), 401
 
     role = user.get('role', '')
-    if role == 'Auditor':
-        return jsonify({'error': 'Unauthorized: Auditors have read-only access and cannot process approvals.'}), 403
+    if role not in ['Admin', 'HR', 'HR Officer']:
+        return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR (Leaves) and Admin (Payroll Approvals).'}), 403
 
     user_name = user.get('name', 'Approver')
     data = request.json or {}
@@ -244,6 +239,11 @@ def approval_action(approval_id):
 
             doc_type = approval['DocType']
             doc_number = approval['DocNumber']
+
+            if doc_type == 'Payroll' and role != 'Admin':
+                return jsonify({'error': 'Unauthorized: Payroll approvals are reserved for Admin only.'}), 403
+            elif doc_type == 'Leave' and role not in ['HR', 'HR Officer']:
+                return jsonify({'error': 'Unauthorized: Leave approvals are reserved for HR only.'}), 403
 
             # Update tblapprovals record
             cur.execute("""
