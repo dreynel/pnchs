@@ -273,7 +273,14 @@ def get_dtr_report():
                     'remarks':       r.get('remarks') or ''
                 }
             else:
-                status = 'weekend' if is_weekend else 'absent'
+                yesterday = date.today() - timedelta(days=1)
+                if is_weekend:
+                    status = 'weekend'
+                elif work_date > yesterday:
+                    status = 'pending'
+                else:
+                    status = 'absent'
+
                 entry = {
                     'log_id':        None,
                     'day':           work_date.day if mode == 'month' else d_index,
@@ -290,7 +297,7 @@ def get_dtr_report():
                     'payroll_deduction': 0.0,
                     'has_log':       False,
                     'hours':         0.0,
-                    'remarks':       ''
+                    'remarks':       'Pending' if status == 'pending' else ''
                 }
 
             if not is_weekend:

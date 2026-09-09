@@ -310,18 +310,20 @@ def create_run():
                         lwop_late_min  += l
                         lwop_under_min += u
 
-                # ── Approved leaves (excluded from absent count) ───────────────
+                # ── Approved leaves & absence evaluation cutoff (only up to yesterday) ───────────────
                 approved_leave_dates = get_approved_leave_dates(cur, emp_id, start_date, end_date)
-                # Only count leaves on working weekdays
-                effective_leave_days = len([
-                    d for d in approved_leave_dates
-                    if d.weekday() < 5  # Mon-Fri
-                ])
+                yesterday = date.today() - timedelta(days=1)
+                eval_end_date = min(end_date, yesterday)
 
-                # Effective present days = logged + approved leaves
-                effective_present = len(logged_dates) + effective_leave_days
+                if eval_end_date >= start_date:
+                    eval_work_days = count_work_days_in_period(start_date, eval_end_date)
+                    eval_logged = {d for d in logged_dates if d <= eval_end_date}
+                    eval_leaves = len([d for d in approved_leave_dates if d.weekday() < 5 and d <= eval_end_date])
+                    effective_present = len(eval_logged) + eval_leaves
+                    absent_days = max(0, eval_work_days - effective_present)
+                else:
+                    absent_days = 0
 
-                absent_days      = max(0, expected_work_days - effective_present)
                 absent_deduction = absent_days * daily_rate
 
                 if apply_deped_policy:

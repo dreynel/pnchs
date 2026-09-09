@@ -366,6 +366,12 @@
     border: 1px solid var(--border);
   }
 
+  .status-badge.pending {
+    background: var(--navy-light);
+    color: var(--navy-mid);
+    border: 1px solid #c5d8f5;
+  }
+
   /* Late badge */
   .late-badge {
     display: inline-flex;
@@ -473,6 +479,7 @@
         'half-day': '◑ Half-Day',
         'absent': '○ Absent',
         'weekend': '— Weekend',
+        'pending': '— Pending',
       };
       return `<span class="status-badge ${status}">${labels[status] || status}</span>`;
     }
