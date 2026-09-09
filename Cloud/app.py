@@ -119,6 +119,9 @@ def dashboard():
 @app.route('/pages/<path:filename>')
 @login_required
 def pages(filename):
+    role = session.get('user', {}).get('role')
+    if role == 'Admin' and filename in ['employee.html', 'payroll.html', 'salary_grades.html', 'registry.html']:
+        return jsonify({'error': 'Unauthorized page access'}), 403
     pages_dir = os.path.join(app.root_path, 'pages')
     return send_from_directory(pages_dir, filename)
 

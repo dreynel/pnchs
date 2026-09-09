@@ -423,6 +423,9 @@ def _workdays(start, end):
 @payroll_bp.route('/report', methods=['GET'])
 @payroll_bp.route('/process', methods=['GET'])
 def process_payroll():
+    if session.get('user', {}).get('role') == 'Admin':
+        return jsonify({'error': 'Unauthorized: Admin does not have access to Payroll Processing'}), 403
+
     mode = request.args.get('date_mode', '').strip().lower()
     year = request.args.get('year', '').strip()
     month = request.args.get('month', '').strip()

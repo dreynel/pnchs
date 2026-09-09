@@ -6,10 +6,12 @@ from services.policy_engine import AuditService
 registry_bp = Blueprint('registry', __name__, url_prefix='/api/registry')
 
 @registry_bp.before_request
-def check_auditor_access():
-    if request.method != 'GET':
-        if session.get('user', {}).get('role') == 'Auditor':
-            return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
+def check_role_access():
+    role = session.get('user', {}).get('role')
+    if role == 'Admin':
+        return jsonify({'error': 'Unauthorized: Admin does not have access to Statutory Registry'}), 403
+    if request.method != 'GET' and role == 'Auditor':
+        return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
 # ── Global Payheads ──────────────────────────────────────────────────────────
 

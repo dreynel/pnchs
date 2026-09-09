@@ -6,10 +6,12 @@ from services.policy_engine import AuditService
 salary_grade_bp = Blueprint('salary_grade', __name__, url_prefix='/api/salary_grades')
 
 @salary_grade_bp.before_request
-def check_auditor_access():
-    if request.method != 'GET':
-        if session.get('user', {}).get('role') == 'Auditor':
-            return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
+def check_role_access():
+    role = session.get('user', {}).get('role')
+    if role == 'Admin':
+        return jsonify({'error': 'Unauthorized: Admin does not have access to Salary Grades'}), 403
+    if request.method != 'GET' and role == 'Auditor':
+        return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
 DEFAULT_THIRD_TRANCHE = [
     (1, None, 14634, 14730, 14849, 14968, 15089, 15211, 15333, 15456),
