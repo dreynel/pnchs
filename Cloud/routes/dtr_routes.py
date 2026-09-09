@@ -212,6 +212,17 @@ def get_dtr_report():
             """, (emp_id, start_date, end_date))
             log_rows = cur.fetchall()
 
+            # Fetch Principal for CS Form 48 approval block
+            cur.execute("""
+                SELECT first_name, last_name, designation
+                FROM tblemployee
+                WHERE LOWER(designation) LIKE %s OR LOWER(designation) LIKE %s
+                LIMIT 1
+            """, ('%principal%', '%head%'))
+            p_row = cur.fetchone()
+            principal_name = f"{p_row['first_name']} {p_row['last_name']}" if p_row else "GEMMA B. PEÑARANDA, EdD"
+            principal_desig = p_row['designation'] if p_row else "PRINCIPAL IV"
+
         logs_by_date = {r['work_date'].strftime('%Y-%m-%d'): r for r in log_rows}
 
         days = []
@@ -333,6 +344,8 @@ def get_dtr_report():
                 'schedule':      sch['label'],
                 'vl_balance_minutes': vl_balance_min,
                 'vl_balance_formatted': LeavePolicyService.format_minutes_to_dhm(vl_balance_min),
+                'principal_name': principal_name,
+                'principal_designation': principal_desig,
             },
             'period': {
                 'year': year_int, 'month': month_int,

@@ -5,7 +5,198 @@
     min-height: 100%;
   }
 
-  /* Report header */
+  /* View Mode Selector Tabs */
+  .dtr-view-toggle-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    padding: 6px;
+    border-radius: 12px;
+    width: fit-content;
+  }
+
+  .dtr-view-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    transition: all .15s;
+  }
+
+  .dtr-view-tab:hover {
+    color: var(--navy-mid);
+    background: var(--navy-light);
+  }
+
+  .dtr-view-tab.active {
+    background: var(--navy);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(30,58,95,0.25);
+  }
+
+  /* ── CS Form No. 48 Official Paper Container ── */
+  .cs48-paper-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  .cs48-paper {
+    background: #fff;
+    color: #000;
+    font-family: 'Times New Roman', Times, serif;
+    width: 100%;
+    max-width: 680px;
+    padding: 24px 28px;
+    border: 1.5px solid #222;
+    border-radius: 4px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    line-height: 1.25;
+  }
+
+  .cs48-top-tag {
+    font-size: 10.5px;
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+
+  .cs48-header {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  .cs48-header .h-rep { font-size: 12px; }
+  .cs48-header .h-dept { font-size: 12px; font-weight: bold; }
+  .cs48-header .h-reg { font-size: 11px; }
+  .cs48-header .h-div { font-size: 12.5px; font-weight: bold; letter-spacing: 0.3px; margin-top: 2px; }
+  .cs48-header .h-school { font-size: 13.5px; font-weight: bold; text-transform: uppercase; margin-top: 2px; }
+  .cs48-header .h-id { font-size: 11px; font-weight: bold; }
+  .cs48-header .h-addr { font-size: 11px; }
+  .cs48-header .h-title {
+    font-size: 17px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+
+  .cs48-emp-block {
+    text-align: center;
+    margin: 14px 0 10px;
+  }
+
+  .cs48-emp-name {
+    font-size: 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-bottom: 1px solid #000;
+    display: inline-block;
+    padding: 0 24px 1px;
+  }
+
+  .cs48-emp-sub {
+    font-size: 10.5px;
+    font-style: italic;
+    margin-top: 2px;
+  }
+
+  .cs48-period-bar {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    margin-bottom: 8px;
+    padding: 0 2px;
+  }
+
+  /* CS 48 Grid Table */
+  .cs48-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1.5px solid #000;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .cs48-table th, .cs48-table td {
+    border: 1px solid #000;
+    padding: 2.5px 2px;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .cs48-table th {
+    font-weight: bold;
+    font-size: 9.5px;
+    background: #f8f8f8;
+    text-transform: uppercase;
+  }
+
+  .cs48-td-day { font-weight: bold; font-size: 11px; width: 34px; }
+  .cs48-span-cell { font-style: italic; color: #333; background: #fafafa; font-size: 10.5px; letter-spacing: 0.5px; }
+  .cs48-td-val { font-size: 11px; }
+
+  /* Footer Totals */
+  .cs48-footer-block {
+    margin-top: 10px;
+    font-size: 11px;
+  }
+
+  .cs48-summary-grid {
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid #000;
+    padding-top: 6px;
+    margin-bottom: 14px;
+    font-size: 11px;
+  }
+
+  .cs48-cert-text {
+    font-size: 10.5px;
+    text-align: justify;
+    line-height: 1.35;
+    margin-bottom: 28px;
+  }
+
+  .cs48-sig-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 24px;
+  }
+
+  .cs48-sig-box {
+    text-align: center;
+    width: 220px;
+  }
+
+  .cs48-sig-line {
+    border-bottom: 1px solid #000;
+    margin-bottom: 3px;
+  }
+
+  .cs48-sig-name {
+    font-weight: bold;
+    font-size: 11.5px;
+    text-transform: uppercase;
+  }
+
+  .cs48-sig-title {
+    font-size: 10px;
+  }
+
+  .cs48-approval-block {
+    margin-top: 16px;
+  }
+
+  /* ── Detailed Analytics View (Existing View) ── */
   .dtr-report-header {
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -19,444 +210,342 @@
     flex-wrap: wrap;
   }
 
-  .dtr-rh-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
+  .dtr-rh-left { display: flex; align-items: center; gap: 14px; }
   .dtr-rh-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 13px;
-    background: var(--navy);
-    border: 2px solid #3a6fad;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Playfair Display', serif;
-    font-size: 16px;
-    color: #fff;
-    flex-shrink: 0;
+    width: 48px; height: 48px; border-radius: 13px;
+    background: var(--navy); border: 2px solid #3a6fad;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-size: 16px; color: #fff; flex-shrink: 0;
   }
-
-  .dtr-rh-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.2rem;
-    color: var(--navy);
-  }
-
-  .dtr-rh-sub {
-    font-size: 11.5px;
-    color: var(--muted2);
-    margin-top: 3px;
-  }
-
+  .dtr-rh-name { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--navy); }
+  .dtr-rh-sub { font-size: 11.5px; color: var(--muted2); margin-top: 3px; }
   .dtr-rh-period {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin-top: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--navy-mid);
-    background: var(--navy-light);
-    border: 1px solid #c5d8f5;
-    padding: 3px 10px;
-    border-radius: 20px;
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 6px;
+    font-size: 11px; font-weight: 600; color: var(--navy-mid);
+    background: var(--navy-light); border: 1px solid #c5d8f5; padding: 3px 10px; border-radius: 20px;
   }
 
-  /* Summary breakdown table */
   .dtr-summary-table {
-    width: 100%;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    margin-bottom: 16px;
+    width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 14px; overflow: hidden; margin-bottom: 16px;
   }
-
   .dtr-sum-head {
-    display: grid;
-    grid-template-columns: 180px 1fr 1fr 1fr;
-    background: var(--navy);
-    padding: 10px 20px;
-    border-radius: 14px 14px 0 0;
+    display: grid; grid-template-columns: 180px 1fr 1fr 1fr;
+    background: var(--navy); padding: 10px 20px; border-radius: 14px 14px 0 0;
   }
-
   .dtr-sum-head span {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .12em;
-    color: rgba(255, 255, 255, 0.65);
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .12em; color: rgba(255, 255, 255, 0.65);
   }
-
-  .dtr-sum-head span:not(:first-child) {
-    text-align: center;
-  }
-
+  .dtr-sum-head span:not(:first-child) { text-align: center; }
   .dtr-sum-row {
-    display: grid;
-    grid-template-columns: 180px 1fr 1fr 1fr;
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border);
-    align-items: center;
+    display: grid; grid-template-columns: 180px 1fr 1fr 1fr;
+    padding: 12px 20px; border-bottom: 1px solid var(--border); align-items: center;
   }
+  .dtr-sum-row:last-child { border-bottom: none; }
+  .dtr-sum-row:nth-child(even) { background: var(--surface2); }
+  .dtr-sum-row.total-row { background: var(--navy-light); border-top: 2px solid #c5d8f5; }
+  .dtr-sum-row-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .dtr-sum-cell { text-align: center; }
+  .dtr-sum-big { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: var(--navy); display: block; }
+  .dtr-sum-small { font-size: 10px; color: var(--muted2); margin-top: 2px; display: block; }
+  .dtr-sum-late { color: var(--red) !important; }
+  .dtr-sum-hours { color: var(--navy) !important; font-weight: 600; }
 
-  .dtr-sum-row:last-child {
-    border-bottom: none;
-  }
-
-  .dtr-sum-row:nth-child(even) {
-    background: var(--surface2);
-  }
-
-  .dtr-sum-row.total-row {
-    background: var(--navy-light);
-    border-top: 2px solid #c5d8f5;
-  }
-
-  .dtr-sum-row-lbl {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: .08em;
-  }
-
-  .dtr-sum-cell {
-    text-align: center;
-  }
-
-  .dtr-sum-big {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.25rem;
-    color: var(--navy);
-    display: block;
-  }
-
-  .dtr-sum-small {
-    font-size: 10px;
-    color: var(--muted2);
-    margin-top: 2px;
-    display: block;
-  }
-
-  .dtr-sum-late {
-    color: var(--red) !important;
-  }
-
-  .dtr-sum-hours {
-    color: var(--green) !important;
-  }
-
-  /* Table card */
   .dtr-table-card {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 14px; overflow: hidden; margin-bottom: 24px;
   }
-
   .dtr-table-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 13px 18px;
-    border-bottom: 1.5px solid var(--border);
-    background: var(--surface2);
+    padding: 16px 20px; border-bottom: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
+  .dtr-table-card-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--navy); }
+  .dtr-table-card-sub { font-size: 11px; color: var(--muted2); margin-top: 2px; }
 
-  .dtr-table-card-title {
-    font-family: 'Playfair Display', serif;
-    font-size: .95rem;
-    color: var(--navy);
-  }
+  .dtr-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .dtr-leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .dtr-leg-dot { width: 8px; height: 8px; border-radius: 2px; }
 
-  .dtr-table-card-sub {
-    font-size: 11px;
-    color: var(--muted2);
-    margin-top: 1px;
-  }
-
-  /* Legend */
-  .dtr-legend {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .dtr-leg-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10.5px;
-    color: var(--muted);
-  }
-
-  .dtr-leg-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-  }
-
-  /* The main DTR table */
-  .dtr-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 12.5px;
-  }
-
+  .dtr-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
   .dtr-table thead th {
-    padding: 9px 14px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    color: var(--muted2);
-    border-bottom: 1.5px solid var(--border);
-    white-space: nowrap;
-    background: var(--surface);
+    padding: 9px 14px; text-align: left; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .1em; color: var(--muted2);
+    border-bottom: 1.5px solid var(--border); white-space: nowrap; background: var(--surface);
   }
+  .dtr-table thead th.center { text-align: center; }
+  .dtr-table tbody td { padding: 8px 14px; border-bottom: 1px solid rgba(226, 221, 214, 0.45); vertical-align: middle; }
+  .dtr-table tbody tr:last-child td { border-bottom: none; }
 
-  .dtr-table thead th.center {
-    text-align: center;
-  }
+  .dtr-table tbody tr.row-weekend td { background: var(--surface2); color: var(--muted2); }
+  .dtr-table tbody tr.row-absent:not(.row-weekend) td { background: rgba(192, 57, 43, 0.03); }
+  .dtr-table tbody tr.row-halfday td { background: rgba(146, 100, 10, 0.03); }
+  .dtr-table tbody tr.row-present:hover td { background: var(--navy-hover); }
 
-  .dtr-table tbody td {
-    padding: 8px 14px;
-    border-bottom: 1px solid rgba(226, 221, 214, 0.45);
-    vertical-align: middle;
-  }
-
-  .dtr-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  /* Row types */
-  .dtr-table tbody tr.row-weekend td {
-    background: var(--surface2);
-    color: var(--muted2);
-  }
-
-  .dtr-table tbody tr.row-absent:not(.row-weekend) td {
-    background: rgba(192, 57, 43, 0.03);
-  }
-
-  .dtr-table tbody tr.row-halfday td {
-    background: rgba(146, 100, 10, 0.03);
-  }
-
-  .dtr-table tbody tr.row-present:hover td {
-    background: var(--navy-hover);
-  }
-
-  /* Day number cell */
-  .day-num-cell {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
+  .day-num-cell { display: flex; align-items: center; gap: 6px; }
   .day-num {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 12px;
-    flex-shrink: 0;
+    width: 26px; height: 26px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 12px; flex-shrink: 0;
   }
+  .day-num.weekend { background: var(--surface2); color: var(--muted2); }
+  .day-num.present { background: var(--green-dim); color: var(--green); }
+  .day-num.half-day { background: rgba(146, 100, 10, 0.1); color: var(--accent); }
+  .day-num.absent { background: var(--red-dim); color: var(--red); }
 
-  .day-num.weekend {
-    background: var(--surface2);
-    color: var(--muted2);
-  }
+  .day-label { font-size: 11px; color: var(--muted2); }
+  .time-cell { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text); }
+  .time-cell.empty { color: var(--muted2); font-style: italic; font-size: 11px; }
 
-  .day-num.present {
-    background: var(--green-dim);
-    color: var(--green);
-  }
+  .time-pair { display: flex; flex-direction: column; gap: 1px; align-items: center; }
+  .time-pair .t-in { font-size: 12px; color: var(--navy); font-weight: 500; }
+  .time-pair .t-out { font-size: 11px; color: var(--muted); }
 
-  .day-num.half-day {
-    background: rgba(146, 100, 10, 0.1);
-    color: var(--accent);
-  }
-
-  .day-num.absent {
-    background: var(--red-dim);
-    color: var(--red);
-  }
-
-  .day-label {
-    font-size: 11px;
-    color: var(--muted2);
-  }
-
-  /* Time cells */
-  .time-cell {
-    font-variant-numeric: tabular-nums;
-    font-size: 12px;
-    color: var(--text);
-  }
-
-  .time-cell.empty {
-    color: var(--muted2);
-    font-style: italic;
-    font-size: 11px;
-  }
-
-  .time-pair {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    align-items: center;
-  }
-
-  .time-pair .t-in {
-    font-size: 12px;
-    color: var(--navy);
-    font-weight: 500;
-  }
-
-  .time-pair .t-out {
-    font-size: 11px;
-    color: var(--muted);
-  }
-
-  /* Status badges */
   .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10.5px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 20px;
-    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; white-space: nowrap;
   }
+  .status-badge.present { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-brd); }
+  .status-badge.half-day { background: rgba(146, 100, 10, 0.08); color: var(--accent); border: 1px solid rgba(146, 100, 10, 0.2); }
+  .status-badge.absent { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-brd); }
+  .status-badge.weekend { background: var(--surface2); color: var(--muted2); border: 1px solid var(--border); }
+  .status-badge.pending { background: var(--navy-light); color: var(--navy-mid); border: 1px solid #c5d8f5; }
 
-  .status-badge.present {
-    background: var(--green-dim);
-    color: var(--green);
-    border: 1px solid var(--green-brd);
-  }
-
-  .status-badge.half-day {
-    background: rgba(146, 100, 10, 0.08);
-    color: var(--accent);
-    border: 1px solid rgba(146, 100, 10, 0.2);
-  }
-
-  .status-badge.absent {
-    background: var(--red-dim);
-    color: var(--red);
-    border: 1px solid var(--red-brd);
-  }
-
-  .status-badge.weekend {
-    background: var(--surface2);
-    color: var(--muted2);
-    border: 1px solid var(--border);
-  }
-
-  .status-badge.pending {
-    background: var(--navy-light);
-    color: var(--navy-mid);
-    border: 1px solid #c5d8f5;
-  }
-
-  /* Late badge */
   .late-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 20px;
-    background: rgba(146, 100, 10, 0.08);
-    color: var(--accent);
-    border: 1px solid rgba(146, 100, 10, 0.2);
-    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 10px; padding: 1px 6px; border-radius: 20px;
+    background: rgba(146, 100, 10, 0.08); color: var(--accent);
+    border: 1px solid rgba(146, 100, 10, 0.2); white-space: nowrap;
   }
 
-  /* No log notice */
-  .no-log-text {
-    font-size: 11px;
-    color: var(--muted2);
-    font-style: italic;
-  }
-
-  /* ── Print styles ── */
   @media print {
-    .dtr-report-wrap {
-      padding: 0;
-    }
-
-    .dtr-report-header,
-    .dtr-table-card {
-      border: 1px solid #ccc;
-      border-radius: 0;
-      box-shadow: none;
-    }
-
-    .dtr-summary-row {
-      break-inside: avoid;
-    }
-
-    .dtr-table-card {
-      break-inside: auto;
-    }
-
-    .dtr-table thead {
-      display: table-header-group;
-    }
-
-    .dtr-table tbody tr {
-      break-inside: avoid;
-    }
-
-    .dtr-table-card-header {
-      background: #f5f5f5;
+    body { background: #fff !important; padding: 0 !important; }
+    .dtr-view-toggle-bar { display: none !important; }
+    .cs48-paper {
+      border: 1.5px solid #000 !important;
+      box-shadow: none !important;
+      max-width: 100% !important;
+      width: 100% !important;
+      padding: 0 !important;
     }
   }
 </style>
-
 
 <div class="dtr-report-wrap" id="dtrReportWrap">
   <!-- Filled by initDtrContent() -->
 </div>
 
-
 <script>
-
-  function to12Hour(time24) {
-    if (!time24) return null;
-    const [hour, minute] = time24.split(":");
-    let h = parseInt(hour);
-    const ampm = h >= 12 ? "PM" : "AM";
-
-    h = h % 12;
-    h = h ? h : 12; // 0 becomes 12
-
-    return `${h}:${minute} ${ampm}`;
+  function format12HourHHMM(timeStr) {
+    if (!timeStr) return '';
+    const parts = timeStr.split(":");
+    if (parts.length < 2) return timeStr;
+    let h = parseInt(parts[0], 10);
+    const m = parts[1];
+    // Keep 24-hour style format for CS48 grid if preferred or 12-hr
+    const hh = String(h).padStart(2, '0');
+    return `${hh}:${m}`;
   }
 
+  function fmtMinutesToHHMM(mins) {
+    if (!mins) return '00:00';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  function fmtMinutesToHHMMSS(mins) {
+    if (!mins) return '0:00:00';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}:${String(m).padStart(2, '0')}:00`;
+  }
 
   window.initDtrContent = function (data) {
-
+    window._currentDtrData = data;
     const emp = data.employee;
     const period = data.period;
     const summary = data.summary;
     const days = data.days;
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // Default view mode = CS48 (Civil Service Form No. 48)
+    window.setDtrViewMode = function (mode) {
+      window._activeDtrViewMode = mode;
+
+      if (mode === 'cs48') {
+        $('#tabCsForm48').addClass('active');
+        $('#tabDetailedAnalytics').removeClass('active');
+        $('#csForm48Content').show();
+        $('#analyticsContent').hide();
+      } else {
+        $('#tabDetailedAnalytics').addClass('active');
+        $('#tabCsForm48').removeClass('active');
+        $('#analyticsContent').show();
+        $('#csForm48Content').hide();
+      }
+    };
+
+    // ── Build Mode Toggle Bar ───────────────────────────────────────────────────
+    const toggleBarHtml = `
+    <div class="dtr-view-toggle-bar">
+      <button class="dtr-view-tab active" id="tabCsForm48" onclick="setDtrViewMode('cs48')">
+        📄 Civil Service Form No. 48 (Official DTR)
+      </button>
+      <button class="dtr-view-tab" id="tabDetailedAnalytics" onclick="setDtrViewMode('analytics')">
+        📊 Detailed Analytics View
+      </button>
+    </div>`;
+
+    // ── 1. BUILD OFFICIAL CIVIL SERVICE FORM NO. 48 (CS FORM 48) ───────────────
+    const startDateStr = days.length ? days[0].date_str : '';
+    const endDateStr   = days.length ? days[days.length - 1].date_str : '';
+
+    const csRowsHtml = days.map(d => {
+      let rowContent = '';
+
+      if (d.is_weekend) {
+        const weekendText = d.weekday === 'Sat' ? 'Saturday' : 'Sunday';
+        rowContent = `
+          <td class="cs48-td-day">${d.day}</td>
+          <td colspan="8" class="cs48-span-cell">${weekendText}</td>
+          <td></td>
+        `;
+      } else if (d.remarks && d.remarks.toLowerCase().includes('holiday')) {
+        rowContent = `
+          <td class="cs48-td-day">${d.day}</td>
+          <td colspan="8" class="cs48-span-cell">Holiday</td>
+          <td>${d.status === 'absent' ? '1' : ''}</td>
+        `;
+      } else {
+        const amIn  = format12HourHHMM(d.am_in);
+        const amOut = format12HourHHMM(d.am_out);
+        const pmIn  = format12HourHHMM(d.pm_in);
+        const pmOut = format12HourHHMM(d.pm_out);
+
+        const utMins = (d.late_min || 0) + (d.undertime_min || 0);
+        const utStr  = utMins > 0 ? fmtMinutesToHHMM(utMins) : '';
+        const absentStr = d.status === 'absent' ? '1' : '';
+
+        rowContent = `
+          <td class="cs48-td-day">${d.day}</td>
+          <td class="cs48-td-val">${amIn}</td>
+          <td class="cs48-td-val">${amOut}</td>
+          <td class="cs48-td-val">${pmIn}</td>
+          <td class="cs48-td-val">${pmOut}</td>
+          <td class="cs48-td-val"></td>
+          <td class="cs48-td-val"></td>
+          <td class="cs48-td-val"></td>
+          <td class="cs48-td-val">${utStr}</td>
+          <td class="cs48-td-val">${absentStr}</td>
+        `;
+      }
+
+      return `<tr>${rowContent}</tr>`;
+    }).join('');
+
+    const csForm48Html = `
+    <div id="csForm48Content">
+      <div class="cs48-paper-wrap">
+        <div class="cs48-paper">
+
+          <div class="cs48-top-tag">Civil Service Form No. 48</div>
+
+          <div class="cs48-header">
+            <div class="h-rep">Republic of the Philippines</div>
+            <div class="h-dept">Department of Education</div>
+            <div class="h-reg">Region VI - Western Visayas</div>
+            <div class="h-div">SCHOOLS DIVISION OF ILOILO</div>
+            <div class="h-school">POTOTAN NATIONAL COMPREHENSIVE HIGH SCHOOL</div>
+            <div class="h-id">(302556)</div>
+            <div class="h-addr">CAU-AYAN, POTOTAN, ILOILO</div>
+            <div class="h-title">DAILY TIME RECORD</div>
+          </div>
+
+          <div class="cs48-emp-block">
+            <div class="cs48-emp-name">${emp.full_name.toUpperCase()}</div>
+            <div class="cs48-emp-sub">Employee Name (${emp.id})</div>
+          </div>
+
+          <div class="cs48-period-bar">
+            <div>For the month of <strong>${period.month_name}, ${period.year}</strong></div>
+            <div>Date From: <strong>${startDateStr}</strong> &nbsp; To: <strong>${endDateStr}</strong></div>
+          </div>
+
+          <table class="cs48-table">
+            <thead>
+              <tr>
+                <th rowspan="2" class="cs48-th-day">DAY</th>
+                <th colspan="2">AM</th>
+                <th colspan="2">PM</th>
+                <th colspan="2">OVERTIME</th>
+                <th colspan="2">TOTAL</th>
+                <th rowspan="2" style="width:42px;">ABSENT</th>
+              </tr>
+              <tr>
+                <th style="width:52px;">IN</th>
+                <th style="width:52px;">OUT</th>
+                <th style="width:52px;">IN</th>
+                <th style="width:52px;">OUT</th>
+                <th style="width:42px;">IN</th>
+                <th style="width:42px;">OUT</th>
+                <th style="width:42px;">OT</th>
+                <th style="width:52px;">UT</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${csRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="cs48-footer-block">
+            <div class="cs48-summary-grid">
+              <div>
+                <div style="font-weight:bold;font-size:11px;">AM and PM TOTAL:</div>
+                <div style="margin-left:12px;margin-top:2px;">
+                  Late: <strong>${fmtMinutesToHHMM(summary.total_late_min)}</strong> &nbsp;&nbsp;&nbsp;&nbsp; UT: <strong>${fmtMinutesToHHMM(summary.total_undertime_min)}</strong>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:bold;font-size:11px;">TOTAL:</div>
+                <div>Late and UT (h:m:s): <strong>${fmtMinutesToHHMMSS(summary.total_late_min + summary.total_undertime_min)}</strong></div>
+                <div>Overtime: <strong>0:00:00</strong></div>
+                <div>Days Absent: <strong>${summary.total_absent}</strong></div>
+              </div>
+            </div>
+
+            <div class="cs48-cert-text">
+              I CERTIFY on my honor that the above is true and correct record of the hours of work performed, record of which was made daily at the time of arrival and departure from the office.
+            </div>
+
+            <div class="cs48-sig-wrap">
+              <div class="cs48-sig-box">
+                <div class="cs48-sig-line"></div>
+                <div class="cs48-sig-name">${emp.full_name.toUpperCase()}</div>
+                <div class="cs48-sig-title">(Signature)</div>
+              </div>
+            </div>
+
+            <div class="cs48-approval-block">
+              <div style="font-size:11px;margin-bottom:4px;">Verified as to prescribed office hours:</div>
+              <div style="font-size:11px;font-weight:bold;margin-bottom:20px;">Approved:</div>
+
+              <div class="cs48-sig-wrap" style="margin-bottom:0;">
+                <div class="cs48-sig-box">
+                  <div class="cs48-sig-line"></div>
+                  <div class="cs48-sig-name">${(emp.principal_name || 'GEMMA B. PEÑARANDA, EdD').toUpperCase()}</div>
+                  <div class="cs48-sig-title">${(emp.principal_designation || 'PRINCIPAL IV').toUpperCase()}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>`;
+
+
+    // ── 2. BUILD DETAILED ANALYTICS VIEW (RENAMED EXISTING VIEW) ───────────────
     function initials(name) {
       return name.split(' ').map(w => w[0] || '').slice(0, 2).join('').toUpperCase();
     }
@@ -466,11 +555,6 @@
       const h = Math.floor(min / 60);
       const m = min % 60;
       return h ? `${h}h ${m}m late` : `${m}m late`;
-    }
-
-    function timeCell(t) {
-      if (!t) return '<span class="time-cell empty">—</span>';
-      return `<span class="time-cell">${t}</span>`;
     }
 
     function statusBadge(status) {
@@ -484,8 +568,7 @@
       return `<span class="status-badge ${status}">${labels[status] || status}</span>`;
     }
 
-    // ── Build report header ───────────────────────────────────────────────────
-    const headerHtml = `
+    const analyticsHeaderHtml = `
     <div class="dtr-report-header">
       <div class="dtr-rh-left">
         <div class="dtr-rh-avatar">${initials(emp.full_name)}</div>
@@ -507,11 +590,10 @@
       </div>
       <div style="font-size:11px;color:var(--muted2);text-align:right;">
         Generated: ${new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}<br>
-        <span style="font-size:10px;">Daily Time Record Report</span>
+        <span style="font-size:10px;">Detailed DTR Analytics Summary</span>
       </div>
     </div>`;
 
-    // ── Build summary breakdown table (1st Half / 2nd Half / Overall) ──────────
     function fmtLateMin(min) {
       if (!min) return '0m';
       const h = Math.floor(min / 60), m = min % 60;
@@ -526,7 +608,7 @@
       return '<div class="dtr-sum-cell"><span class="dtr-sum-big ' + bigCls + '">' + big + '</span><span class="dtr-sum-small">' + small + '</span></div>';
     }
 
-    const summaryHtml = `
+    const analyticsSummaryHtml = `
     <div class="dtr-summary-table">
       <div class="dtr-sum-head">
         <span>Metric</span>
@@ -572,18 +654,15 @@
       </div>
     </div>`;
 
-    // ── Build table rows ──────────────────────────────────────────────────────
-    const rowsHtml = days.map(d => {
+    const analyticsRowsHtml = days.map(d => {
       const rowClass = d.is_weekend ? 'row-weekend'
         : d.status === 'present' ? 'row-present'
           : d.status === 'half-day' ? 'row-halfday'
             : 'row-absent';
 
       const dayClass = d.is_weekend ? 'weekend' : d.status;
-
       const lateStr = fmtLate(d.late_min);
 
-      // Time cells — group AM and PM
       let amHtml, pmHtml;
       if (d.is_weekend || !d.has_log) {
         amHtml = '<span class="no-log-text">—</span>';
@@ -591,13 +670,13 @@
       } else {
         amHtml = `
         <div class="time-pair">
-          <span class="t-in">${to12Hour(d.am_in) || '—'}</span>
-          <span class="t-out">${to12Hour(d.am_out) || '—'}</span>
+          <span class="t-in">${d.am_in || '—'}</span>
+          <span class="t-out">${d.am_out || '—'}</span>
         </div>`;
         pmHtml = `
         <div class="time-pair">
-          <span class="t-in">${to12Hour(d.pm_in) || '—'}</span>
-          <span class="t-out">${to12Hour(d.pm_out) || '—'}</span>
+          <span class="t-in">${d.pm_in || '—'}</span>
+          <span class="t-out">${d.pm_out || '—'}</span>
         </div>`;
       }
 
@@ -631,12 +710,11 @@
       </tr>`;
     }).join('');
 
-    // ── Assemble full table ───────────────────────────────────────────────────
-    const tableHtml = `
+    const analyticsTableHtml = `
     <div class="dtr-table-card">
       <div class="dtr-table-card-header">
         <div>
-          <div class="dtr-table-card-title">Attendance Log — ${period.label}</div>
+          <div class="dtr-table-card-title">Attendance Log Analytics — ${period.label}</div>
           <div class="dtr-table-card-sub">${days.length} days · ${summary.working_days} working days ${emp.vl_balance_formatted ? '· VL Balance: ' + emp.vl_balance_formatted : ''}</div>
         </div>
         <div class="dtr-legend">
@@ -662,45 +740,47 @@
               <th class="center" style="width:70px;">Hours</th>
             </tr>
           </thead>
-          <tbody>${rowsHtml}</tbody>
+          <tbody>${analyticsRowsHtml}</tbody>
         </table>
       </div>
     </div>`;
 
-    // ── Inject everything ─────────────────────────────────────────────────────
-    $('#dtrReportWrap').html(headerHtml + summaryHtml + tableHtml);
+    const analyticsHtml = `
+    <div id="analyticsContent" style="display:none;">
+      ${analyticsHeaderHtml}
+      ${analyticsSummaryHtml}
+      ${analyticsTableHtml}
+    </div>`;
 
+    // ── Inject Everything ─────────────────────────────────────────────────────
+    $('#dtrReportWrap').html(toggleBarHtml + csForm48Html + analyticsHtml);
+
+    // Initial View Mode = CS Form 48
+    setDtrViewMode('cs48');
   };
 
 
   // ── Print handler ─────────────────────────────────────────────────────────────
   window.printDtr = function () {
-    const content = document.getElementById('dtrReportWrap').innerHTML;
-    const win = window.open('', '_blank', 'width=900,height=700');
+    const isCs48 = window._activeDtrViewMode !== 'analytics';
+    const targetId = isCs48 ? 'csForm48Content' : 'analyticsContent';
+    const content = document.getElementById(targetId).innerHTML;
+    
+    const win = window.open('', '_blank', 'width=900,height=750');
     win.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
-      <title>DTR Report</title>
+      <title>${isCs48 ? 'Civil Service Form No. 48 - Daily Time Record' : 'DTR Detailed Analytics'}</title>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
       <style>
-        :root {
-          --navy:#1e3a5f; --navy-mid:#2a4f80; --navy-light:#e8f0fb;
-          --accent:#c8973a; --bg:#fff; --surface:#fff; --surface2:#fafaf8;
-          --border:#e2ddd6; --border2:#cdc8c0; --text:#1a1a2e;
-          --muted:#5a6272; --muted2:#9fa5b4;
-          --red:#c0392b; --red-dim:rgba(192,57,43,0.07); --red-brd:rgba(192,57,43,0.18);
-          --green:#1a7f4b; --green-dim:rgba(26,127,75,0.08); --green-brd:rgba(26,127,75,0.2);
-        }
         * { box-sizing:border-box; margin:0; padding:0; }
-        body { font-family:'Plus Jakarta Sans',sans-serif; padding:20px; color:var(--text); font-size:12px; }
+        body { font-family: ${isCs48 ? "'Times New Roman', Times, serif" : "'Plus Jakarta Sans', sans-serif"}; padding: 20px; color: #000; font-size: 12px; }
         ${$('style').map(function () { return $(this).text(); }).get().join('\n')}
       </style>
     </head>
-    <body>${content}</body>
+    <body onload="window.print();window.close();">${content}</body>
     </html>`);
     win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 600);
   };
 </script>

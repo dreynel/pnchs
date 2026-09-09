@@ -456,9 +456,12 @@ def process_payroll():
                     period_key = f"{int(year)}-{int(month)}-{int(half)}"
 
                 cur.execute("""
-                    SELECT d.*, e.first_name, e.last_name, e.designation
+                    SELECT d.*, e.first_name, e.last_name, e.designation,
+                           COALESCE(b.vl_minutes, 4800) AS vl_minutes,
+                           COALESCE(b.sl_minutes, 4800) AS sl_minutes
                     FROM tblpayroll_details d
                     JOIN tblemployee e ON d.employee_id = e.employee_id
+                    LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
                     WHERE d.period_key = %s
                     ORDER BY e.last_name, e.first_name
                 """, (period_key,))
@@ -481,6 +484,8 @@ def process_payroll():
                 gGross = gDeduct = gNet = 0.0
                 for rec in records:
                     def f(k): return float(rec.get(k) or 0)
+                    vl_m = int(rec.get('vl_minutes') or 4800)
+                    sl_m = int(rec.get('sl_minutes') or 4800)
                     results.append({
                         'id':                 rec['employee_id'],
                         'name':               f"{rec['first_name']} {rec['last_name']}",
@@ -495,8 +500,16 @@ def process_payroll():
                         'absent_deduction':   f('absent_deduction'),
                         'late_minutes':        rec.get('late_minutes', 0),
                         'undertime_minutes':   rec.get('undertime_minutes', 0),
+                        'vl_tardiness_minutes': rec.get('vl_tardiness_minutes', 0),
+                        'vl_undertime_minutes': rec.get('vl_undertime_minutes', 0),
+                        'lwop_tardiness_minutes': rec.get('lwop_tardiness_minutes', 0),
+                        'lwop_undertime_minutes': rec.get('lwop_undertime_minutes', 0),
                         'tardiness_deduction': f('tardiness_deduction'),
                         'undertime_deduction': f('undertime_deduction'),
+                        'vl_minutes':          vl_m,
+                        'sl_minutes':          sl_m,
+                        'vl_formatted':        LeavePolicyService.format_minutes_to_dhm(vl_m),
+                        'sl_formatted':        LeavePolicyService.format_minutes_to_dhm(sl_m),
                         'gsis_ee':             f('sss_ee'),
                         'philhealth_ee':      f('philhealth_ee'),
                         'pagibig_ee':         f('pagibig_ee'),
@@ -667,6 +680,10 @@ def process_payroll():
                     'absent_deduction':   f('absent_deduction'),
                     'late_minutes':        rec.get('late_minutes', 0),
                     'undertime_minutes':   rec.get('undertime_minutes', 0),
+                    'vl_tardiness_minutes': rec.get('vl_tardiness_minutes', 0),
+                    'vl_undertime_minutes': rec.get('vl_undertime_minutes', 0),
+                    'lwop_tardiness_minutes': rec.get('lwop_tardiness_minutes', 0),
+                    'lwop_undertime_minutes': rec.get('lwop_undertime_minutes', 0),
                     'tardiness_deduction': f('tardiness_deduction'),
                     'undertime_deduction': f('undertime_deduction'),
                     'gsis_ee':             f('sss_ee'),
@@ -712,9 +729,12 @@ def process_payroll():
 def process_payroll_single_run(cur, period_key, label_override=None):
     """Helper to format a single run payload as JSON string."""
     cur.execute("""
-        SELECT d.*, e.first_name, e.last_name, e.designation
+        SELECT d.*, e.first_name, e.last_name, e.designation,
+               COALESCE(b.vl_minutes, 4800) AS vl_minutes,
+               COALESCE(b.sl_minutes, 4800) AS sl_minutes
         FROM tblpayroll_details d
         JOIN tblemployee e ON d.employee_id = e.employee_id
+        LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
         WHERE d.period_key = %s
         ORDER BY e.last_name, e.first_name
     """, (period_key,))
@@ -737,6 +757,8 @@ def process_payroll_single_run(cur, period_key, label_override=None):
     gGross = gDeduct = gNet = 0.0
     for rec in records:
         def f(k): return float(rec.get(k) or 0)
+        vl_m = int(rec.get('vl_minutes') or 4800)
+        sl_m = int(rec.get('sl_minutes') or 4800)
         results.append({
             'id':                 rec['employee_id'],
             'name':               f"{rec['first_name']} {rec['last_name']}",
@@ -751,8 +773,16 @@ def process_payroll_single_run(cur, period_key, label_override=None):
             'absent_deduction':   f('absent_deduction'),
             'late_minutes':        rec.get('late_minutes', 0),
             'undertime_minutes':   rec.get('undertime_minutes', 0),
+            'vl_tardiness_minutes': rec.get('vl_tardiness_minutes', 0),
+            'vl_undertime_minutes': rec.get('vl_undertime_minutes', 0),
+            'lwop_tardiness_minutes': rec.get('lwop_tardiness_minutes', 0),
+            'lwop_undertime_minutes': rec.get('lwop_undertime_minutes', 0),
             'tardiness_deduction': f('tardiness_deduction'),
             'undertime_deduction': f('undertime_deduction'),
+            'vl_minutes':          vl_m,
+            'sl_minutes':          sl_m,
+            'vl_formatted':        LeavePolicyService.format_minutes_to_dhm(vl_m),
+            'sl_formatted':        LeavePolicyService.format_minutes_to_dhm(sl_m),
             'gsis_ee':             f('sss_ee'),
             'philhealth_ee':      f('philhealth_ee'),
             'pagibig_ee':         f('pagibig_ee'),
@@ -814,9 +844,12 @@ def my_payslip():
                 return jsonify({'error': 'Payslip is not yet approved and released.'}), 403
 
             cur.execute("""
-                SELECT d.*, e.first_name, e.last_name, e.designation
+                SELECT d.*, e.first_name, e.last_name, e.designation,
+                       COALESCE(b.vl_minutes, 4800) AS vl_minutes,
+                       COALESCE(b.sl_minutes, 4800) AS sl_minutes
                 FROM tblpayroll_details d
                 JOIN tblemployee e ON d.employee_id = e.employee_id
+                LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
                 WHERE d.period_key = %s AND d.employee_id = %s
             """, (period_key, emp_id))
             rec = cur.fetchone()
@@ -824,6 +857,8 @@ def my_payslip():
                 return jsonify({'error': 'Employee payslip record not found.'}), 404
 
             def f(k): return float(rec.get(k) or 0)
+            vl_m = int(rec.get('vl_minutes') or 4800)
+            sl_m = int(rec.get('sl_minutes') or 4800)
             payload = {
                 'id':                 rec['employee_id'],
                 'name':               f"{rec['first_name']} {rec['last_name']}",
@@ -837,7 +872,17 @@ def my_payslip():
                 'absent_days':        rec.get('absent_days', 0),
                 'absent_deduction':   f('absent_deduction'),
                 'late_minutes':       rec.get('late_minutes', 0),
+                'undertime_minutes':  rec.get('undertime_minutes', 0),
+                'vl_tardiness_minutes': rec.get('vl_tardiness_minutes', 0),
+                'vl_undertime_minutes': rec.get('vl_undertime_minutes', 0),
+                'lwop_tardiness_minutes': rec.get('lwop_tardiness_minutes', 0),
+                'lwop_undertime_minutes': rec.get('lwop_undertime_minutes', 0),
                 'tardiness_deduction':f('tardiness_deduction'),
+                'undertime_deduction':f('undertime_deduction'),
+                'vl_minutes':          vl_m,
+                'sl_minutes':          sl_m,
+                'vl_formatted':        LeavePolicyService.format_minutes_to_dhm(vl_m),
+                'sl_formatted':        LeavePolicyService.format_minutes_to_dhm(sl_m),
                 'gsis_ee':             f('sss_ee'),  # DB col is sss_ee, mapped to gsis_ee in payload
                 'philhealth_ee':      f('philhealth_ee'),
                 'pagibig_ee':         f('pagibig_ee'),

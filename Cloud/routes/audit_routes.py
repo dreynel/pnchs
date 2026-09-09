@@ -97,15 +97,30 @@ def get_logs():
         cur.execute(f"SELECT COUNT(*) as total FROM tblaudit_logs WHERE {where_sql}", tuple(params))
         total = cur.fetchone()['total']
         
-        # Get rows
+        # Get rows with actual employee/user full names
         query_params = list(params) + [per_page, offset]
-        cur.execute(f"SELECT * FROM tblaudit_logs WHERE {where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s", tuple(query_params))
+        cur.execute(f"""
+            SELECT a.*, 
+                   COALESCE(
+                       NULLIF(TRIM(CONCAT(COALESCE(e.first_name,''), ' ', COALESCE(e.last_name,''))), ''),
+                       NULLIF(u.name, ''),
+                       a.user_name
+                   ) AS actual_name
+            FROM tblaudit_logs a
+            LEFT JOIN tblusers u ON (a.user_name = u.username OR a.user_name = u.name)
+            LEFT JOIN tblemployee e ON (u.employee_id = e.employee_id OR a.employee_id = e.employee_id)
+            WHERE {where_sql} 
+            ORDER BY a.created_at DESC 
+            LIMIT %s OFFSET %s
+        """, tuple(query_params))
         rows = cur.fetchall()
     
     total_pages = (total + per_page - 1) // per_page if total > 0 else 1
     
-    # Format datetimes
+    # Format datetimes & override user_name with actual full name
     for row in rows:
+        if row.get('actual_name'):
+            row['user_name'] = row['actual_name']
         created = row.get('created_at')
         if isinstance(created, datetime):
             row['timestamp'] = created.isoformat()
@@ -147,11 +162,18 @@ def get_summary():
         cur.execute("SELECT action, COUNT(*) as count FROM tblaudit_logs GROUP BY action")
         action_counts = cur.fetchall()
         
-        # recent users
+        # recent users with actual full names
         cur.execute("""
-            SELECT user_name, COUNT(*) as count 
-            FROM tblaudit_logs 
-            WHERE DATE(created_at) >= %s 
+            SELECT COALESCE(
+                       NULLIF(TRIM(CONCAT(COALESCE(e.first_name,''), ' ', COALESCE(e.last_name,''))), ''),
+                       NULLIF(u.name, ''),
+                       a.user_name
+                   ) AS user_name, 
+                   COUNT(*) as count 
+            FROM tblaudit_logs a
+            LEFT JOIN tblusers u ON (a.user_name = u.username OR a.user_name = u.name)
+            LEFT JOIN tblemployee e ON (u.employee_id = e.employee_id OR a.employee_id = e.employee_id)
+            WHERE DATE(a.created_at) >= %s 
             GROUP BY user_name 
             ORDER BY count DESC LIMIT 5
         """, (start_of_week,))
@@ -218,7 +240,19 @@ def export_csv():
     where_sql = " AND ".join(where_clauses)
     
     with db_cursor() as (conn, cur):
-        cur.execute(f"SELECT * FROM tblaudit_logs WHERE {where_sql} ORDER BY created_at DESC", tuple(params))
+        cur.execute(f"""
+            SELECT a.*, 
+                   COALESCE(
+                       NULLIF(TRIM(CONCAT(COALESCE(e.first_name,''), ' ', COALESCE(e.last_name,''))), ''),
+                       NULLIF(u.name, ''),
+                       a.user_name
+                   ) AS actual_name
+            FROM tblaudit_logs a
+            LEFT JOIN tblusers u ON (a.user_name = u.username OR a.user_name = u.name)
+            LEFT JOIN tblemployee e ON (u.employee_id = e.employee_id OR a.employee_id = e.employee_id)
+            WHERE {where_sql} 
+            ORDER BY a.created_at DESC
+        """, tuple(params))
         rows = cur.fetchall()
     
     si = io.StringIO()
@@ -228,10 +262,11 @@ def export_csv():
     for r in rows:
         created = r.get('created_at')
         time_str = created.isoformat() if isinstance(created, datetime) else str(created or '')
+        user_display = r.get('actual_name') or r.get('user_name')
         cw.writerow([
             r.get('id'),
             time_str,
-            r.get('user_name'),
+            user_display,
             r.get('action'),
             r.get('target_table'),
             r.get('target_id'),
@@ -248,3 +283,263 @@ def export_csv():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment;filename=audit_logs.csv"}
     )
+
+@audit_bp.route('/api/audit/payroll-periods', methods=['GET'])
+def get_audit_payroll_periods():
+    if not check_access():
+        return jsonify({'error': 'Forbidden'}), 403
+
+    with db_cursor() as (conn, cur):
+        cur.execute("""
+            SELECT p.period_key, p.period_name, p.status, p.total_gross, p.total_net, p.created_at,
+                   COUNT(d.id) as employee_count
+            FROM tblpayroll p
+            LEFT JOIN tblpayroll_details d ON p.period_key = d.period_key
+            GROUP BY p.period_key, p.period_name, p.status, p.total_gross, p.total_net, p.created_at
+            ORDER BY p.created_at DESC
+        """)
+        rows = cur.fetchall()
+
+    for r in rows:
+        r['total_gross'] = float(r.get('total_gross') or 0)
+        r['total_net'] = float(r.get('total_net') or 0)
+        created = r.get('created_at')
+        if isinstance(created, datetime):
+            r['created_at'] = created.strftime('%Y-%m-%d %H:%M')
+
+    return jsonify({'periods': rows})
+
+@audit_bp.route('/api/audit/payroll-verification', methods=['GET'])
+def get_payroll_verification():
+    if not check_access():
+        return jsonify({'error': 'Forbidden'}), 403
+
+    period_key = request.args.get('period_key')
+    with db_cursor() as (conn, cur):
+        if not period_key:
+            cur.execute("SELECT period_key FROM tblpayroll ORDER BY created_at DESC LIMIT 1")
+            latest = cur.fetchone()
+            if latest:
+                period_key = latest['period_key']
+            else:
+                return jsonify({
+                    'period_key': '',
+                    'summary': {'total_employees': 0, 'total_gross': 0, 'total_deductions': 0, 'total_net': 0, 'accurate_count': 0, 'discrepancy_count': 0, 'compliance_rate': 100},
+                    'details': []
+                })
+
+        cur.execute("""
+            SELECT d.*, 
+                   e.first_name, e.last_name, e.designation, e.employment_status
+            FROM tblpayroll_details d
+            LEFT JOIN tblemployee e ON d.employee_id = e.employee_id
+            WHERE d.period_key = %s
+            ORDER BY e.last_name, e.first_name
+        """, (period_key,))
+        rows = cur.fetchall()
+
+    verified_list = []
+    total_gross = 0.0
+    total_deductions = 0.0
+    total_net = 0.0
+    accurate_count = 0
+    discrepancy_count = 0
+
+    for r in rows:
+        emp_name = f"{r.get('first_name') or ''} {r.get('last_name') or ''}".strip() or r.get('employee_id')
+        basic_pay = float(r.get('half_basic') or r.get('basic_salary') or 0)
+        monthly_salary = float(r.get('basic_salary') or (basic_pay * 2))
+        daily_rate = float(r.get('daily_rate') or round(monthly_salary / 22.0, 2)) if monthly_salary > 0 else 0.0
+        
+        overtime_pay = 0.0  # OT if applicable
+        holiday_pay = float(r.get('holiday_pay') or 0)
+        other_earnings = float(r.get('other_earnings') or 0)
+
+        # Parse custom payheads
+        ph_earnings = 0.0
+        ph_deductions = 0.0
+        payheads_raw = r.get('payheads_json')
+        if payheads_raw:
+            try:
+                ph_data = json.loads(payheads_raw) if isinstance(payheads_raw, str) else payheads_raw
+                if isinstance(ph_data, dict):
+                    if 'earnings' in ph_data and isinstance(ph_data['earnings'], list):
+                        for item in ph_data['earnings']:
+                            if isinstance(item, dict):
+                                ph_earnings += float(item.get('amount') or 0)
+                    if 'deductions' in ph_data and isinstance(ph_data['deductions'], list):
+                        for item in ph_data['deductions']:
+                            if isinstance(item, dict):
+                                ph_deductions += float(item.get('amount') or 0)
+            except Exception:
+                pass
+
+        stored_gross = float(r.get('total_gross') or 0)
+        # Gross computation math
+        audited_gross = round(basic_pay + holiday_pay + other_earnings, 2)
+        if abs(audited_gross - stored_gross) > 0.01 and abs((audited_gross + ph_earnings) - stored_gross) <= 0.01:
+            audited_gross = round(audited_gross + ph_earnings, 2)
+
+        gross_var = round(audited_gross - stored_gross, 2)
+
+        # Deductions computation math
+        absent_ded = float(r.get('absent_deduction') or 0)
+        tardiness_ded = float(r.get('tardiness_deduction') or 0)
+        undertime_ded = float(r.get('undertime_deduction') or 0)
+        sss_ee = float(r.get('sss_ee') or 0)
+        philhealth_ee = float(r.get('philhealth_ee') or 0)
+        pagibig_ee = float(r.get('pagibig_ee') or 0)
+        withholding_tax = float(r.get('withholding_tax') or 0)
+        other_deductions = float(r.get('other_deductions') or 0)
+
+        stored_deductions = float(r.get('total_deduct') or 0)
+        audited_deductions = round(absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax + other_deductions + ph_deductions, 2)
+        deduction_var = round(audited_deductions - stored_deductions, 2)
+
+        stored_net = float(r.get('net_pay') or 0)
+        audited_net = max(0.0, round(audited_gross - audited_deductions, 2))
+        net_var = round(audited_net - stored_net, 2)
+
+        # Audit verdict
+        is_accurate = (abs(gross_var) <= 0.01 and abs(deduction_var) <= 0.01 and abs(net_var) <= 0.01)
+        if is_accurate:
+            accurate_count += 1
+            status = 'ACCURATE'
+        else:
+            discrepancy_count += 1
+            status = 'DISCREPANCY'
+
+        warnings = []
+        if stored_net <= 0 or r.get('is_negative'):
+            warnings.append("Zero/Negative Net Pay (Deductions exceed gross salary)")
+
+        total_gross += stored_gross
+        total_deductions += stored_deductions
+        total_net += stored_net
+
+        verified_list.append({
+            'employee_id': r.get('employee_id'),
+            'employee_name': emp_name,
+            'designation': r.get('designation') or 'Staff',
+            'employment_status': r.get('employment_status') or 'Permanent',
+            'monthly_salary': monthly_salary,
+            'daily_rate': daily_rate,
+            'basic_pay': basic_pay,
+            'overtime_pay': overtime_pay,
+            'holiday_pay': holiday_pay,
+            'other_earnings': other_earnings,
+            'ph_earnings': ph_earnings,
+            'stored_gross': stored_gross,
+            'audited_gross': audited_gross,
+            'gross_variance': gross_var,
+            'absent_days': r.get('absent_days') or 0,
+            'absent_deduction': absent_ded,
+            'tardiness_minutes': r.get('late_minutes') or 0,
+            'tardiness_deduction': tardiness_ded,
+            'undertime_minutes': r.get('undertime_minutes') or 0,
+            'undertime_deduction': undertime_ded,
+            'sss_ee': sss_ee,
+            'philhealth_ee': philhealth_ee,
+            'pagibig_ee': pagibig_ee,
+            'withholding_tax': withholding_tax,
+            'other_deductions': other_deductions + ph_deductions,
+            'stored_deductions': stored_deductions,
+            'audited_deductions': audited_deductions,
+            'deduction_variance': deduction_var,
+            'stored_net': stored_net,
+            'audited_net': audited_net,
+            'net_variance': net_var,
+            'status': status,
+            'warnings': warnings,
+            'formulas': {
+                'daily_rate': f"₱{monthly_salary:,.2f} / 22 = ₱{daily_rate:,.2f}/day",
+                'basic_pay': f"Half-month basic rate = ₱{basic_pay:,.2f}",
+                'tardiness': f"{r.get('late_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{tardiness_ded:,.2f}",
+                'undertime': f"{r.get('undertime_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{undertime_ded:,.2f}",
+                'absence': f"{r.get('absent_days') or 0} days × ₱{daily_rate:,.2f} = ₱{absent_ded:,.2f}",
+                'gross_sum': f"Basic (₱{basic_pay:,.2f}) + Hol (₱{holiday_pay:,.2f}) + Allow (₱{other_earnings + ph_earnings:,.2f}) = ₱{audited_gross:,.2f}",
+                'ded_sum': f"Absence (₱{absent_ded:,.2f}) + Late (₱{tardiness_ded:,.2f}) + Under (₱{undertime_ded:,.2f}) + PHIC (₱{philhealth_ee:,.2f}) + Tax (₱{withholding_tax:,.2f}) + Custom (₱{other_deductions + ph_deductions:,.2f}) = ₱{audited_deductions:,.2f}",
+                'net_sum': f"Gross (₱{audited_gross:,.2f}) - Deductions (₱{audited_deductions:,.2f}) = ₱{audited_net:,.2f}"
+            }
+        })
+
+    total_count = len(verified_list)
+    compliance_rate = round((accurate_count / total_count * 100), 1) if total_count > 0 else 100.0
+
+    return jsonify({
+        'period_key': period_key,
+        'summary': {
+            'total_employees': total_count,
+            'total_gross': round(total_gross, 2),
+            'total_deductions': round(total_deductions, 2),
+            'total_net': round(total_net, 2),
+            'accurate_count': accurate_count,
+            'discrepancy_count': discrepancy_count,
+            'compliance_rate': compliance_rate
+        },
+        'details': verified_list
+    })
+
+@audit_bp.route('/api/audit/export-payroll-verification', methods=['GET'])
+def export_payroll_verification():
+    if not check_access():
+        return jsonify({'error': 'Forbidden'}), 403
+
+    period_key = request.args.get('period_key')
+    if not period_key:
+        return jsonify({'error': 'Missing period_key'}), 400
+
+    # Fetch verification response directly
+    res = get_payroll_verification()
+    data = res.get_json()
+
+    si = io.StringIO()
+    cw = csv.writer(si)
+    cw.writerow([
+        'Period Key', 'Employee ID', 'Employee Name', 'Designation',
+        'Monthly Salary', 'Basic Pay', 'Daily Rate',
+        'Overtime Pay', 'Holiday Pay', 'Other Earnings', 'Stored Gross', 'Audited Gross', 'Gross Variance',
+        'Absent Ded', 'Tardiness Ded', 'Undertime Ded', 'PhilHealth', 'Pag-IBIG', 'SSS', 'Withholding Tax', 'Other Deds',
+        'Stored Total Deductions', 'Audited Total Deductions', 'Deduction Variance',
+        'Stored Net Pay', 'Audited Net Pay', 'Net Variance', 'Audit Status'
+    ])
+
+    for d in data.get('details', []):
+        cw.writerow([
+            period_key,
+            d['employee_id'],
+            d['employee_name'],
+            d['designation'],
+            f"{d['monthly_salary']:.2f}",
+            f"{d['basic_pay']:.2f}",
+            f"{d['daily_rate']:.2f}",
+            f"{d['overtime_pay']:.2f}",
+            f"{d['holiday_pay']:.2f}",
+            f"{(d['other_earnings'] + d['ph_earnings']):.2f}",
+            f"{d['stored_gross']:.2f}",
+            f"{d['audited_gross']:.2f}",
+            f"{d['gross_variance']:.2f}",
+            f"{d['absent_deduction']:.2f}",
+            f"{d['tardiness_deduction']:.2f}",
+            f"{d['undertime_deduction']:.2f}",
+            f"{d['philhealth_ee']:.2f}",
+            f"{d['pagibig_ee']:.2f}",
+            f"{d['sss_ee']:.2f}",
+            f"{d['withholding_tax']:.2f}",
+            f"{d['ph_deductions']:.2f}",
+            f"{d['stored_deductions']:.2f}",
+            f"{d['audited_deductions']:.2f}",
+            f"{d['deduction_variance']:.2f}",
+            f"{d['stored_net']:.2f}",
+            f"{d['audited_net']:.2f}",
+            f"{d['net_variance']:.2f}",
+            d['status']
+        ])
+
+    output = si.getvalue()
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename=payroll_audit_verification_{period_key}.csv"}
+    )
+

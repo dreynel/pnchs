@@ -263,8 +263,15 @@
         <div id="earningList"></div>
       </div>
       <div class="drawer-section">
-        <div style="font-size:11px;color:var(--muted2);text-transform:uppercase;margin-bottom:10px;">Deductions (Split + Late)</div>
+        <div style="font-size:11px;color:var(--muted2);text-transform:uppercase;margin-bottom:10px;">Deductions (Split + Statutory)</div>
         <div id="deductList"></div>
+      </div>
+      <div class="drawer-section" id="attendanceOffsetSection" style="margin-top:16px; padding-top:16px; border-top:1.5px solid var(--border);">
+        <div style="font-size:11px; font-weight:700; color:var(--navy); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Attendance & Leave Credit Offset
+        </div>
+        <div id="attendanceOffsetContent"></div>
       </div>
     </div>
     <div class="drawer-footer">
@@ -613,11 +620,15 @@
         } catch(ex) { console.error('Error parsing payheads_json', ex); }
       }
 
-      dHtml += `
-        <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Absence Deduction</span><span style="font-weight:600; color:var(--red);">${fmt(e.absent_deduction)}</span></div>
-        <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Tardiness (${e.late_minutes || 0} min)</span><span style="font-weight:600; color:var(--red);">${fmt(e.tardiness_deduction)}</span></div>
-        <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Undertime (${e.undertime_minutes || 0} min)</span><span style="font-weight:600; color:var(--red);">${fmt(e.undertime_deduction || 0)}</span></div>
-      `;
+      if (parseFloat(e.absent_deduction) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Absence Deduction</span><span style="font-weight:600; color:var(--red);">${fmt(e.absent_deduction)}</span></div>`;
+      }
+      if (parseFloat(e.tardiness_deduction) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Unpaid Tardiness (${e.lwop_tardiness_minutes || e.late_minutes} min)</span><span style="font-weight:600; color:var(--red);">${fmt(e.tardiness_deduction)}</span></div>`;
+      }
+      if (parseFloat(e.undertime_deduction) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Unpaid Undertime (${e.lwop_undertime_minutes || e.undertime_minutes} min)</span><span style="font-weight:600; color:var(--red);">${fmt(e.undertime_deduction)}</span></div>`;
+      }
 
       if (e.statutory_json) {
         try {
@@ -636,6 +647,133 @@
 
       $('#earningList').html(eHtml || '<div style="padding:10px; color:var(--muted2); font-size:12px;">No earnings found</div>');
       $('#deductList').html(dHtml || '<div style="padding:10px; color:var(--muted2); font-size:12px;">No deductions found</div>');
+
+      // ── Attendance & Leave Credit Offset Details ─────────────────────────
+      const lateMins = e.late_minutes || 0;
+      const undertimeMins = e.undertime_minutes || 0;
+      const vlLateMins = e.vl_tardiness_minutes || 0;
+      const vlUnderMins = e.vl_undertime_minutes || 0;
+      const lwopLateMins = e.lwop_tardiness_minutes || 0;
+      const lwopUnderMins = e.lwop_undertime_minutes || 0;
+      const tardDeduct = e.tardiness_deduction || 0;
+      const underDeduct = e.undertime_deduction || 0;
+      const absentDays = e.absent_days || 0;
+      const absentDeduct = e.absent_deduction || 0;
+
+      const vlLeftMins = e.vl_minutes || 0;
+      const slLeftMins = e.sl_minutes || 0;
+      const totalOffsetMins = vlLateMins + vlUnderMins;
+      const vlStartMins = vlLeftMins + totalOffsetMins;
+
+      function dhm(m) {
+        const d = Math.floor(m / 480);
+        const rem = m % 480;
+        const h = Math.floor(rem / 60);
+        const min = rem % 60;
+        return `${d}d ${h}h ${min}m`;
+      }
+
+      const vlLeftDays = (vlLeftMins / 480).toFixed(2);
+
+      let attHtml = `
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px;">
+          <div style="font-weight:700; font-size:11.5px; color:var(--navy); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🌴 Vacation Leave (VL) Credits</span>
+            <span style="background:var(--navy-light); color:var(--navy-mid); font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;">${vlLeftDays} days left</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px; color:var(--muted2);">
+            <span>Starting VL Balance:</span>
+            <span style="font-weight:600; color:var(--text);">${vlStartMins} mins (${dhm(vlStartMins)})</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px; color:var(--muted2);">
+            <span>Period Offset Deducted:</span>
+            <span style="font-weight:600; color:${totalOffsetMins > 0 ? '#15803d' : 'var(--text)'};">-${totalOffsetMins} mins (${dhm(totalOffsetMins)})</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; border-top:1px dashed var(--border); padding-top:4px; margin-top:4px; color:#15803d;">
+            <span>Remaining VL Balance Left:</span>
+            <span>${vlLeftMins} mins (${dhm(vlLeftMins)})</span>
+          </div>
+        </div>
+
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-weight:700; font-size:11.5px; color:var(--navy);">🩺 Sick Leave (SL) Balance Left</span>
+          <span style="font-weight:700; font-size:11.5px; color:#15803d;">${slLeftMins} mins (${dhm(slLeftMins)})</span>
+        </div>
+      `;
+
+      if (lateMins === 0 && undertimeMins === 0 && absentDays === 0) {
+        attHtml += `
+          <div style="background:#f4fbf7; border:1px solid #b7ebc9; border-radius:10px; padding:10px 12px; font-size:11.5px; color:#1e7e46; display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span><strong>Perfect Attendance:</strong> No tardiness, undertime, or unexcused absences.</span>
+          </div>
+        `;
+      } else {
+        if (lateMins > 0) {
+          attHtml += `
+            <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:12px; margin-bottom:4px;">
+                <span>⏱️ Tardiness (Late)</span>
+                <span style="color:#d9534f;">${lateMins} mins</span>
+              </div>
+              <div style="font-size:11px; color:var(--muted2); display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span>Vacation Leave Offset:</span>
+                <span style="color:#2e7d32; font-weight:600;">-${vlLateMins} mins (₱0.00 cash)</span>
+              </div>
+              ${lwopLateMins > 0 ? `
+                <div style="font-size:11px; color:var(--muted2); display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span>Unpaid Tardiness (LWOP):</span>
+                  <span style="color:#c62828; font-weight:600;">${lwopLateMins} mins (₱${fmt(tardDeduct)})</span>
+                </div>
+              ` : ''}
+              <div style="font-size:11px; background:#eef6ff; color:#1e3a5f; padding:6px 8px; border-radius:6px; margin-top:6px; line-height:1.35; border-left:3px solid var(--navy-mid);">
+                💡 <strong>DepEd Policy:</strong> ${vlLateMins > 0 ? `The ${vlLateMins} late mins were auto-deducted from employee VL leave credits, resulting in ₱0.00 cash salary deduction.` : `Lacking VL leave credits; tardiness resulted in LWOP salary deduction.`}
+              </div>
+            </div>
+          `;
+        }
+
+        if (undertimeMins > 0) {
+          attHtml += `
+            <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:12px; margin-bottom:4px;">
+                <span>⌛ Undertime</span>
+                <span style="color:#b78103;">${undertimeMins} mins</span>
+              </div>
+              <div style="font-size:11px; color:var(--muted2); display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span>Vacation Leave Offset:</span>
+                <span style="color:#2e7d32; font-weight:600;">-${vlUnderMins} mins (₱0.00 cash)</span>
+              </div>
+              ${lwopUnderMins > 0 ? `
+                <div style="font-size:11px; color:var(--muted2); display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span>Unpaid Undertime (LWOP):</span>
+                  <span style="color:#c62828; font-weight:600;">${lwopUnderMins} mins (₱${fmt(underDeduct)})</span>
+                </div>
+              ` : ''}
+              <div style="font-size:11px; background:#eef6ff; color:#1e3a5f; padding:6px 8px; border-radius:6px; margin-top:6px; line-height:1.35; border-left:3px solid var(--navy-mid);">
+                💡 <strong>DepEd Policy:</strong> ${vlUnderMins > 0 ? `The ${vlUnderMins} undertime mins were auto-deducted from employee VL leave credits, resulting in ₱0.00 cash salary deduction.` : `Lacking VL leave credits; undertime resulted in LWOP salary deduction.`}
+              </div>
+            </div>
+          `;
+        }
+
+        if (absentDays > 0) {
+          attHtml += `
+            <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:12px; margin-bottom:4px;">
+                <span>📅 Unexcused Absences</span>
+                <span style="color:#c62828;">${absentDays} day(s)</span>
+              </div>
+              <div style="font-size:11px; color:var(--muted2); display:flex; justify-content:space-between;">
+                <span>Absence Salary Deduction:</span>
+                <span style="color:#c62828; font-weight:600;">₱${fmt(absentDeduct)}</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      $('#attendanceOffsetContent').html(attHtml);
       $('#dGross').text(fmt(e.total_gross));
       $('#dDeduct').text(fmt(e.total_deduct));
       $('#dNet').text(fmt(e.net_pay));

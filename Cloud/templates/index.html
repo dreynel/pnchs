@@ -394,7 +394,7 @@
       {% endif %}
 
       <div class="nav-section-label">Workforce &amp; Leaves</div>
-      {% if user.role in ['Principal', 'HR', 'HR Officer', 'Auditor'] %}
+      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer'] %}
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Employees', '/pages/employee.html')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -414,10 +414,9 @@
         <span class="label">Leave Management</span>
       </a>
 
-      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Auditor'] %}
+      {% if user.role in ['Admin', 'Principal', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Payroll &amp; Finance</div>
-      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Auditor'] %}
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Processing', '/pages/payroll.html')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -426,9 +425,7 @@
         </div>
         <span class="label">Payroll Processing</span>
       </a>
-      {% endif %}
 
-      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Auditor'] %}
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Salary Grades', '/pages/salary_grades.html')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -437,9 +434,7 @@
         </div>
         <span class="label">Salary Grades</span>
       </a>
-      {% endif %}
 
-      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Auditor'] %}
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll &amp; Statutory Registry', '/pages/registry.html')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -449,9 +444,8 @@
         <span class="label">Payroll &amp; Statutory Registry</span>
       </a>
       {% endif %}
-      {% endif %}
 
-      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer', 'Auditor'] %}
+      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Governance</div>
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html')">
@@ -486,10 +480,14 @@
       </a>
       {% endif %}
 
-      {% if user.role in ['Auditor', 'Admin', 'Principal'] %}
+      {% if user.role in ['Auditor', 'Admin', 'Principal', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Audit Trail', '/pages/audit_trail.html')">
         <span class="nav-sub-dot"></span>
         <span class="label">Audit Trail</span>
+      </a>
+      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Audit', '/pages/payroll_audit.html')">
+        <span class="nav-sub-dot"></span>
+        <span class="label">Payroll Audit</span>
       </a>
       {% endif %}
 

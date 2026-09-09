@@ -130,6 +130,9 @@ def approval_action(approval_id):
         return jsonify({'error': 'Unauthorized'}), 401
 
     role = user.get('role', '')
+    if role == 'Auditor':
+        return jsonify({'error': 'Unauthorized: Auditors have read-only access and cannot process approvals.'}), 403
+
     user_name = user.get('name', 'Approver')
     data = request.json or {}
     action = data.get('action') # 'Approved' or 'Rejected'

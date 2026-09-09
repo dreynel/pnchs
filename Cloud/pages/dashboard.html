@@ -243,71 +243,9 @@
     /* ── Bottom Row ── */
     .bot-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 14px;
     }
-
-    /* ── Activity Feed ── */
-    .activity-list { display: flex; flex-direction: column; }
-    .activity-item {
-      display: flex; align-items: flex-start; gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .activity-item:last-child { border-bottom: none; }
-    .act-dot-wrap { display: flex; flex-direction: column; align-items: center; padding-top: 3px; }
-    .act-dot {
-      width: 8px; height: 8px; min-width: 8px; border-radius: 50%;
-      border: 2px solid;
-    }
-    .act-dot.green  { border-color: var(--green);  background: var(--green-dim); }
-    .act-dot.amber  { border-color: var(--accent);  background: var(--accent-dim); }
-    .act-dot.navy   { border-color: var(--navy-mid);background: var(--navy-light); }
-    .act-dot.red    { border-color: var(--red);     background: var(--red-dim); }
-    .act-line { width: 1px; flex:1; background: var(--border); margin-top: 4px; min-height: 20px; }
-    .activity-item:last-child .act-line { display: none; }
-
-    .act-content { flex:1; }
-    .act-text { font-size: 12.5px; color: var(--text); line-height: 1.5; }
-    .act-text strong { color: var(--navy); font-weight: 600; }
-    .act-meta { display: flex; gap: 8px; margin-top: 3px; align-items: center; }
-    .act-time { font-size: 10.5px; color: var(--muted2); }
-    .act-tag {
-      font-size: 9.5px; padding: 1px 7px; border-radius: 20px; font-weight: 500;
-    }
-    .act-tag.green { background: var(--green-dim); color: var(--green); }
-    .act-tag.amber { background: var(--accent-dim); color: #9a6c18; }
-    .act-tag.navy  { background: var(--navy-light); color: var(--navy-mid); }
-    .act-tag.red   { background: var(--red-dim);  color: var(--red); }
-
-    /* ── Quick Actions ── */
-    .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .quick-btn {
-      display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-      padding: 14px 16px; border-radius: 12px;
-      border: 1.5px solid var(--border);
-      background: var(--surface2);
-      cursor: pointer; text-decoration: none;
-      transition: all 0.18s;
-      position: relative; overflow: hidden;
-    }
-    .quick-btn:hover {
-      border-color: var(--navy-mid);
-      background: var(--navy-light);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 14px rgba(30,58,95,0.1);
-    }
-    .quick-icon {
-      width: 34px; height: 34px; border-radius: 9px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .quick-icon svg { width: 16px; height: 16px; }
-    .qi-green { background: var(--green-dim);  color: var(--green); }
-    .qi-amber { background: var(--accent-dim2); color: var(--accent); }
-    .qi-navy  { background: var(--navy-light); color: var(--navy-mid); }
-    .qi-blue  { background: var(--blue-dim);   color: var(--blue); }
-    .quick-label { font-size: 12px; font-weight: 600; color: var(--navy); }
-    .quick-sub   { font-size: 10.5px; color: var(--muted2); margin-top: -4px; }
 
     /* Animations */
     @keyframes fadeUp { from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);} }
@@ -508,59 +446,12 @@
         </div>
         <a href="#" class="s-card-link" onclick="if(window.navigate) window.navigate(event, null, 'Biometric Logs', '/pages/logs.html');">View logs</a>
       </div>
-      <div class="s-card-body" style="padding-top:8px; padding-bottom:8px;">
+      <div class="s-card-body" style="padding-top:8px; padding-bottom:14px;">
         <div id="recent-activity-list">
           <div style="padding:24px; text-align:center; color:var(--muted2); font-size:12px;">Loading live activity feed…</div>
         </div>
-      </div>
-    </div>
 
-    <!-- Quick Actions -->
-    <div class="s-card">
-      <div class="s-card-header">
-        <div>
-          <div class="s-card-title">Quick Actions</div>
-          <div class="s-card-sub">Shortcuts to common tasks</div>
-        </div>
-      </div>
-      <div class="s-card-body">
-        <div class="quick-grid">
-
-          <a href="#" class="quick-btn" data-page="Employees"    data-url="/pages/employee.html">
-            <div class="quick-icon qi-green">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-            </div>
-            <div class="quick-label">Add Employee</div>
-            <div class="quick-sub">Register new staff</div>
-          </a>
-
-          <a href="#" class="quick-btn" data-page="Payroll Processing" data-url="/pages/payroll.html">
-            <div class="quick-icon qi-amber">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
-            <div class="quick-label">Run Payroll</div>
-            <div class="quick-sub">Process current period</div>
-          </a>
-
-          <a href="#" class="quick-btn" data-page="DTR"          data-url="/pages/dtr.html">
-            <div class="quick-icon qi-navy">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-            </div>
-            <div class="quick-label">View DTR</div>
-            <div class="quick-sub">Attendance records</div>
-          </a>
-
-          <a href="#" class="quick-btn" data-page="Leave Management" data-url="/pages/leaves.html">
-            <div class="quick-icon qi-blue">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            </div>
-            <div class="quick-label">Leave Portal</div>
-            <div class="quick-sub">Filing & approvals</div>
-          </a>
-
-        </div>
-
-        <!-- Summary strip -->
+        <!-- School Overview strip -->
         <div style="margin-top:16px; padding:14px; background:var(--navy-light); border-radius:11px; border:1px solid #c5d8f5;">
           <div style="font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--navy-mid); margin-bottom:10px; font-weight:600;">School Overview</div>
           <div style="display:flex; justify-content:space-between; gap:8px;">
@@ -585,7 +476,6 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -758,19 +648,6 @@
 
   window.addEventListener('pnchs:data-change', function() {
     if (document.getElementById('recent-activity-list')) initDashboard();
-  });
-
-  // ── Quick action buttons navigate the parent shell ─────────────────────
-  $(document).on('click', '.quick-btn[data-page]', function (e) {
-    e.preventDefault();
-    const page = $(this).data('page');
-    const url  = $(this).data('url');
-    const $nav = window.parent ? $(window.parent.document) : $(document);
-    $nav.find('.nav-item, .nav-sub-item').removeClass('active');
-    $nav.find(`.nav-item[data-page="${page}"], .nav-sub-item[data-page="${page}"]`).addClass('active');
-    $nav.find('#pageTitle').text(page);
-    $nav.find('#breadcrumb').text(page);
-    window.parent.$('#pageContent').load(url);
   });
 })();
 </script>

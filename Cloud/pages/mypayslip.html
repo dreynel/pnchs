@@ -35,7 +35,7 @@
   .filter-select:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 3px rgba(42,79,128,0.1); }
 
   .ps-body { flex: 1; overflow-y: auto; background: var(--bg); display: flex; justify-content: center; padding: 30px; }
-  #payslipContent { display: none; background: #fff; width: 600px; max-width: 100%; border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,0.1); }
+  #payslipContent { display: block; width: 850px; max-width: 100%; border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,0.1); }
   
   .ps-prompt {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -56,6 +56,11 @@
   .ps-loading { display: none; align-items: center; justify-content: center; height: 100%; gap: 10px; color: var(--muted2); font-size: 13px; }
   .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--navy-mid); border-radius: 50%; animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 1024px) {
+    #psContainer { flex-direction: column !important; align-items: center !important; }
+    #psSideCanvas { width: 100% !important; max-width: 850px !important; }
+  }
 
   @media (max-width: 768px) {
     .ps-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
@@ -118,7 +123,8 @@
     <div class="spinner"></div><span>Loading Payslip…</span>
   </div>
 
-  <div id="payslipContent" style="display:none; width: 850px; max-width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; color: #000; background: #fff; padding: 30px; box-sizing: border-box; text-transform: uppercase;">
+  <div id="psContainer" style="display:none; flex-direction:row; align-items:flex-start; justify-content:center; gap:24px; width:100%; max-width:1240px; margin:0 auto;">
+    <div id="payslipContent" style="width: 850px; max-width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; color: #000; background: #fff; padding: 30px; box-sizing: border-box; text-transform: uppercase; border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,0.1); flex-shrink: 0;">
 
     <!-- HEADER BLOCK -->
     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
@@ -288,6 +294,11 @@
       </div>
     </div>
 
+    </div>
+
+    <!-- Attendance & Leave Credit Offset Side Canvas (UI display only) -->
+    <div id="psSideCanvas" style="flex:1; min-width:300px; max-width:360px; background:#fff; border-radius:14px; border:1px solid var(--border); box-shadow: 0 12px 36px rgba(0,0,0,0.06); padding:20px; box-sizing:border-box;">
+    </div>
   </div>
 </div>
 
@@ -321,12 +332,12 @@
     const monthName = $('#selMonth option:selected').text();
 
     $('#psPrompt').hide();
-    $('#payslipContent').hide();
+    $('#psContainer').hide();
     $('#psLoading').css('display', 'flex');
 
     $.get('/api/payroll/my_payslip', { year, month, half }, function(d) {
       $('#psLoading').hide();
-      $('#payslipContent').fadeIn();
+      $('#psContainer').css('display', 'flex').fadeIn();
       $('#btnPrint').prop('disabled', false);
       
       const e = d.data;
@@ -424,6 +435,157 @@
       $('#ps_net').text(fmt(e.net_pay));
       $('#ps_half_net1').text(fmt(e.net_pay)); 
       $('#ps_half_net2').text('0.00');
+
+      // ── Build Side Canvas (Attendance & Leave Credit Offset) ──────────────
+      const lateMins = e.late_minutes || 0;
+      const undertimeMins = e.undertime_minutes || 0;
+      const vlLateMins = e.vl_tardiness_minutes || 0;
+      const vlUnderMins = e.vl_undertime_minutes || 0;
+      const lwopLateMins = e.lwop_tardiness_minutes || 0;
+      const lwopUnderMins = e.lwop_undertime_minutes || 0;
+      const tardDeduct = e.tardiness_deduction || 0;
+      const underDeduct = e.undertime_deduction || 0;
+      const absentDays = e.absent_days || 0;
+      const absentDeduct = e.absent_deduction || 0;
+
+      const vlLeftMins = e.vl_minutes || 0;
+      const slLeftMins = e.sl_minutes || 0;
+      const totalOffsetMins = vlLateMins + vlUnderMins;
+      const vlStartMins = vlLeftMins + totalOffsetMins;
+
+      function dhm(m) {
+        const d = Math.floor(m / 480);
+        const rem = m % 480;
+        const h = Math.floor(rem / 60);
+        const min = rem % 60;
+        return `${d}d ${h}h ${min}m`;
+      }
+
+      const vlLeftDays = (vlLeftMins / 480).toFixed(2);
+      const slLeftDays = (slLeftMins / 480).toFixed(2);
+
+      let sideHtml = `
+        <div style="display:flex; align-items:center; gap:10px; padding-bottom:14px; border-bottom:1.5px solid var(--border); margin-bottom:16px;">
+          <div style="width:36px; height:36px; border-radius:10px; background:var(--navy-light); color:var(--navy-mid); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:700; font-size:13.5px; color:var(--navy);">Attendance & Leave Credits</div>
+            <div style="font-size:10.5px; color:var(--muted2);">DepEd & CSC Policy Offset Summary</div>
+          </div>
+        </div>
+
+        <!-- Leave Credit Balance Accounting Card -->
+        <div style="background:#f8fafc; border:1.5px solid var(--border); border-radius:12px; padding:14px; margin-bottom:14px;">
+          <div style="font-weight:700; font-size:12px; color:var(--navy); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🌴 Vacation Leave (VL) Credits</span>
+            <span style="background:#e0f2fe; color:#0369a1; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:10px;">${vlLeftDays} days left</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px; color:var(--muted2);">
+            <span>Starting VL Balance:</span>
+            <span style="font-weight:600; color:var(--text);">${vlStartMins} mins (${dhm(vlStartMins)})</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px; color:var(--muted2);">
+            <span>Period Offset Deducted:</span>
+            <span style="font-weight:600; color:${totalOffsetMins > 0 ? '#15803d' : 'var(--text)'};">-${totalOffsetMins} mins (${dhm(totalOffsetMins)})</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; border-top:1px dashed var(--border); padding-top:6px; margin-top:6px; color:#15803d;">
+            <span>Remaining VL Balance Left:</span>
+            <span>${vlLeftMins} mins (${dhm(vlLeftMins)})</span>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1.5px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; font-size:12px; color:var(--navy);">🩺 Sick Leave (SL) Balance Left</span>
+            <span style="font-weight:700; font-size:12px; color:#15803d;">${slLeftMins} mins (${dhm(slLeftMins)})</span>
+          </div>
+        </div>
+      `;
+
+      if (lateMins === 0 && undertimeMins === 0 && absentDays === 0) {
+        sideHtml += `
+          <div style="background:#f4fbf7; border:1px solid #b7ebc9; border-radius:10px; padding:14px; text-align:center; color:#1e7e46; font-size:12px; margin-bottom:14px;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin:0 auto 6px auto; display:block;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <strong>Perfect Attendance Record!</strong><br>
+            No tardiness, undertime, or unexcused absences recorded for this pay period.
+          </div>
+        `;
+      } else {
+        if (lateMins > 0) {
+          sideHtml += `
+            <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-weight:700; font-size:12px; color:var(--text);">⏱️ Tardiness (Late)</span>
+                <span style="background:rgba(220,53,69,0.1); color:#d9534f; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">${lateMins} mins</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px; color:var(--muted2);">
+                <span>Vacation Leave Offset:</span>
+                <span style="font-weight:600; color:#2e7d32;">-${vlLateMins} mins</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px; color:var(--muted2);">
+                <span>Unpaid LWOP Tardiness:</span>
+                <span style="font-weight:600; color:${lwopLateMins > 0 ? '#c62828' : 'var(--text)'};">${lwopLateMins} mins</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; border-top:1px dashed var(--border); padding-top:6px; margin-top:4px;">
+                <span>Payslip Cash Deduction:</span>
+                <span style="color:${tardDeduct > 0 ? '#c62828' : '#2e7d32'};">${tardDeduct > 0 ? '₱' + fmt(tardDeduct) : '₱0.00 (Covered by VL)'}</span>
+              </div>
+            </div>
+          `;
+        }
+
+        if (undertimeMins > 0) {
+          sideHtml += `
+            <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-weight:700; font-size:12px; color:var(--text);">⌛ Undertime</span>
+                <span style="background:rgba(255,193,7,0.15); color:#b78103; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">${undertimeMins} mins</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px; color:var(--muted2);">
+                <span>Vacation Leave Offset:</span>
+                <span style="font-weight:600; color:#2e7d32;">-${vlUnderMins} mins</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px; color:var(--muted2);">
+                <span>Unpaid LWOP Undertime:</span>
+                <span style="font-weight:600; color:${lwopUnderMins > 0 ? '#c62828' : 'var(--text)'};">${lwopUnderMins} mins</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; border-top:1px dashed var(--border); padding-top:6px; margin-top:4px;">
+                <span>Payslip Cash Deduction:</span>
+                <span style="color:${underDeduct > 0 ? '#c62828' : '#2e7d32'};">${underDeduct > 0 ? '₱' + fmt(underDeduct) : '₱0.00 (Covered by VL)'}</span>
+              </div>
+            </div>
+          `;
+        }
+
+        if (absentDays > 0) {
+          sideHtml += `
+            <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-weight:700; font-size:12px; color:var(--text);">📅 Absences</span>
+                <span style="background:rgba(220,53,69,0.1); color:#d9534f; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">${absentDays} day(s)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; border-top:1px dashed var(--border); padding-top:6px; margin-top:4px;">
+                <span>Absence Deduction:</span>
+                <span style="color:#c62828;">₱${fmt(absentDeduct)}</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      sideHtml += `
+        <div style="background:#f0f4f8; border-left:3.5px solid var(--navy-mid); border-radius:8px; padding:12px; font-size:11px; color:#2c3e50; line-height:1.45; margin-top:14px;">
+          <div style="font-weight:700; color:var(--navy); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Why is Tardiness ₱0.00 on Payslip?
+          </div>
+          Per <strong>DepEd & CSC Rules on Leave</strong>, tardiness/undertime minutes are automatically offset against earned <strong>Vacation Leave (VL) credits</strong>.<br><br>
+          Because leave credit balance is deducted instead of cash, no monetary deduction line appears on your official payslip.
+        </div>
+      `;
+
+      $('#psSideCanvas').html(sideHtml);
 
     }).fail(function(xhr) {
       $('#psLoading').hide();

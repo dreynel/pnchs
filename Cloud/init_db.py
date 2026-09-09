@@ -370,6 +370,8 @@ def init():
             ('tblpayroll_details', 'vl_undertime_minutes', 'ALTER TABLE tblpayroll_details ADD COLUMN vl_undertime_minutes INT DEFAULT 0 AFTER vl_tardiness_minutes'),
             ('tblpayroll_details', 'lwop_tardiness_minutes', 'ALTER TABLE tblpayroll_details ADD COLUMN lwop_tardiness_minutes INT DEFAULT 0 AFTER vl_undertime_minutes'),
             ('tblpayroll_details', 'lwop_undertime_minutes', 'ALTER TABLE tblpayroll_details ADD COLUMN lwop_undertime_minutes INT DEFAULT 0 AFTER lwop_tardiness_minutes'),
+            ('tblpayroll_details', 'leave_deduction', 'ALTER TABLE tblpayroll_details ADD COLUMN leave_deduction DECIMAL(10,2) DEFAULT 0 AFTER absent_deduction'),
+            ('tblaudit_logs',      'ip_address',      'ALTER TABLE tblaudit_logs ADD COLUMN ip_address VARCHAR(45) NULL AFTER reason'),
             ('tblpayhead',         'mode',            "ALTER TABLE tblpayhead ADD COLUMN mode ENUM('Amount', 'Percentage') DEFAULT 'Amount' AFTER amount"),
             ('tblpayhead',         'percentage_value', "ALTER TABLE tblpayhead ADD COLUMN percentage_value DECIMAL(10, 2) DEFAULT 0.00 AFTER mode"),
             ('tblpayhead',         'description',      "ALTER TABLE tblpayhead ADD COLUMN description TEXT AFTER pay_head"),
