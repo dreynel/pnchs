@@ -479,7 +479,7 @@
         <span class="label">Leave Management</span>
       </a>
 
-      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Admin'] %}
+      {% if user.role in ['Principal', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Payroll &amp; Finance</div>
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Processing', '/pages/payroll.html')">
