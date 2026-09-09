@@ -211,15 +211,6 @@
     .breadcrumb .bc-accent { color: var(--navy-mid); font-weight: 500; }
     .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
-    .tb-search {
-      display: flex; align-items: center; gap: 7px;
-      background: var(--surface2); border: 1.5px solid var(--border);
-      border-radius: 9px; padding: 0 12px; height: 34px;
-      font-size: 12.5px; color: var(--muted2); cursor: text;
-      transition: border-color 0.15s;
-    }
-    .tb-search:hover { border-color: var(--border2); }
-
     .tb-btn {
       width: 34px; height: 34px; border-radius: 9px;
       background: var(--surface2); border: 1.5px solid var(--border);
@@ -232,7 +223,81 @@
       position: absolute; top: 6px; right: 6px;
       width: 7px; height: 7px; border-radius: 50%;
       background: var(--accent); border: 1.5px solid var(--surface);
+      display: none;
     }
+
+    /* ════════════════════════
+       NOTIFICATION DROPDOWN
+    ════════════════════════ */
+    .notif-dropdown {
+      position: absolute;
+      top: 48px; right: 0;
+      width: 360px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.15);
+      z-index: 1050;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      animation: notifPop 0.2s cubic-bezier(.175,.885,.32,1.275);
+    }
+    .notif-dropdown.show { display: flex; }
+    @keyframes notifPop {
+      from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .notif-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1.5px solid var(--border);
+      background: var(--surface2);
+    }
+    .notif-hdr-title {
+      font-family: 'Playfair Display', serif; font-size: 0.95rem; color: var(--navy); font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .notif-count-badge {
+      background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
+      padding: 2px 7px; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .notif-clear-btn {
+      font-size: 11px; color: var(--navy-mid); font-weight: 600; cursor: pointer;
+      background: none; border: none; padding: 2px 6px; border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .notif-clear-btn:hover { background: var(--navy-light); }
+
+    .notif-body {
+      max-height: 340px; overflow-y: auto; padding: 4px 0;
+    }
+    .notif-body::-webkit-scrollbar { width: 4px; }
+    .notif-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .notif-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.15s;
+      text-decoration: none; color: inherit;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: var(--navy-light); }
+    .notif-item.unread { background: rgba(200,151,58,0.06); }
+    .notif-icon-box {
+      width: 32px; height: 32px; min-width: 32px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; background: var(--surface2); border: 1px solid var(--border);
+    }
+    .notif-item-title { font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 2px; }
+    .notif-item-sub { font-size: 11px; color: var(--muted); line-height: 1.3; }
+    .notif-item-time { font-size: 10px; color: var(--muted2); margin-top: 4px; font-weight: 500; }
+
+    .notif-ftr {
+      padding: 10px; text-align: center; border-top: 1.5px solid var(--border);
+      background: var(--surface2); font-size: 11.5px; font-weight: 600;
+    }
+    .notif-ftr a { color: var(--navy-mid); text-decoration: none; }
+    .notif-ftr a:hover { text-decoration: underline; }
     .tb-avatar {
       width: 34px; height: 34px; border-radius: 9px;
       background: var(--navy); color: #fff;
@@ -536,25 +601,36 @@
         </div>
       </div>
 
-      <div class="topbar-right">
+      <div class="topbar-right" style="position:relative;">
         <div class="live-pill" id="liveSyncPill" title="Real-time database synchronizer active">
           <span class="live-dot"></span>
           <span>LIVE</span>
         </div>
 
-        <div class="tb-search">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/>
-          </svg>
-          <span>Quick search…</span>
-        </div>
-        <div class="tb-btn" onclick="navigate(null, 'Biometric Logs', '/pages/logs.html')" title="View recent biometric logs">
+        <div class="tb-btn" id="notifBtn" title="Notifications Center" onclick="toggleNotifDropdown(event)">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
           </svg>
           <span class="notif-dot" id="liveNotifDot"></span>
         </div>
+
+        <!-- Notification Panel Dropdown -->
+        <div class="notif-dropdown" id="notifDropdown">
+          <div class="notif-hdr">
+            <div class="notif-hdr-title">
+              <span>Notifications</span>
+              <span class="notif-count-badge" id="notifBadgeCount">0</span>
+            </div>
+            <button class="notif-clear-btn" onclick="markAllNotificationsRead(event)">Mark all read</button>
+          </div>
+          <div class="notif-body" id="notifList">
+            <div style="padding:24px;text-align:center;color:var(--muted2);font-size:12px;">Loading notifications…</div>
+          </div>
+          <div class="notif-ftr">
+            <a href="#" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html'); $('#notifDropdown').removeClass('show');">Open Approvals &rarr;</a>
+          </div>
+        </div>
+
         <div class="tb-avatar" id="topAvatar">{{ user.name.split()[0][0] }}{{ user.name.split()[-1][0] }}</div>
       </div>
     </div>
@@ -574,8 +650,14 @@
       // Disable AJAX caching globally so all API and page calls fetch real-time data from database
       $.ajaxSetup({ cache: false });
 
-      // ── Real-time Notification Toast Helper ─────────────────────────────
+      // ── Real-time Notification Toast & Dropdown Helper ─────────────────────
+      let unreadCount = 0;
+
       function showLiveToast(msg, icon = '⚡') {
+        unreadCount++;
+        $('#notifBadgeCount').text(unreadCount);
+        $('#liveNotifDot').show();
+
         const toast = $(`
           <div class="live-toast">
             <span style="font-size:16px;">${icon}</span>
@@ -589,6 +671,87 @@
         }, 4000);
       }
       window.showLiveToast = showLiveToast;
+
+      window.toggleNotifDropdown = function(e) {
+        if (e) e.stopPropagation();
+        const dropdown = $('#notifDropdown');
+        dropdown.toggleClass('show');
+        if (dropdown.hasClass('show')) {
+          loadNotificationsList();
+        }
+      };
+
+      window.markAllNotificationsRead = function(e) {
+        if (e) e.stopPropagation();
+        unreadCount = 0;
+        $('#notifBadgeCount').text(0);
+        $('#liveNotifDot').hide();
+        $('.notif-item').removeClass('unread');
+      };
+
+      // Close dropdown when clicking outside
+      $(document).on('click', function(e) {
+        if (!$(e.target).closest('#notifDropdown, #notifBtn').length) {
+          $('#notifDropdown').removeClass('show');
+        }
+      });
+
+      function loadNotificationsList() {
+        $.get('/api/dashboard/stats', function(data) {
+          if (!data || data.error) return;
+          const acts = data.activity || [];
+          const pendingLeaves = data.summary?.pending_leaves || 0;
+          
+          let listHtml = '';
+          let totalCount = 0;
+
+          if (pendingLeaves > 0) {
+            totalCount += pendingLeaves;
+            listHtml += `
+              <div class="notif-item unread" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html'); $('#notifDropdown').removeClass('show');">
+                <div class="notif-icon-box" style="background:#fff7ed;color:#c2410c;">📝</div>
+                <div>
+                  <div class="notif-item-title">Pending Leave Requests</div>
+                  <div class="notif-item-sub">There are <strong>${pendingLeaves}</strong> leave application(s) awaiting approval review.</div>
+                  <div class="notif-item-time">Requires Approval Action &rarr;</div>
+                </div>
+              </div>
+            `;
+          }
+
+          if (acts.length > 0) {
+            acts.forEach(a => {
+              totalCount++;
+              const icon = a.tag === 'Biometric' ? '⏱️' : a.tag === 'Leave' ? '🌴' : '👤';
+              let targetPage = '/pages/logs.html';
+              let targetTitle = 'Biometric Logs';
+              if (a.tag === 'Leave') { targetPage = '/pages/leaves.html'; targetTitle = 'Leave Management'; }
+              else if (a.tag === 'Staff') { targetPage = '/pages/employee.html'; targetTitle = 'Employees'; }
+              
+              listHtml += `
+                <div class="notif-item" onclick="navigate(event, this, '${targetTitle}', '${targetPage}'); $('#notifDropdown').removeClass('show');">
+                  <div class="notif-icon-box">${icon}</div>
+                  <div>
+                    <div class="notif-item-title">${a.name}</div>
+                    <div class="notif-item-sub">${a.type}</div>
+                    <div class="notif-item-time">${a.date_label || ''} • ${a.time_label || ''}</div>
+                  </div>
+                </div>
+              `;
+            });
+          }
+
+          if (!listHtml) {
+            listHtml = `<div style="padding:24px;text-align:center;color:var(--muted2);font-size:12px;">No new notifications.</div>`;
+          }
+
+          $('#notifList').html(listHtml);
+          $('#notifBadgeCount').text(totalCount);
+          if (totalCount > 0 && unreadCount > 0) {
+            $('#liveNotifDot').show();
+          }
+        });
+      }
 
       // ── Real-time Database Synchronizer (Global Feed) ─────────────────────
       let lastActivitySig = null;
@@ -604,6 +767,10 @@
           const payrollGross = data.kpis?.total_gross || 0;
           const acts = data.activity || [];
           const currentSig = acts.length > 0 ? (acts[0].name + acts[0].type + acts[0].time_label) : '';
+
+          if (data.summary?.pending_leaves > 0) {
+            $('#liveNotifDot').show();
+          }
 
           if (!isFirstPoll) {
             let changeDetected = false;
