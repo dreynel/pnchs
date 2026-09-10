@@ -178,11 +178,16 @@
           const relBadge = p.is_released ? ' · Released' : '';
           $sel.append(`<option value="${p.period_key}">${p.period_name || p.period_key} (${p.status || 'Draft'}${relBadge}) — ${p.employee_count} Staff</option>`);
         });
+        loadPayrollVerification();
       } else {
         $sel.append('<option value="">No payroll periods found</option>');
+        $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--muted2);">No payroll periods available to audit.</td></tr>');
       }
-      loadPayrollVerification();
-    } catch(e) { console.error('Failed to load payroll periods', e); }
+    } catch(e) {
+      console.error('Failed to load payroll periods', e);
+      $('#pPeriodSelect').empty().append('<option value="">Failed to load periods</option>');
+      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--red);">Unable to fetch payroll audit periods. Please check permissions.</td></tr>');
+    }
   }
 
   async function loadPayrollVerification() {
