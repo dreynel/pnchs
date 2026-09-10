@@ -839,11 +839,11 @@ def my_payslip():
 
     try:
         with db_cursor() as (conn, cur):
-            cur.execute("SELECT status, created_at FROM tblpayroll WHERE period_key=%s", (period_key,))
+            cur.execute("SELECT status, is_released, released_at, created_at FROM tblpayroll WHERE period_key=%s", (period_key,))
             pr = cur.fetchone()
             if not pr:
                 return jsonify({'error': 'Payslip for this period has not been generated.'}), 404
-            if pr['status'] != 'Released':
+            if not pr.get('is_released') and not pr.get('released_at'):
                 return jsonify({'error': 'Payslip for this period has not been released yet. Payslips are accessible only after releasing by Finance.'}), 403
 
             cur.execute("""
@@ -912,7 +912,7 @@ def my_payslip():
 def get_runs():
     try:
         with db_cursor() as (conn, cur):
-            cur.execute("SELECT period_key, year, month, half, status, remarks, approved_by, approved_at, released_by, released_at, created_at FROM tblpayroll ORDER BY year DESC, month DESC, half DESC")
+            cur.execute("SELECT period_key, year, month, half, status, is_released, remarks, approved_by, approved_at, released_by, released_at, created_at FROM tblpayroll ORDER BY year DESC, month DESC, half DESC")
             records = cur.fetchall()
             return jsonify([{
                 'key':         r['period_key'],
@@ -921,6 +921,7 @@ def get_runs():
                 'month':       r['month'],
                 'half':        r['half'],
                 'status':      r['status'],
+                'is_released': bool(r.get('is_released') or r.get('released_at')),
                 'remarks':     r['remarks'],
                 'approved_by': r['approved_by'],
                 'approved_at': r['approved_at'].strftime('%b %d, %Y %I:%M %p') if r['approved_at'] else None,
@@ -990,13 +991,13 @@ def update_status(period_key):
                     """, (period_key, user_name, f"Payroll Run - {period_key}", user_name))
                     AuditService.log_action(cur, 'PAYROLL_SUBMITTED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                 elif new_status == 'Released' and curr_status == 'Approved':
-                    cur.execute("UPDATE tblpayroll SET status='Released', released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
+                    cur.execute("UPDATE tblpayroll SET is_released=1, released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
                     AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                 else:
                     return jsonify({'error': 'Invalid status transition for Finance'}), 400
             elif role in ['Administrator', 'Admin', 'Principal']:
                 if new_status == 'Released' and curr_status == 'Approved':
-                    cur.execute("UPDATE tblpayroll SET status='Released', released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
+                    cur.execute("UPDATE tblpayroll SET is_released=1, released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
                     AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                 elif new_status in ['Approved', 'Rejected'] and curr_status == 'For Approval':
                     if new_status == 'Approved':
@@ -1043,7 +1044,7 @@ def releasing_list():
     try:
         with db_cursor() as (conn, cur):
             cur.execute("""
-                SELECT p.period_key, p.year, p.month, p.half, p.status, p.remarks,
+                SELECT p.period_key, p.year, p.month, p.half, p.status, p.is_released, p.remarks,
                        p.approved_by, p.approved_at, p.released_by, p.released_at, p.created_at,
                        COUNT(d.id) AS total_employees,
                        COALESCE(SUM(d.total_gross), 0) AS total_gross,
@@ -1051,8 +1052,8 @@ def releasing_list():
                        COALESCE(SUM(d.net_pay), 0) AS total_net_pay
                 FROM tblpayroll p
                 LEFT JOIN tblpayroll_details d ON p.period_key = d.period_key
-                WHERE p.status IN ('Approved', 'Released')
-                GROUP BY p.id, p.period_key, p.year, p.month, p.half, p.status, p.remarks,
+                WHERE p.status = 'Approved'
+                GROUP BY p.id, p.period_key, p.year, p.month, p.half, p.status, p.is_released, p.remarks,
                          p.approved_by, p.approved_at, p.released_by, p.released_at, p.created_at
                 ORDER BY p.year DESC, p.month DESC, p.half DESC
             """)
@@ -1064,6 +1065,7 @@ def releasing_list():
                 'month':            r['month'],
                 'half':             r['half'],
                 'status':           r['status'],
+                'is_released':      bool(r.get('is_released') or r.get('released_at')),
                 'remarks':          r['remarks'],
                 'total_employees':  int(r['total_employees']),
                 'total_gross':      float(r['total_gross']),
@@ -1105,7 +1107,7 @@ def release_payroll():
                 return jsonify({'error': f"Cannot release payroll in '{rec['status']}' status. Payroll must be 'Approved' before releasing."}), 400
 
             cur.execute(
-                "UPDATE tblpayroll SET status='Released', released_by=%s, released_at=NOW() WHERE period_key=%s",
+                "UPDATE tblpayroll SET is_released=1, released_by=%s, released_at=NOW() WHERE period_key=%s",
                 (user_name, period_key)
             )
             AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)

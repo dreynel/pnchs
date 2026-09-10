@@ -568,9 +568,12 @@
         $('#btnReject').show();
         $('#btnApprove').show();
       } else {
-        const approvedMeta = rec.approved_by
+        let approvedMeta = rec.approved_by
           ? `${rec.status === 'Approved' ? '✓ Approved' : '✕ Rejected'} by ${rec.approved_by}${rec.approved_at ? ' · '+rec.approved_at : ''}`
           : rec.status;
+        if (rec.status === 'Approved' && rec.is_released) {
+          approvedMeta += ' · Released to Employees';
+        }
         $('#lblStatus').show().text(approvedMeta)
           .css('background', rec.status==='Approved' ? 'var(--green-dim)' : (rec.status==='Rejected' ? 'var(--red-dim)' : 'var(--surface2)'))
           .css('color', rec.status==='Approved' ? 'var(--green)' : (rec.status==='Rejected' ? 'var(--red)' : 'var(--muted)'));

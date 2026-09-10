@@ -270,18 +270,20 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
         self.assertEqual(cash_deduction, round(45 * (30000.0 / 22 / 8 / 60), 2))
 
     def test_12_payroll_releasing_lifecycle_and_payslip_lock(self):
-        """TEST 12: Payslip availability strictly tied to Released status lifecycle."""
+        """TEST 12: Payslip availability strictly tied to is_released flag lifecycle."""
         # 1. Draft
-        self.cur.payroll_runs['2026-8-1'] = {'status': 'Draft'}
-        self.assertNotEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Released')
+        self.cur.payroll_runs['2026-8-1'] = {'status': 'Draft', 'is_released': False}
+        self.assertFalse(self.cur.payroll_runs['2026-8-1']['is_released'])
 
-        # 2. Approved
+        # 2. Approved (status max is Approved, pending release)
         self.cur.payroll_runs['2026-8-1']['status'] = 'Approved'
-        self.assertNotEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Released')
+        self.assertEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Approved')
+        self.assertFalse(self.cur.payroll_runs['2026-8-1']['is_released'])
 
-        # 3. Released
-        self.cur.payroll_runs['2026-8-1']['status'] = 'Released'
-        self.assertEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Released')
+        # 3. Released (status stays Approved, is_released becomes True)
+        self.cur.payroll_runs['2026-8-1']['is_released'] = True
+        self.assertEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Approved')
+        self.assertTrue(self.cur.payroll_runs['2026-8-1']['is_released'])
 
 
 if __name__ == '__main__':

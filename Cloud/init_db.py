@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS tblpayroll (
     month         INT          NOT NULL,
     half          INT          NOT NULL,
     status        VARCHAR(30)  NOT NULL DEFAULT 'Draft',
+    is_released   TINYINT(1)   NOT NULL DEFAULT 0,
     remarks       TEXT         NULL,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -352,9 +353,7 @@ def init():
             ('tblenrollment_tasks', 'message',        "ALTER TABLE tblenrollment_tasks ADD COLUMN message VARCHAR(255) NULL AFTER step"),
             ('tblenrollment_tasks', 'error_message',  "ALTER TABLE tblenrollment_tasks ADD COLUMN error_message VARCHAR(255) NULL AFTER message"),
             ('tblpayroll',         'approved_by',     'ALTER TABLE tblpayroll ADD COLUMN approved_by VARCHAR(150) NULL AFTER remarks'),
-            ('tblleaves',          'attachment',      'ALTER TABLE tblleaves ADD COLUMN attachment VARCHAR(255) NULL AFTER reason'),
-
-            ('tblpayroll',         'approved_by',     'ALTER TABLE tblpayroll ADD COLUMN approved_by VARCHAR(150) NULL AFTER remarks'),
+            ('tblpayroll',         'is_released',     'ALTER TABLE tblpayroll ADD COLUMN is_released TINYINT(1) NOT NULL DEFAULT 0 AFTER status'),
             ('tblpayroll',         'approved_at',     'ALTER TABLE tblpayroll ADD COLUMN approved_at DATETIME NULL AFTER approved_by'),
             ('tblpayroll',         'released_by',     'ALTER TABLE tblpayroll ADD COLUMN released_by VARCHAR(150) NULL AFTER approved_at'),
             ('tblpayroll',         'released_at',     'ALTER TABLE tblpayroll ADD COLUMN released_at DATETIME NULL AFTER released_by'),
@@ -397,6 +396,10 @@ def init():
         ]
         for table, col, sql in migrations:
             _add_column_if_missing(cur, table, col, sql)
+
+        # Ensure Released status is converted to is_released=1 and status='Approved'
+        cur.execute("UPDATE tblpayroll SET is_released=1, status='Approved' WHERE status='Released'")
+        cur.execute("UPDATE tblapprovals SET ApprovalStatus='Approved' WHERE ApprovalStatus='Released'")
 
         # Ensure finger_index exists on fingerprints
         _add_column_if_missing(cur, 'fingerprints', 'finger_index', "ALTER TABLE fingerprints ADD COLUMN finger_index INT DEFAULT 1")

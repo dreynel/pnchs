@@ -389,8 +389,8 @@
   };
 
   function renderKPIs() {
-    const pendingRuns = allRuns.filter(r => r.status === 'Approved');
-    const releasedRuns = allRuns.filter(r => r.status === 'Released');
+    const pendingRuns = allRuns.filter(r => !r.is_released);
+    const releasedRuns = allRuns.filter(r => r.is_released);
     
     const pendingCount = pendingRuns.length;
     const releasedCount = releasedRuns.length;
@@ -410,8 +410,8 @@
 
   function renderRuns() {
     const filtered = allRuns.filter(r => {
-      if (currentTab === 'pending') return r.status === 'Approved';
-      return r.status === 'Released';
+      if (currentTab === 'pending') return !r.is_released;
+      return r.is_released;
     });
 
     if (filtered.length === 0) {
@@ -429,12 +429,12 @@
 
     let html = '';
     filtered.forEach(r => {
-      const isApproved = r.status === 'Approved';
-      const statusBadge = isApproved 
+      const isPending = !r.is_released;
+      const statusBadge = isPending 
         ? `<span class="badge-approved">⏳ Pending Release</span>`
         : `<span class="badge-released">✓ Released to Employees</span>`;
 
-      const auditText = isApproved
+      const auditText = isPending
         ? `Approved by <strong>${r.approved_by || 'Admin'}</strong> on ${r.approved_at || 'N/A'}`
         : `Released by <strong>${r.released_by || 'Finance'}</strong> on ${r.released_at || 'N/A'}`;
 
