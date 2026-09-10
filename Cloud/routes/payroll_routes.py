@@ -149,7 +149,7 @@ def get_approved_leave_dates(cur, emp_id, start_date, end_date):
 @payroll_bp.route('/runs', methods=['POST'])
 def create_run():
     from flask import session
-    if session.get('user', {}).get('role') not in ['Admin', 'Finance']:
+    if session.get('user', {}).get('role') not in ['Principal', 'Finance', 'Finance Officer']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.json
@@ -937,7 +937,7 @@ def get_runs():
 @payroll_bp.route('/runs/<period_key>', methods=['DELETE'])
 def delete_run(period_key):
     from flask import session
-    if session.get('user', {}).get('role') not in ['Admin', 'Finance']:
+    if session.get('user', {}).get('role') not in ['Principal', 'Finance', 'Finance Officer']:
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         with db_cursor() as (conn, cur):

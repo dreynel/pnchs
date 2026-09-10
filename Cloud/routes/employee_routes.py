@@ -63,11 +63,13 @@ def normalize_role(role_input):
         return 'Employee'
     r = str(role_input).strip()
     r_upper = r.upper()
-    if r_upper in ['ADMIN', 'PRINCIPAL', 'ADMINISTRATOR']:
+    if r_upper in ['PRINCIPAL', 'SCHOOL HEAD', 'SUPERINTENDENT']:
+        return 'Principal'
+    elif r_upper in ['ADMIN', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'IT']:
         return 'Admin'
     elif r_upper in ['HR', 'HR OFFICER', 'HUMAN RESOURCES']:
         return 'HR'
-    elif r_upper in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER']:
+    elif r_upper in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER', 'ACCOUNTANT', 'CASHIER']:
         return 'Finance'
     elif r_upper in ['AUDITOR', 'AUDIT']:
         return 'Auditor'
@@ -184,7 +186,8 @@ def list_employees():
                 fp_map[emp_id].append(int(fp['finger_index']))
 
         def _map_role(r):
-            if r == 'Admin': return 'Principal'
+            if r == 'Principal': return 'Principal'
+            if r == 'Admin': return 'Admin'
             if r == 'HR': return 'HR Officer'
             if r == 'Finance': return 'Finance Officer'
             if r == 'Auditor': return 'Auditor'

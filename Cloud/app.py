@@ -89,11 +89,13 @@ def login():
                     display_name = f"{emp['first_name']} {emp['last_name']}"
 
                 r_raw = str(emp['role'] or '').strip().upper()
-                if r_raw in ['ADMIN', 'PRINCIPAL', 'ADMINISTRATOR']:
+                if r_raw in ['PRINCIPAL', 'SCHOOL HEAD', 'SUPERINTENDENT']:
+                    user_role = 'Principal'
+                elif r_raw in ['ADMIN', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'IT']:
                     user_role = 'Admin'
                 elif r_raw in ['HR', 'HR OFFICER', 'HUMAN RESOURCES']:
                     user_role = 'HR'
-                elif r_raw in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER']:
+                elif r_raw in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER', 'ACCOUNTANT', 'CASHIER']:
                     user_role = 'Finance'
                 elif r_raw in ['AUDITOR', 'AUDIT']:
                     user_role = 'Auditor'
