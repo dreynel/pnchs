@@ -447,7 +447,7 @@
     <nav>
       {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer', 'Auditor'] %}
       <div class="nav-section-label">Overview</div>
-      <a href="#" class="nav-item active" onclick="navigate(event, this, 'Dashboard', '/pages/dashboard.html')">
+      <a href="#" class="nav-item active" onclick="navigate(event, this, 'Dashboard', '/pages/dashboard.html', '/dashboard')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -460,7 +460,7 @@
 
       <div class="nav-section-label">Workforce &amp; Leaves</div>
       {% if user.role in ['Principal', 'HR', 'HR Officer', 'Auditor'] %}
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Employees', '/pages/employee.html')">
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Employees', '/pages/employee.html', '/employees')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -470,7 +470,7 @@
       </a>
       {% endif %}
 
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Leave Management', '/pages/leaves.html')">
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Leave Management', '/pages/leaves.html', '/leaves')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -483,7 +483,8 @@
       <div class="nav-divider"></div>
       <div class="nav-section-label">Payroll &amp; Finance</div>
 
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Processing', '/pages/payroll.html')">
+      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Auditor'] %}
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Processing', '/pages/payroll.html', '/payroll')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
@@ -492,7 +493,7 @@
         <span class="label">Payroll Processing</span>
       </a>
 
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Releasing', '/pages/payroll_releasing.html')">
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Releasing', '/pages/payroll_releasing.html', '/payroll_releasing')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
@@ -500,8 +501,10 @@
         </div>
         <span class="label">Payroll Releasing</span>
       </a>
+      {% endif %}
 
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Salary Grades', '/pages/salary_grades.html')">
+      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor'] %}
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Salary Grades', '/pages/salary_grades.html', '/salary_grades')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -510,7 +513,7 @@
         <span class="label">Salary Grades</span>
       </a>
 
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll &amp; Statutory Registry', '/pages/registry.html')">
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll &amp; Statutory Registry', '/pages/registry.html', '/registry')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -519,11 +522,12 @@
         <span class="label">Payroll &amp; Statutory Registry</span>
       </a>
       {% endif %}
+      {% endif %}
 
       {% if user.role in ['Admin', 'Auditor', 'HR', 'HR Officer', 'Principal', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Governance</div>
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html')">
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html', '/approvals')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -536,31 +540,31 @@
       <div class="nav-divider"></div>
       <div class="nav-section-label">Time &amp; Reports</div>
 
-      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'DTR', '/pages/dtr.html')">
+      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'DTR', '/pages/dtr.html', '/dtr')">
         <span class="nav-sub-dot"></span>
         <span class="label">Daily Time Record (DTR)</span>
       </a>
 
       {% if user.role in ['Admin', 'Auditor', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
-      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Biometric Logs', '/pages/logs.html')">
+      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Biometric Logs', '/pages/logs.html', '/logs')">
         <span class="nav-sub-dot"></span>
         <span class="label">Biometric Logs</span>
       </a>
       {% endif %}
 
       {% if user.role in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer'] %}
-      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Report', '/pages/payroll_report.html')">
+      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report')">
         <span class="nav-sub-dot"></span>
         <span class="label">Payroll Report</span>
       </a>
       {% endif %}
 
       {% if user.role in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer'] %}
-      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Audit Trail', '/pages/audit_trail.html')">
+      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail')">
         <span class="nav-sub-dot"></span>
         <span class="label">Audit Trail</span>
       </a>
-      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Audit', '/pages/payroll_audit.html')">
+      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Audit', '/pages/payroll_audit.html', '/payroll_audit')">
         <span class="nav-sub-dot"></span>
         <span class="label">Payroll Audit</span>
       </a>
@@ -568,7 +572,7 @@
 
       <div class="nav-divider"></div>
       <div class="nav-section-label">Self-Service</div>
-      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'My Payslip', '/pages/mypayslip.html')">
+      <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'My Payslip', '/pages/mypayslip.html', '/mypayslip')">
         <span class="nav-sub-dot"></span>
         <span class="label">My Payslip</span>
       </a>
@@ -851,18 +855,56 @@
       }
 
       // ── Navigation ───────────────────────────────────────────────────────
-      function navigate(el, title, url) {
+      function getBrowserUrlForPage(url) {
+        if (!url) return '/dashboard';
+        const cleanUrl = url.split('?')[0];
+        const mapping = {
+          '/pages/dashboard.html': '/dashboard',
+          '/pages/employee.html': '/employees',
+          '/pages/payroll.html': '/payroll',
+          '/pages/payroll_releasing.html': '/payroll_releasing',
+          '/pages/salary_grades.html': '/salary_grades',
+          '/pages/registry.html': '/registry',
+          '/pages/approvals.html': '/approvals',
+          '/pages/dtr.html': '/dtr',
+          '/pages/logs.html': '/logs',
+          '/pages/payroll_report.html': '/payroll_report',
+          '/pages/audit_trail.html': '/audit_trail',
+          '/pages/payroll_audit.html': '/payroll_audit',
+          '/pages/mypayslip.html': '/mypayslip',
+          '/pages/leaves.html': '/leaves',
+          '/pages/holidays.html': '/holidays'
+        };
+        return mapping[cleanUrl] || '/dashboard';
+      }
+
+      function navigate(el, title, url, browserUrl) {
+        browserUrl = browserUrl || getBrowserUrlForPage(url);
         $('.nav-item, .nav-sub-item').removeClass('active');
-        if (el) $(el).addClass('active');
+        const activeNav = el ? $(el) : $(`[onclick*="${url}"]`).first();
+        if (activeNav.length) activeNav.addClass('active');
+
         $('#pageTitle').text(title);
         $('#breadcrumb').text(title);
         loadPage(url);
         closeMobile();
+
+        if (browserUrl && window.history && window.history.pushState && window.location.pathname !== browserUrl) {
+          window.history.pushState({ pageUrl: url, title: title, browserUrl: browserUrl }, title, browserUrl);
+        }
       }
 
-      window.navigate = function (e, el, title, url) {
+      window.navigate = function (e, el, title, url, browserUrl) {
         if (e && e.preventDefault) e.preventDefault();
-        navigate(el, title, url);
+        navigate(el, title, url, browserUrl);
+      };
+
+      window.onpopstate = function(event) {
+        if (event.state && event.state.pageUrl) {
+          navigate(null, event.state.title, event.state.pageUrl, event.state.browserUrl);
+        } else {
+          location.reload();
+        }
       };
 
       // ── Sidebar collapse ─────────────────────────────────────────────────
@@ -882,7 +924,8 @@
       $('#breadcrumb').text(initialTitle);
       loadPage(initialPage);
 
-      $(`.nav-item[onclick*="${initialPage}"], .nav-sub-item[onclick*="${initialPage}"]`).addClass('active');
+      $('.nav-item, .nav-sub-item').removeClass('active');
+      $(`[onclick*="${initialPage}"]`).first().addClass('active');
     });
   </script>
 
