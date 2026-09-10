@@ -147,10 +147,10 @@ def pages(filename):
     role = session.get('user', {}).get('role')
     if role == 'Admin' and filename in ['employee.html', 'payroll.html', 'salary_grades.html', 'registry.html', 'payroll_releasing.html']:
         return jsonify({'error': 'Unauthorized page access: Admin does not have access to Employee Registry, Payroll, Salary Grades, or Statutory Registry'}), 403
-    if role in ['HR', 'HR Officer'] and filename in ['payroll.html', 'payroll_releasing.html', 'salary_grades.html', 'registry.html', 'payroll_report.html', 'payroll_audit.html']:
-        return jsonify({'error': 'Unauthorized page access: HR does not have access to Statutory Registry, Salary Grades, Payroll Processing/Releasing, or Payroll Reports'}), 403
-    if role in ['Finance', 'Finance Officer'] and filename in ['employee.html']:
-        return jsonify({'error': 'Unauthorized page access: Finance does not have access to Employee Registry'}), 403
+    if role in ['HR', 'HR Officer'] and filename in ['payroll.html', 'payroll_releasing.html', 'salary_grades.html', 'registry.html', 'payroll_report.html', 'payroll_audit.html', 'audit_trail.html']:
+        return jsonify({'error': 'Unauthorized page access: HR does not have access to Statutory Registry, Salary Grades, Payroll Processing/Releasing, Payroll Reports, or Audit Trail'}), 403
+    if role in ['Finance', 'Finance Officer'] and filename in ['employee.html', 'audit_trail.html']:
+        return jsonify({'error': 'Unauthorized page access: Finance does not have access to Employee Registry or Audit Trail'}), 403
     if role == 'Employee' and filename not in ['dtr.html', 'mypayslip.html', 'leaves.html', 'holidays.html', 'dtr_content.html']:
         return jsonify({'error': 'Unauthorized page access'}), 403
     pages_dir = os.path.join(app.root_path, 'pages')
@@ -252,7 +252,7 @@ def registry():
 @app.route('/audit_trail')
 @login_required
 def audit_trail():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Admin', 'Principal']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/audit_trail.html', title='Audit Trail')
 

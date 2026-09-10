@@ -7,15 +7,15 @@ audit_bp = Blueprint('audit', __name__)
 
 def check_access():
     user = session.get('user', {})
-    if user.get('role') not in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if user.get('role') not in ['Admin', 'Administrator', 'Principal']:
         return False
     return True
 
 def check_payroll_audit_access():
     user = session.get('user', {})
-    if user.get('role') in ['HR', 'HR Officer']:
+    if user.get('role') not in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer']:
         return False
-    return check_access()
+    return True
 
 def _build_date_filter(args):
     where = []

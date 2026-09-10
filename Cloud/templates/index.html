@@ -555,7 +555,7 @@
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail')">
         <span class="nav-sub-dot"></span>
         <span class="label">Audit Trail</span>
