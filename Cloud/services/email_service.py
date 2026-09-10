@@ -12,7 +12,7 @@ BREVO_API_KEY = os.getenv("BREVO_API_KEY", DEFAULT_BREVO_KEY)
 BREVO_SMTP_HOST = os.getenv("BREVO_SMTP_HOST", "smtp-relay.brevo.com")
 BREVO_SMTP_PORT = int(os.getenv("BREVO_SMTP_PORT", 587))
 BREVO_SMTP_USER = os.getenv("BREVO_SMTP_LOGIN", "b8b3f7001@smtp-brevo.com")
-SENDER_NAME = os.getenv("SENDER_NAME", "PNCHS Human Resources")
+SENDER_NAME = os.getenv("SENDER_NAME", "Pototan National Comprehensive High School (PNCHS)")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "jasperiansusarno9@gmail.com")
 
 def send_welcome_email(employee_data, username, password, async_send=True):
@@ -58,12 +58,12 @@ def send_welcome_email(employee_data, username, password, async_send=True):
         <body>
           <div class="container">
             <div class="header">
-              <h1>PNCHS Cloud Portal</h1>
-              <p>Employee Account Activation Notice</p>
+              <h1>Pototan National Comprehensive High School</h1>
+              <p>Employee Account Activation Notice (PNCHS)</p>
             </div>
             <div class="body">
               <p>Dear <strong>{full_name}</strong>,</p>
-              <p>Welcome to the Padre Garcia National High School (PNCHS) Workforce Management System! Your official employee account has been created and verified as <span class="badge">{status}</span>.</p>
+              <p>Welcome to the Pototan National Comprehensive High School (PNCHS) Workforce Management System! Your official employee account has been created and verified as <span class="badge">{status}</span>.</p>
               
               <div class="info-box">
                 <div class="info-row"><span class="lbl">Employee ID:</span><span class="val">{emp_id}</span></div>
@@ -77,7 +77,7 @@ def send_welcome_email(employee_data, username, password, async_send=True):
               <p style="font-size: 12px; color: #64748b; margin-top: 20px;">* For security reasons, please change your password after logging in for the first time.</p>
             </div>
             <div class="footer">
-              &copy; 2026 Padre Garcia National High School • Confidential Notification
+              &copy; 2026 Pototan National Comprehensive High School (PNCHS) • Confidential Notification
             </div>
           </div>
         </body>
@@ -173,12 +173,12 @@ def send_login_notification_email(user_info, ip_address):
         <body>
           <div class="container">
             <div class="header">
-              <h1>PNCHS Portal Security Alert</h1>
-              <p>Successful Login Notification</p>
+              <h1>Pototan National Comprehensive High School</h1>
+              <p>Security Alert: Successful Login Notification (PNCHS)</p>
             </div>
             <div class="body">
               <p>Hello <strong>{name}</strong>,</p>
-              <p>We detected a successful login to your PNCHS account.</p>
+              <p>We detected a successful login to your account at Pototan National Comprehensive High School (PNCHS).</p>
               <div class="info-box">
                 <div class="info-row"><span class="lbl">User Name:</span><span class="val">{name}</span></div>
                 <div class="info-row"><span class="lbl">Account Role:</span><span class="val">{role}</span></div>
@@ -187,7 +187,7 @@ def send_login_notification_email(user_info, ip_address):
               </div>
               <p style="font-size: 12px; color: #64748b;">If this was you, no further action is required. If you did not authorize this login, please contact your administrator immediately.</p>
             </div>
-            <div class="footer">&copy; 2026 Padre Garcia National High School • Security Service</div>
+            <div class="footer">&copy; 2026 Pototan National Comprehensive High School (PNCHS) • Security Service</div>
           </div>
         </body>
         </html>
