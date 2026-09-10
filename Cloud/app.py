@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
 from routes import employee_bp, dtr_bp, payroll_bp, fingerprint_bp, attendance_bp, registry_bp, dashboard_bp, salary_grade_bp, audit_bp, approval_bp
 from services.policy_engine import AuditService
+from services.email_service import send_login_notification_email
 import os
 
 app = Flask(__name__)
@@ -75,7 +76,7 @@ def login():
         from db import db_cursor
         with db_cursor(commit=True) as (conn, cur):
             cur.execute("""
-                SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name
+                SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name, e.email AS emp_email
                 FROM tblusers u
                 LEFT JOIN tblemployee e ON u.employee_id = e.employee_id
                 WHERE u.username=%s AND u.password=%s
@@ -107,6 +108,16 @@ def login():
                 }
                 
                 AuditService.log_action(cur, 'LOGIN_SUCCESS', user_name=display_name, ip_address=request.remote_addr)
+
+                # Send login notification email via Brevo to all roles
+                target_email = emp.get('emp_email') or (emp['username'] if '@' in str(emp['username']) else None)
+                if target_email:
+                    send_login_notification_email({
+                        'email': target_email,
+                        'name': display_name,
+                        'role': user_role,
+                        'username': emp['username']
+                    }, request.remote_addr)
 
                 if user_role == 'Employee':
                     return redirect(url_for('dtr'))

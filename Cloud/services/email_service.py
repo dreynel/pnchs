@@ -133,3 +133,83 @@ def send_welcome_email(employee_data, username, password, async_send=True):
         return {"success": True, "queued": True}
     else:
         return _do_send()
+
+
+def send_login_notification_email(user_info, ip_address):
+    """
+    Sends a security notification email via Brevo when a user logs in successfully.
+    Executed in a background thread to avoid delaying page load.
+    """
+    def _do_send():
+        email = (user_info.get('email') or '').strip()
+        if not email or '@' not in email:
+            return
+
+        name = user_info.get('name') or user_info.get('username') or 'User'
+        role = user_info.get('role') or 'Staff'
+        login_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S PST')
+
+        subject = f"Security Alert: Successful Login to PNCHS Portal ({role})"
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; color: #333; }}
+            .container {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }}
+            .header {{ background: #1e3a5f; color: #ffffff; padding: 22px; text-align: center; }}
+            .header h1 {{ margin: 0; font-size: 20px; font-weight: 700; }}
+            .header p {{ margin: 4px 0 0 0; font-size: 12px; opacity: 0.85; }}
+            .body {{ padding: 25px; line-height: 1.6; font-size: 13.5px; }}
+            .info-box {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 15px 0; }}
+            .info-row {{ display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #e2e8f0; }}
+            .info-row:last-child {{ border-bottom: none; }}
+            .lbl {{ font-weight: 600; color: #475569; }}
+            .val {{ font-weight: 700; color: #0f172a; }}
+            .footer {{ background: #f1f5f9; padding: 12px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; }}
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>PNCHS Portal Security Alert</h1>
+              <p>Successful Login Notification</p>
+            </div>
+            <div class="body">
+              <p>Hello <strong>{name}</strong>,</p>
+              <p>We detected a successful login to your PNCHS account.</p>
+              <div class="info-box">
+                <div class="info-row"><span class="lbl">User Name:</span><span class="val">{name}</span></div>
+                <div class="info-row"><span class="lbl">Account Role:</span><span class="val">{role}</span></div>
+                <div class="info-row"><span class="lbl">Timestamp:</span><span class="val">{login_time}</span></div>
+                <div class="info-row"><span class="lbl">IP Address:</span><span class="val">{ip_address or '127.0.0.1'}</span></div>
+              </div>
+              <p style="font-size: 12px; color: #64748b;">If this was you, no further action is required. If you did not authorize this login, please contact your administrator immediately.</p>
+            </div>
+            <div class="footer">&copy; 2026 Padre Garcia National High School • Security Service</div>
+          </div>
+        </body>
+        </html>
+        """
+
+        try:
+            url = "https://api.brevo.com/v3/smtp/email"
+            headers = {
+                "accept": "application/json",
+                "api-key": BREVO_API_KEY,
+                "content-type": "application/json"
+            }
+            payload = {
+                "sender": {"name": SENDER_NAME, "email": SENDER_EMAIL},
+                "to": [{"email": email, "name": name}],
+                "subject": subject,
+                "htmlContent": html_content
+            }
+            res = requests.post(url, json=payload, headers=headers, timeout=8)
+            print(f"[LoginNotif Email] Sent to {email} ({res.status_code})")
+        except Exception as e:
+            print(f"[LoginNotif Email Error] {e}")
+
+    t = threading.Thread(target=_do_send, daemon=True)
+    t.start()

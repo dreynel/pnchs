@@ -883,6 +883,11 @@
 
       $(`.nav-item[onclick*="${initialPage}"], .nav-sub-item[onclick*="${initialPage}"]`).addClass('active');
 
+      // Display Successful Login Toast Notification for all roles
+      setTimeout(function() {
+        showLiveToast("Successful login! Welcome back, <strong>{{ user.name }}</strong> ({{ user.role }}).", "🔑");
+      }, 500);
+
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
