@@ -175,7 +175,8 @@
       $sel.empty();
       if (res.periods && res.periods.length) {
         res.periods.forEach(p => {
-          $sel.append(`<option value="${p.period_key}">${p.period_name || p.period_key} (${p.status || 'Draft'}) — ${p.employee_count} Staff</option>`);
+          const relBadge = p.is_released ? ' · Released' : '';
+          $sel.append(`<option value="${p.period_key}">${p.period_name || p.period_key} (${p.status || 'Draft'}${relBadge}) — ${p.employee_count} Staff</option>`);
         });
       } else {
         $sel.append('<option value="">No payroll periods found</option>');

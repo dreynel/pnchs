@@ -289,25 +289,38 @@ def get_audit_payroll_periods():
     if not check_access():
         return jsonify({'error': 'Forbidden'}), 403
 
+    import calendar
+
     with db_cursor() as (conn, cur):
         cur.execute("""
-            SELECT p.period_key, p.period_name, p.status, p.total_gross, p.total_net, p.created_at,
-                   COUNT(d.id) as employee_count
+            SELECT p.period_key, p.year, p.month, p.half, p.status, p.is_released, p.created_at,
+                   COUNT(d.id) AS employee_count,
+                   COALESCE(SUM(d.total_gross), 0) AS total_gross,
+                   COALESCE(SUM(d.net_pay), 0) AS total_net
             FROM tblpayroll p
             LEFT JOIN tblpayroll_details d ON p.period_key = d.period_key
-            GROUP BY p.period_key, p.period_name, p.status, p.total_gross, p.total_net, p.created_at
-            ORDER BY p.created_at DESC
+            GROUP BY p.id, p.period_key, p.year, p.month, p.half, p.status, p.is_released, p.created_at
+            ORDER BY p.year DESC, p.month DESC, p.half DESC, p.created_at DESC
         """)
         rows = cur.fetchall()
 
+    periods = []
     for r in rows:
-        r['total_gross'] = float(r.get('total_gross') or 0)
-        r['total_net'] = float(r.get('total_net') or 0)
+        m_name = calendar.month_name[r['month']] if (r.get('month') and 1 <= r['month'] <= 12) else 'Month'
+        p_name = f"{m_name} {r.get('year', '')} — {'1st' if r.get('half')==1 else '2nd'} Half"
         created = r.get('created_at')
-        if isinstance(created, datetime):
-            r['created_at'] = created.strftime('%Y-%m-%d %H:%M')
+        periods.append({
+            'period_key': r['period_key'],
+            'period_name': p_name,
+            'status': r['status'],
+            'is_released': bool(r.get('is_released')),
+            'total_gross': float(r.get('total_gross') or 0),
+            'total_net': float(r.get('total_net') or 0),
+            'employee_count': int(r.get('employee_count') or 0),
+            'created_at': created.strftime('%Y-%m-%d %H:%M') if isinstance(created, datetime) else str(created or '')
+        })
 
-    return jsonify({'periods': rows})
+    return jsonify({'periods': periods})
 
 @audit_bp.route('/api/audit/payroll-verification', methods=['GET'])
 def get_payroll_verification():
