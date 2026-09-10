@@ -180,7 +180,7 @@ def payroll_releasing():
 @app.route('/payroll_approvals')
 @login_required
 def approvals():
-    if session['user'].get('role') not in ['Admin', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'HR', 'HR Officer', 'Principal', 'Finance', 'Finance Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/approvals.html', title='Approvals')
 
@@ -202,7 +202,7 @@ def leaves():
 @app.route('/salary_grades')
 @login_required
 def salary_grades():
-    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/salary_grades.html', title='Salary Grade Management')
 
@@ -229,7 +229,7 @@ def payroll_report():
 @app.route('/registry')
 @login_required
 def registry():
-    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/registry.html', title='Global Registry')
 
