@@ -479,9 +479,11 @@
         <span class="label">Leave Management</span>
       </a>
 
-      {% if user.role in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Payroll &amp; Finance</div>
+
+      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Auditor'] %}
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Processing', '/pages/payroll.html')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -499,6 +501,7 @@
         </div>
         <span class="label">Payroll Releasing</span>
       </a>
+      {% endif %}
 
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Salary Grades', '/pages/salary_grades.html')">
         <div class="nav-icon">

@@ -144,6 +144,8 @@ def dashboard():
 @login_required
 def pages(filename):
     role = session.get('user', {}).get('role')
+    if role == 'Admin' and filename in ['payroll.html', 'payroll_releasing.html']:
+        return jsonify({'error': 'Unauthorized page access: Admin does not have access to Payroll Processing or Releasing'}), 403
     if role == 'Employee' and filename not in ['dtr.html', 'mypayslip.html', 'leaves.html', 'holidays.html', 'dtr_content.html']:
         return jsonify({'error': 'Unauthorized page access'}), 403
     pages_dir = os.path.join(app.root_path, 'pages')
@@ -161,14 +163,15 @@ def employees():
 @app.route('/payroll')
 @login_required
 def payroll():
-    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/payroll.html', title='Payroll Processing')
+
 
 @app.route('/payroll_releasing')
 @login_required
 def payroll_releasing():
-    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/payroll_releasing.html', title='Payroll Releasing')
 
