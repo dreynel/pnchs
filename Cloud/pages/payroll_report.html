@@ -369,7 +369,7 @@
     $('#reportContent').html('<div class="loading-msg"><div class="spinner"></div>Loading comprehensive breakdown...</div>');
     $('#btnExportCSV, #btnPrintReport').prop('disabled', true);
 
-    $.get('/api/payroll/process', params, function(res) {
+    $.get('/api/payroll/report', params, function(res) {
       currentReportData = res;
       renderReport(res);
       $('#btnExportCSV, #btnPrintReport').prop('disabled', false);
