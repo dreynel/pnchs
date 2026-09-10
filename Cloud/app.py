@@ -149,8 +149,8 @@ def pages(filename):
     role = session.get('user', {}).get('role')
     if role == 'Admin' and filename in ['employee.html', 'payroll.html', 'salary_grades.html', 'registry.html', 'payroll_releasing.html']:
         return jsonify({'error': 'Unauthorized page access: Admin does not have access to Employee Registry, Payroll, Salary Grades, or Statutory Registry'}), 403
-    if role in ['HR', 'HR Officer'] and filename in ['payroll.html', 'payroll_releasing.html']:
-        return jsonify({'error': 'Unauthorized page access: HR does not have access to Payroll Processing or Releasing'}), 403
+    if role in ['HR', 'HR Officer'] and filename in ['payroll.html', 'payroll_releasing.html', 'salary_grades.html', 'registry.html', 'payroll_report.html', 'payroll_audit.html']:
+        return jsonify({'error': 'Unauthorized page access: HR does not have access to Statutory Registry, Salary Grades, Payroll Processing/Releasing, or Payroll Reports'}), 403
     if role in ['Finance', 'Finance Officer'] and filename in ['employee.html']:
         return jsonify({'error': 'Unauthorized page access: Finance does not have access to Employee Registry'}), 403
     if role == 'Employee' and filename not in ['dtr.html', 'mypayslip.html', 'leaves.html', 'holidays.html', 'dtr_content.html']:
@@ -209,7 +209,7 @@ def leaves():
 @app.route('/salary_grades')
 @login_required
 def salary_grades():
-    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/salary_grades.html', title='Salary Grade Management')
 
@@ -238,13 +238,15 @@ def mypayslip():
 @app.route('/payroll_report')
 @login_required
 def payroll_report():
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer']:
+        return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/payroll_report.html', title='Payroll Report')
 
 
 @app.route('/registry')
 @login_required
 def registry():
-    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/registry.html', title='Global Registry')
 
@@ -260,7 +262,7 @@ def audit_trail():
 @app.route('/payroll_audit')
 @login_required
 def payroll_audit():
-    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/payroll_audit.html', title='Payroll Audit')
 

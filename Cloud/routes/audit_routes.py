@@ -11,6 +11,12 @@ def check_access():
         return False
     return True
 
+def check_payroll_audit_access():
+    user = session.get('user', {})
+    if user.get('role') in ['HR', 'HR Officer']:
+        return False
+    return check_access()
+
 def _build_date_filter(args):
     where = []
     params = []
@@ -286,7 +292,7 @@ def export_csv():
 
 @audit_bp.route('/api/audit/payroll-periods', methods=['GET'])
 def get_audit_payroll_periods():
-    if not check_access():
+    if not check_payroll_audit_access():
         return jsonify({'error': 'Forbidden'}), 403
 
     import calendar
@@ -324,7 +330,7 @@ def get_audit_payroll_periods():
 
 @audit_bp.route('/api/audit/payroll-verification', methods=['GET'])
 def get_payroll_verification():
-    if not check_access():
+    if not check_payroll_audit_access():
         return jsonify({'error': 'Forbidden'}), 403
 
     period_key = request.args.get('period_key')
@@ -495,7 +501,7 @@ def get_payroll_verification():
 
 @audit_bp.route('/api/audit/export-payroll-verification', methods=['GET'])
 def export_payroll_verification():
-    if not check_access():
+    if not check_payroll_audit_access():
         return jsonify({'error': 'Forbidden'}), 403
 
     period_key = request.args.get('period_key')

@@ -15,8 +15,7 @@ __pycache__/
 .env
 *.log
 
-# IDE & OS files
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+# Uploads
+Cloud/static/uploads/
+static/uploads/
+

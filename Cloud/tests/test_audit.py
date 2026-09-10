@@ -20,7 +20,7 @@ class TestAuditRoutes(unittest.TestCase):
         self.assertEqual(res.status_code, 403)
 
     def test_audit_authorized_roles(self):
-        roles = ['Auditor', 'Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']
+        roles = ['Auditor', 'Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer']
         
         # Insert a dummy payroll period if none exists
         with db_cursor(commit=True) as (conn, cur):
@@ -38,6 +38,14 @@ class TestAuditRoutes(unittest.TestCase):
             data = res.get_json()
             self.assertIn('periods', data)
             self.assertTrue(len(data['periods']) > 0, "Periods list should contain records")
+
+        # HR roles should return 403 Forbidden for payroll audit periods
+        for role in ['HR', 'HR Officer']:
+            with self.app.session_transaction() as sess:
+                sess['user'] = {'name': f'{role} User', 'role': role, 'employee_id': f'{role}-001'}
+
+            res = self.app.get('/api/audit/payroll-periods')
+            self.assertEqual(res.status_code, 403, f"Role {role} should be restricted from audit payroll periods")
 
         # Clean up test period
         with db_cursor(commit=True) as (conn, cur):

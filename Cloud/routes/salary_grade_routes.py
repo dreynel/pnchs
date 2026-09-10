@@ -8,8 +8,8 @@ salary_grade_bp = Blueprint('salary_grade', __name__, url_prefix='/api/salary_gr
 @salary_grade_bp.before_request
 def check_role_access():
     role = session.get('user', {}).get('role')
-    if role == 'Admin':
-        return jsonify({'error': 'Unauthorized: Admin does not have access to Salary Grades'}), 403
+    if role in ['Admin', 'HR', 'HR Officer']:
+        return jsonify({'error': 'Unauthorized: Access to Salary Grades is restricted'}), 403
     if request.method != 'GET' and role == 'Auditor':
         return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
