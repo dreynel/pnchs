@@ -13,7 +13,7 @@ BREVO_SMTP_HOST = os.getenv("BREVO_SMTP_HOST", "smtp-relay.brevo.com")
 BREVO_SMTP_PORT = int(os.getenv("BREVO_SMTP_PORT", 587))
 BREVO_SMTP_USER = os.getenv("BREVO_SMTP_LOGIN", "b8b3f7001@smtp-brevo.com")
 SENDER_NAME = os.getenv("SENDER_NAME", "PNCHS Human Resources")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "dreynel.07@gmail.com")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "jasperiansusarno9@gmail.com")
 
 def send_welcome_email(employee_data, username, password, async_send=True):
     """
