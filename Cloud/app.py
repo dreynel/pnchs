@@ -144,8 +144,8 @@ def dashboard():
 @login_required
 def pages(filename):
     role = session.get('user', {}).get('role')
-    if role == 'Admin' and filename in ['payroll.html', 'payroll_releasing.html']:
-        return jsonify({'error': 'Unauthorized page access: Admin does not have access to Payroll Processing or Releasing'}), 403
+    if role == 'Admin' and filename in ['employee.html', 'payroll.html', 'salary_grades.html', 'registry.html', 'payroll_releasing.html']:
+        return jsonify({'error': 'Unauthorized page access: Admin does not have access to Employee Registry, Payroll, Salary Grades, or Statutory Registry'}), 403
     if role == 'Employee' and filename not in ['dtr.html', 'mypayslip.html', 'leaves.html', 'holidays.html', 'dtr_content.html']:
         return jsonify({'error': 'Unauthorized page access'}), 403
     pages_dir = os.path.join(app.root_path, 'pages')
@@ -155,7 +155,7 @@ def pages(filename):
 @app.route('/employees')
 @login_required
 def employees():
-    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer']:
+    if session['user'].get('role') not in ['Principal', 'HR', 'HR Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/employee.html', title='Employees')
 
@@ -202,10 +202,9 @@ def leaves():
 @app.route('/salary_grades')
 @login_required
 def salary_grades():
-    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/salary_grades.html', title='Salary Grade Management')
-
 
 
 @app.route('/dtr')
@@ -238,7 +237,7 @@ def payroll_report():
 @app.route('/registry')
 @login_required
 def registry():
-    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/registry.html', title='Global Registry')
 
