@@ -1041,7 +1041,7 @@ def update_status(period_key):
 def releasing_list():
     from flask import session
     role = session.get('user', {}).get('role')
-    if role not in ['Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal', 'Auditor']:
+    if role not in ['Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     try:

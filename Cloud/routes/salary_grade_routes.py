@@ -10,8 +10,6 @@ def check_role_access():
     role = session.get('user', {}).get('role')
     if role in ['Admin', 'HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized: Access to Salary Grades is restricted'}), 403
-    if request.method != 'GET' and role == 'Auditor':
-        return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
 DEFAULT_THIRD_TRANCHE = [
     (1, None, 14634, 14730, 14849, 14968, 15089, 15211, 15333, 15456),

@@ -649,7 +649,6 @@
           <option value="Principal">Principal / Admin</option>
           <option value="HR Officer">HR Officer</option>
           <option value="Finance Officer">Finance Officer</option>
-          <option value="Auditor">Auditor</option>
           <option value="Employee">Employee (Staff)</option>
         </select>
         <select class="filter-select" id="bioFilter" onchange="filterAndRender()">
@@ -904,7 +903,6 @@
             <option value="Employee">Employee (Basic Access)</option>
             <option value="HR Officer">HR Officer (HR Access)</option>
             <option value="Finance Officer">Finance Officer (Finance Access)</option>
-            <option value="Auditor">Auditor (Oversight & Audit Access)</option>
             <option value="Principal">Principal (Admin Access)</option>
           </select>
         </div>
@@ -1000,12 +998,6 @@
   let enrolledFingers = 0;
 
   const uRole = $('#userRole').text().trim();
-  if (uRole === 'Auditor') {
-    $('.btn-add').hide();
-    // we also need to hide edit/delete in right panel. We'll hide them globally by class for now, or just ensure they are hidden.
-    // wait, right panel edit/delete buttons have classes btn-edit and btn-delete
-    $('<style>.btn-edit, .btn-delete { display: none !important; }</style>').appendTo('head');
-  }
 
   /* Toast (Swal mixin) */
   const Toast = Swal.mixin({

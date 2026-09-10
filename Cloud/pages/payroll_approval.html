@@ -478,9 +478,6 @@
   let activeTab = 'all';
 
   const uRole = $('#userRole').text().trim();
-  if (uRole === 'Auditor') {
-    $('<style>#btnApprove, #btnReject { display: none !important; }</style>').appendTo('head');
-  }
 
   function fmt(n) { return '₱' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function pad(str, len) { str = String(str); while (str.length < len) str = '&nbsp;' + str; return str; }

@@ -31,7 +31,7 @@ def get_approvals():
             # Role-tailored filtering
             if role in ['HR', 'HR Officer']:
                 query += " AND a.DocType='Leave'"
-            elif role in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer', 'Auditor']:
+            elif role in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer']:
                 query += " AND a.DocType='Payroll'"
             else:
                 return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR (Leaves) and Admin (Payroll Approvals).'}), 403

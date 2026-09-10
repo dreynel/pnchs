@@ -417,10 +417,6 @@
   let leaves=[], activeStatus='all', userRole='', userEmpId='';
 
   async function init() {
-    const uRole = $('#userRole').text().trim();
-    if (uRole === 'Auditor') {
-      $('<style>#btnAdjustCredits, [onclick^="openQuickAdjust"], [onclick^="reviewLeave"] { display: none !important; }</style>').appendTo('head');
-    }
     
     try {
       const me = await $.get(API_ME);

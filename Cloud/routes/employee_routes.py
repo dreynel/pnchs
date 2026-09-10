@@ -14,8 +14,6 @@ def check_role_access():
     role = session.get('user', {}).get('role')
     if role == 'Admin':
         return jsonify({'error': 'Unauthorized: Admin does not have access to Employee Registry'}), 403
-    if request.method != 'GET' and role == 'Auditor':
-        return jsonify({'error': 'Unauthorized: Auditors have read-only access'}), 403
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -71,8 +69,6 @@ def normalize_role(role_input):
         return 'HR'
     elif r_upper in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER', 'ACCOUNTANT', 'CASHIER']:
         return 'Finance'
-    elif r_upper in ['AUDITOR', 'AUDIT']:
-        return 'Auditor'
     return 'Employee'
 
 
@@ -190,7 +186,6 @@ def list_employees():
             if r == 'Admin': return 'Admin'
             if r == 'HR': return 'HR Officer'
             if r == 'Finance': return 'Finance Officer'
-            if r == 'Auditor': return 'Auditor'
             return 'Employee'
 
         return jsonify([{

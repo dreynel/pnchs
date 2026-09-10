@@ -247,11 +247,6 @@
 (function() {
   $(function() {
     loadSalaryGrades();
-    
-    const uRole = $('#userRole').text().trim();
-    if (uRole === 'Auditor') {
-      $('<style>[onclick="reseedSalaryGrades()"], [onclick^="openEditModal"], .btn-navy[onclick="saveSalaryGrade()"] { display: none !important; }</style>').appendTo('head');
-    }
   });
 
 let allSalaryGrades = [];

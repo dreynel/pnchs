@@ -20,7 +20,7 @@ class TestAuditRoutes(unittest.TestCase):
         self.assertEqual(res.status_code, 403)
 
     def test_audit_authorized_roles(self):
-        roles = ['Auditor', 'Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer']
+        roles = ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer']
         
         # Insert a dummy payroll period if none exists
         with db_cursor(commit=True) as (conn, cur):

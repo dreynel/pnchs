@@ -445,7 +445,7 @@
     </div>
 
     <nav>
-      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer', 'Auditor'] %}
+      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
       <div class="nav-section-label">Overview</div>
       <a href="#" class="nav-item active" onclick="navigate(event, this, 'Dashboard', '/pages/dashboard.html', '/dashboard')">
         <div class="nav-icon">
@@ -459,7 +459,7 @@
       {% endif %}
 
       <div class="nav-section-label">Workforce &amp; Leaves</div>
-      {% if user.role in ['Principal', 'HR', 'HR Officer', 'Auditor'] %}
+      {% if user.role in ['Principal', 'HR', 'HR Officer'] %}
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Employees', '/pages/employee.html', '/employees')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -479,7 +479,7 @@
         <span class="label">Leave Management</span>
       </a>
 
-      {% if user.role in ['Principal', 'Finance', 'Finance Officer', 'Auditor'] %}
+      {% if user.role in ['Principal', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Payroll &amp; Finance</div>
 
@@ -520,7 +520,7 @@
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Auditor', 'HR', 'HR Officer', 'Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'HR', 'HR Officer', 'Principal', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Governance</div>
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html', '/approvals')">
@@ -541,28 +541,28 @@
         <span class="label">Daily Time Record (DTR)</span>
       </a>
 
-      {% if user.role in ['Admin', 'Auditor', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Biometric Logs', '/pages/logs.html', '/logs')">
         <span class="nav-sub-dot"></span>
         <span class="label">Biometric Logs</span>
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report')">
         <span class="nav-sub-dot"></span>
         <span class="label">Payroll Report</span>
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Auditor', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail')">
         <span class="nav-sub-dot"></span>
         <span class="label">Audit Trail</span>
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Audit', '/pages/payroll_audit.html', '/payroll_audit')">
         <span class="nav-sub-dot"></span>
         <span class="label">Payroll Audit</span>

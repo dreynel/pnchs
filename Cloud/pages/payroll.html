@@ -617,9 +617,6 @@
     let activeTab = 'all';
 
     const uRole = $('#userRole').text().trim();
-    if (uRole === 'Auditor') {
-      $('#btnNewDoc').hide();
-    }
 
     function fmt(n) { return '₱' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function pad(str, len) { str = String(str); while (str.length < len) str = '&nbsp;' + str; return str; }
@@ -704,13 +701,8 @@
 
       const uRole = $('#userRole').text().trim();
       if (rec.status === 'Draft' || rec.status === 'Rejected') {
-          if (uRole !== 'Auditor') {
-              $('#btnSendApproval').show().text('Send for Approval').prop('disabled', false).css('opacity', '1');
-              $('#btnDeletePayroll').show();
-          } else {
-              $('#btnSendApproval').hide();
-              $('#btnDeletePayroll').hide();
-          }
+          $('#btnSendApproval').show().text('Send for Approval').prop('disabled', false).css('opacity', '1');
+          $('#btnDeletePayroll').show();
       } else {
           $('#btnSendApproval').show().text('✓ ' + rec.status).prop('disabled', true).css('opacity', '0.55');
           $('#btnDeletePayroll').hide();

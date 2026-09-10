@@ -7,7 +7,7 @@ audit_bp = Blueprint('audit', __name__)
 
 def check_access():
     user = session.get('user', {})
-    if user.get('role') not in ['Auditor', 'Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+    if user.get('role') not in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
         return False
     return True
 

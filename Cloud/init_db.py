@@ -427,8 +427,7 @@ def init():
         users = [
             ('admin', 'admin123', 'System Administrator', 'Admin', None),
             ('hr', 'hr1234', 'HR Officer', 'HR', None),
-            ('finance', 'finance123', 'Finance Officer', 'Finance', None),
-            ('auditor', 'Password123!', 'School Auditor', 'Auditor', None)
+            ('finance', 'finance123', 'Finance Officer', 'Finance', None)
         ]
         for u in users:
             cur.execute("SELECT id FROM tblusers WHERE username=%s", (u[0],))
