@@ -6,14 +6,14 @@ from contextlib import contextmanager
 DB_CONFIG = {
     "host":     os.getenv("DB_HOST", "localhost"),
     "database": os.getenv("DB_NAME", "dbpnchs"),
-    "user":     os.getenv("DB_USER", "root"),
-    "password": os.getenv("DB_PASSWORD", "007622"),
+    "user":     os.getenv("DB_USER", "pnchs_user"),
+    "password": os.getenv("DB_PASSWORD", "YourSecurePassword123!"),
     "charset":  "utf8mb4",
     "autocommit": False,
     "use_pure": True,
 }
 
-# Create a connection pool for local MySQL database
+# Create a connection pool for database
 connection_pool = None
 try:
     connection_pool = pooling.MySQLConnectionPool(
@@ -23,8 +23,22 @@ try:
         **DB_CONFIG
     )
 except Error as e:
-    print(f"Error initializing local database connection pool: {e}")
-    connection_pool = None
+    if not os.getenv("DB_USER"):
+        try:
+            DB_CONFIG["user"] = "root"
+            DB_CONFIG["password"] = "007622"
+            connection_pool = pooling.MySQLConnectionPool(
+                pool_name="local_db_pool",
+                pool_size=15,
+                pool_reset_session=True,
+                **DB_CONFIG
+            )
+        except Error as e2:
+            print(f"Error initializing database connection pool: {e2}")
+            connection_pool = None
+    else:
+        print(f"Error initializing database connection pool: {e}")
+        connection_pool = None
 
 def get_connection():
     """Open and return a new MySQL connection from pool or fresh connection."""
@@ -36,7 +50,15 @@ def get_connection():
             return conn
         except Exception:
             pass
-    return mysql.connector.connect(**DB_CONFIG)
+    try:
+        return mysql.connector.connect(**DB_CONFIG)
+    except Error:
+        if not os.getenv("DB_USER"):
+            fallback_cfg = dict(DB_CONFIG)
+            fallback_cfg["user"] = "root"
+            fallback_cfg["password"] = "007622"
+            return mysql.connector.connect(**fallback_cfg)
+        raise
 
 
 @contextmanager
