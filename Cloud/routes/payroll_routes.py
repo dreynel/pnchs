@@ -947,6 +947,7 @@ def delete_run(period_key):
             if rec['status'] not in ['Draft', 'Rejected']:
                 return jsonify({'error': 'Cannot delete an active or approved payroll.'}), 400
             cur.execute("DELETE FROM tblpayroll WHERE period_key=%s", (period_key,))
+            cur.execute("DELETE FROM tblapprovals WHERE DocType='Payroll' AND DocNumber=%s", (period_key,))
             AuditService.log_action(cur, 'PAYROLL_DELETED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblpayroll', old_value=period_key)
             conn.commit()
             return jsonify({'success': True})
@@ -1467,6 +1468,7 @@ def delete_leave(lid):
                 """, (leave['employee_id'], leave['leave_date'].strftime('%Y-%m-%d'), leave['leave_type'], f"CAN-LEAVE-{lid}", user.get('name', 'User')))
 
             cur.execute("DELETE FROM tblleaves WHERE id=%s", (lid,))
+            cur.execute("DELETE FROM tblapprovals WHERE DocType='Leave' AND DocNumber=%s", (str(lid),))
             return jsonify({'success': True, 'message': 'Leave request cancelled successfully.'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

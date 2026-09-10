@@ -544,23 +544,23 @@ def init():
                 cur.execute("""
                     INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, ApproverID, RequesterID, Title, Remarks, ApprovedAt, CreatedAt)
                     VALUES ('Payroll', %s, %s, 'Principal', %s, 'Finance', %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE ApprovalStatus=%s, ApproverID=%s, Remarks=%s, ApprovedAt=%s
+                    ON DUPLICATE KEY UPDATE ApprovalStatus=%s, ApproverID=%s, RequesterID='Finance', Remarks=%s, ApprovedAt=%s
                 """, (p['period_key'], st, p['approved_by'], f"Payroll Run - {p['period_key']}", p['remarks'], p['approved_at'], p['created_at'], st, p['approved_by'], p['remarks'], p['approved_at']))
 
             cur.execute("""
-                SELECT l.id, l.status, l.reason, l.reviewed_by, l.reviewed_at, l.filed_at, l.leave_type, l.leave_date,
+                SELECT l.id, l.employee_id, l.status, l.reason, l.reviewed_by, l.reviewed_at, l.filed_at, l.leave_type, l.leave_date,
                        CONCAT(e.first_name, ' ', e.last_name) AS emp_name
                 FROM tblleaves l
                 LEFT JOIN tblemployee e ON l.employee_id = e.employee_id
             """)
             for l in cur.fetchall():
-                emp_name = l['emp_name'] or 'Employee'
+                emp_name = l['emp_name'] or l['employee_id'] or 'Employee'
                 st = l['status'] if l['status'] in ['Approved', 'Rejected'] else 'Pending'
                 cur.execute("""
                     INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, ApproverID, RequesterID, Title, Remarks, ApprovedAt, CreatedAt)
                     VALUES ('Leave', %s, %s, 'HR', %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE ApprovalStatus=%s, ApproverID=%s, Remarks=%s, ApprovedAt=%s
-                """, (str(l['id']), st, l['reviewed_by'], emp_name, f"{l['leave_type']} Leave - {emp_name} ({l['leave_date']})", l['reason'], l['reviewed_at'], l['filed_at'], st, l['reviewed_by'], l['reason'], l['reviewed_at']))
+                    ON DUPLICATE KEY UPDATE ApprovalStatus=%s, ApproverID=%s, RequesterID=%s, Remarks=%s, ApprovedAt=%s
+                """, (str(l['id']), st, l['reviewed_by'], emp_name, f"{l['leave_type']} Leave - {emp_name} ({l['leave_date']})", l['reason'], l['reviewed_at'], l['filed_at'], st, l['reviewed_by'], emp_name, l['reason'], l['reviewed_at']))
         except Exception as sync_err:
             print(f"⚠️  Approvals sync warning: {sync_err}")
 

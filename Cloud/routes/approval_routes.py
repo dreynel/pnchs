@@ -12,15 +12,15 @@ def get_approvals():
         return jsonify({'error': 'Unauthorized'}), 401
 
     role = user.get('role', '')
-    status_filter = request.args.get('status', 'Pending').strip()
+    status_filter = request.args.get('status', 'all').strip()
     doc_type_filter = request.args.get('doc_type', '').strip()
 
     try:
         with db_cursor() as (conn, cur):
             query = """
                 SELECT a.*, 
-                       p.year AS pr_year, p.month AS pr_month, p.half AS pr_half, p.status AS pr_status,
-                       l.leave_type AS lv_type, l.leave_date AS lv_date, l.reason AS lv_reason, l.employee_id AS lv_emp_id, l.attachment AS lv_attachment
+                       p.year AS pr_year, p.month AS pr_month, p.half AS pr_half, p.status AS pr_status, p.approved_by AS pr_approved_by, p.approved_at AS pr_approved_at,
+                       l.leave_type AS lv_type, l.leave_date AS lv_date, l.reason AS lv_reason, l.employee_id AS lv_emp_id, l.attachment AS lv_attachment, l.reviewed_by AS lv_reviewed_by, l.reviewed_at AS lv_reviewed_at
                 FROM tblapprovals a
                 LEFT JOIN tblpayroll p ON a.DocType='Payroll' AND a.DocNumber=p.period_key
                 LEFT JOIN tblleaves l ON a.DocType='Leave' AND a.DocNumber=CAST(l.id AS CHAR)
@@ -31,7 +31,7 @@ def get_approvals():
             # Role-tailored filtering
             if role in ['HR', 'HR Officer']:
                 query += " AND a.DocType='Leave'"
-            elif role == 'Admin':
+            elif role in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer', 'Auditor']:
                 query += " AND a.DocType='Payroll'"
             else:
                 return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR (Leaves) and Admin (Payroll Approvals).'}), 403
@@ -51,17 +51,19 @@ def get_approvals():
 
             approvals = []
             for r in rows:
+                app_date = r['ApprovedAt'] or r.get('pr_approved_at') or r.get('lv_reviewed_at')
+                approver = r['ApproverID'] or r.get('pr_approved_by') or r.get('lv_reviewed_by')
                 item = {
                     'ApprovalID': r['ApprovalID'],
                     'DocType': r['DocType'],
                     'DocNumber': r['DocNumber'],
                     'ApprovalStatus': r['ApprovalStatus'],
                     'ApproverRole': r['ApproverRole'],
-                    'ApproverID': r['ApproverID'],
+                    'ApproverID': approver,
                     'RequesterID': r['RequesterID'],
                     'Title': r['Title'],
                     'Remarks': r['Remarks'],
-                    'ApprovedAt': r['ApprovedAt'].strftime('%b %d, %Y %I:%M %p') if r['ApprovedAt'] else None,
+                    'ApprovedAt': app_date.strftime('%b %d, %Y %I:%M %p') if app_date else None,
                     'CreatedAt': r['CreatedAt'].strftime('%b %d, %Y %I:%M %p') if r['CreatedAt'] else None
                 }
 
@@ -233,7 +235,7 @@ def approval_action(approval_id):
         return jsonify({'error': 'Unauthorized'}), 401
 
     role = user.get('role', '')
-    if role not in ['Admin', 'HR', 'HR Officer']:
+    if role not in ['Admin', 'Administrator', 'Principal', 'HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR (Leaves) and Admin (Payroll Approvals).'}), 403
 
     user_name = user.get('name', 'Approver')
@@ -254,7 +256,7 @@ def approval_action(approval_id):
             doc_type = approval['DocType']
             doc_number = approval['DocNumber']
 
-            if doc_type == 'Payroll' and role != 'Admin':
+            if doc_type == 'Payroll' and role not in ['Admin', 'Administrator', 'Principal']:
                 return jsonify({'error': 'Unauthorized: Payroll approvals are reserved for Admin only.'}), 403
             elif doc_type == 'Leave' and role not in ['HR', 'HR Officer']:
                 return jsonify({'error': 'Unauthorized: Leave approvals are reserved for HR only.'}), 403
@@ -276,9 +278,10 @@ def approval_action(approval_id):
                 AuditService.log_action(cur, audit_tag, user_name=user_name, target_table='tblpayroll', new_value=doc_number)
 
             elif doc_type == 'Leave':
-                leave_id = int(doc_number)
-                cur.execute("SELECT * FROM tblleaves WHERE id=%s", (leave_id,))
-                leave = cur.fetchone()
+                leave_id = int(doc_number) if (doc_number and str(doc_number).isdigit()) else 0
+                if leave_id > 0:
+                    cur.execute("SELECT * FROM tblleaves WHERE id=%s", (leave_id,))
+                    leave = cur.fetchone()
                 if leave:
                     old_status = leave['status']
                     emp_id = leave['employee_id']

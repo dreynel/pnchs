@@ -222,7 +222,7 @@
 
   window.loadApprovals = function() {
     $('#docList').html('<div class="empty-state">Loading approvals...</div>');
-    $.get('/api/approvals', function(res) {
+    $.get('/api/approvals?status=all', function(res) {
       if (res.success) {
         allApprovals = res.approvals || [];
         renderList();
@@ -269,7 +269,7 @@
           <span class="type-badge ${typeClass}">${a.DocType}</span>
           <div class="doc-title">${a.Title}</div>
           <div class="doc-meta">
-            <span>Req: ${a.RequesterID || 'System'}</span>
+            <span>Owner: ${a.RequesterID || 'System'}</span>
             <span class="status-pill ${statusClass}">${a.ApprovalStatus}</span>
           </div>
         </div>
@@ -303,7 +303,12 @@
     $('#detailBadge').attr('class', `type-badge ${activeApproval.DocType.toLowerCase()}`).text(activeApproval.DocType);
     $('#detailStatus').attr('class', `status-pill ${activeApproval.ApprovalStatus.toLowerCase()}`).text(activeApproval.ApprovalStatus);
     $('#detailTitle').text(activeApproval.Title);
-    $('#detailSub').text(`Submitted by ${activeApproval.RequesterID || 'System'} · ${activeApproval.CreatedAt || ''}`);
+    
+    let subText = `Owner: ${activeApproval.RequesterID || 'System'} · Filed: ${activeApproval.CreatedAt || ''}`;
+    if (activeApproval.ApprovalStatus !== 'Pending' && activeApproval.ApproverID) {
+      subText += ` · ${activeApproval.ApprovalStatus} by ${activeApproval.ApproverID}${activeApproval.ApprovedAt ? ' on ' + activeApproval.ApprovedAt : ''}`;
+    }
+    $('#detailSub').text(subText);
 
     if (activeApproval.ApprovalStatus === 'Pending') {
       $('#actionBtnWrap').show();

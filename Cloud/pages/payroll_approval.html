@@ -475,7 +475,7 @@
   let payrollData = null;
   let records = [];
   let activeKey = null;
-  let activeTab = 'for approval';
+  let activeTab = 'all';
 
   const uRole = $('#userRole').text().trim();
   if (uRole === 'Auditor') {
@@ -537,7 +537,7 @@
         <div class="doc-period">${r.period}</div>
         <div class="doc-meta">
           <span>Faculty Payroll</span>
-          <span class="dtr-pill" style="background:${sBgs[r.status.toLowerCase()]};color:${sColors[r.status.toLowerCase()]};">${r.status}</span>
+          <span class="dtr-pill" style="background:${sBgs[r.status.toLowerCase()] || 'var(--surface2)'};color:${sColors[r.status.toLowerCase()] || 'var(--muted)'};">${r.status}</span>
         </div>
       </div>
     `).join(''));
@@ -568,12 +568,12 @@
         $('#btnReject').show();
         $('#btnApprove').show();
       } else {
-        const approvedMeta = (rec.status==='Approved' && rec.approved_by)
-          ? `✓ ${rec.status} by ${rec.approved_by}${rec.approved_at ? ' · '+rec.approved_at : ''}`
+        const approvedMeta = rec.approved_by
+          ? `${rec.status === 'Approved' ? '✓ Approved' : '✕ Rejected'} by ${rec.approved_by}${rec.approved_at ? ' · '+rec.approved_at : ''}`
           : rec.status;
         $('#lblStatus').show().text(approvedMeta)
-          .css('background', rec.status==='Approved' ? 'var(--green-dim)' : 'var(--surface2)')
-          .css('color', rec.status==='Approved' ? 'var(--green)' : 'var(--muted)');
+          .css('background', rec.status==='Approved' ? 'var(--green-dim)' : (rec.status==='Rejected' ? 'var(--red-dim)' : 'var(--surface2)'))
+          .css('color', rec.status==='Approved' ? 'var(--green)' : (rec.status==='Rejected' ? 'var(--red)' : 'var(--muted)'));
       }
 
       const rows = data.employees.map(e => `
