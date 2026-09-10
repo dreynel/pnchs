@@ -106,6 +106,7 @@ def login():
                     'role': user_role,
                     'employee_id': emp['employee_id']
                 }
+                session['just_logged_in'] = True
                 
                 AuditService.log_action(cur, 'LOGIN_SUCCESS', user_name=display_name, ip_address=request.remote_addr)
 

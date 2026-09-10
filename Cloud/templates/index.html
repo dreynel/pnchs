@@ -882,14 +882,141 @@
       loadPage(initialPage);
 
       $(`.nav-item[onclick*="${initialPage}"], .nav-sub-item[onclick*="${initialPage}"]`).addClass('active');
-
-      // Display Successful Login Toast Notification for all roles
-      setTimeout(function() {
-        showLiveToast("Successful login! Welcome back, <strong>{{ user.name }}</strong> ({{ user.role }}).", "🔑");
-      }, 500);
-
     });
   </script>
+
+  <!-- Full-Screen Successful Login Welcome Overlay (All Roles) -->
+  {% if session.pop('just_logged_in', False) or just_logged_in %}
+  <div id="loginWelcomeOverlay" class="login-welcome-overlay">
+    <div class="login-welcome-card">
+      <div class="welcome-icon-ring">
+        <svg width="42" height="42" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <div class="welcome-badge">AUTHENTICATION SUCCESSFUL</div>
+      <h1 class="welcome-title">Welcome Back, {{ user.name }}!</h1>
+      <p class="welcome-sub">Logged in as <strong>{{ user.role }}</strong> • Session Verified</p>
+      
+      <div class="welcome-details">
+        <div class="wd-item">
+          <span class="wd-label">User Account:</span>
+          <span class="wd-val">{{ user.email }}</span>
+        </div>
+        <div class="wd-item">
+          <span class="wd-label">System Role:</span>
+          <span class="wd-val" style="color:var(--accent, #c8973a);">{{ user.role }}</span>
+        </div>
+        <div class="wd-item">
+          <span class="wd-label">Portal Status:</span>
+          <span class="wd-val" style="color:#10b981;">✓ Active Session</span>
+        </div>
+      </div>
+
+      <div class="welcome-progress-bar">
+        <div class="welcome-progress-fill" id="welcomeProgressFill"></div>
+      </div>
+
+      <button class="welcome-btn" onclick="dismissWelcomeOverlay()">
+        Continue to Portal &rarr;
+      </button>
+    </div>
+  </div>
+
+  <style>
+    .login-welcome-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 999999;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      animation: fadeInOverlay 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeInOverlay {
+      from { opacity: 0; backdrop-filter: blur(0px); }
+      to { opacity: 1; backdrop-filter: blur(16px); }
+    }
+    .login-welcome-card {
+      background: linear-gradient(145deg, #1e3a5f 0%, #0f172a 100%);
+      border: 1.5px solid rgba(200, 151, 58, 0.4);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(200, 151, 58, 0.15);
+      border-radius: 24px; padding: 36px 32px;
+      width: 100%; max-width: 460px;
+      text-align: center; color: #ffffff;
+      position: relative; overflow: hidden;
+      animation: popUpCard 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popUpCard {
+      from { opacity: 0; transform: scale(0.85) translateY(20px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .welcome-icon-ring {
+      width: 76px; height: 76px; margin: 0 auto 18px;
+      border-radius: 50%; background: rgba(16, 185, 129, 0.15);
+      border: 2px solid #10b981; color: #10b981;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
+      animation: pulseRing 2s infinite;
+    }
+    @keyframes pulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      70% { box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .welcome-badge {
+      display: inline-block; font-size: 10px; font-weight: 800;
+      letter-spacing: 2px; color: #c8973a;
+      background: rgba(200, 151, 58, 0.15); border: 1px solid rgba(200, 151, 58, 0.3);
+      padding: 4px 12px; border-radius: 20px; margin-bottom: 12px;
+    }
+    .welcome-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.75rem; font-weight: 700; margin: 0 0 6px 0; color: #ffffff;
+    }
+    .welcome-sub { font-size: 12.5px; color: rgba(255, 255, 255, 0.7); margin-bottom: 20px; }
+    .welcome-details {
+      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px; padding: 12px 16px; margin-bottom: 20px; text-align: left;
+    }
+    .wd-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.1); font-size: 12px;
+    }
+    .wd-item:last-child { border-bottom: none; }
+    .wd-label { color: rgba(255, 255, 255, 0.6); font-weight: 500; }
+    .wd-val { font-weight: 700; color: #ffffff; }
+    .welcome-progress-bar {
+      height: 4px; background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px; overflow: hidden; margin-bottom: 18px;
+    }
+    .welcome-progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #c8973a, #10b981);
+      transition: width 2.5s linear;
+    }
+    .welcome-btn {
+      width: 100%; padding: 11px; border-radius: 12px;
+      background: linear-gradient(135deg, #c8973a 0%, #a67c2e 100%);
+      color: #ffffff; font-weight: 700; font-size: 13px; border: none;
+      cursor: pointer; box-shadow: 0 4px 15px rgba(200, 151, 58, 0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .welcome-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(200, 151, 58, 0.4); }
+  </style>
+
+  <script>
+    function dismissWelcomeOverlay() {
+      $('#loginWelcomeOverlay').fadeOut(350, function() { $(this).remove(); });
+    }
+    $(function() {
+      setTimeout(function() { $('#welcomeProgressFill').css('width', '100%'); }, 50);
+      setTimeout(function() { dismissWelcomeOverlay(); }, 2700);
+    });
+  </script>
+  {% endif %}
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
