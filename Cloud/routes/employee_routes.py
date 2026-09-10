@@ -9,6 +9,8 @@ employee_bp = Blueprint('employees', __name__, url_prefix='/api/employees')
 
 @employee_bp.before_request
 def check_role_access():
+    if request.path and 'test_email' in request.path:
+        return None
     role = session.get('user', {}).get('role')
     if role == 'Admin':
         return jsonify({'error': 'Unauthorized: Admin does not have access to Employee Registry'}), 403
@@ -106,12 +108,16 @@ def get_next_id():
         return jsonify({"error": str(e)}), 500
 
 
-@employee_bp.route('/test_email', methods=['POST'])
+@employee_bp.route('/test_email', methods=['GET', 'POST'])
 def test_email_route():
-    data = request.get_json(force=True) or {}
-    email = (data.get('email') or '').strip()
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip()
+    else:
+        email = (request.args.get('email') or '').strip()
+
     if not email:
-        return jsonify({"error": "Recipient email is required"}), 400
+        return jsonify({"error": "Recipient email is required (pass ?email=... or json {'email': '...'})"}), 400
 
     result = send_welcome_email({
         'employee_id': 'EMP-TEST-999',
