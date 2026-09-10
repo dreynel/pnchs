@@ -15,16 +15,16 @@ BREVO_SMTP_USER = os.getenv("BREVO_SMTP_LOGIN", "b8b3f7001@smtp-brevo.com")
 SENDER_NAME = os.getenv("SENDER_NAME", "PNCHS Human Resources")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "b8b3f7001@smtp-brevo.com")
 
-def send_welcome_email(employee_data, username, password):
+def send_welcome_email(employee_data, username, password, async_send=True):
     """
     Sends account activation welcome email to newly created employee via Brevo API / SMTP.
-    Executed in a background thread to prevent UI response delay.
+    If async_send is True, runs in a background thread to prevent UI response delay.
     """
-    def _async_send():
+    def _do_send():
         email = (employee_data.get('email') or '').strip()
         if not email:
             print("[EmailService] No email address provided for employee.")
-            return
+            return {"success": False, "error": "No email address provided"}
 
         emp_id = employee_data.get('employee_id') or employee_data.get('id', 'N/A')
         first_name = employee_data.get('first_name', '')
@@ -100,8 +100,10 @@ def send_welcome_email(employee_data, username, password):
             }
             resp = requests.post(url, json=payload, headers=headers, timeout=10)
             if resp.status_code in [200, 201, 202]:
-                print(f"[Brevo API] Welcome email sent successfully to {email} ({resp.status_code})")
-                return
+                data = resp.json() if resp.text else {}
+                msg_id = data.get("messageId", "")
+                print(f"[Brevo API] Welcome email sent successfully to {email} ({resp.status_code}) ID: {msg_id}")
+                return {"success": True, "method": "Brevo REST API", "status_code": resp.status_code, "messageId": msg_id}
             else:
                 print(f"[Brevo API] API response {resp.status_code}: {resp.text}. Falling back to SMTP...")
         except Exception as api_err:
@@ -120,8 +122,14 @@ def send_welcome_email(employee_data, username, password):
                 server.login(BREVO_SMTP_USER, BREVO_API_KEY)
                 server.sendmail(SENDER_EMAIL, [email], msg.as_string())
             print(f"[Brevo SMTP] Welcome email sent successfully to {email}")
+            return {"success": True, "method": "Brevo SMTP"}
         except Exception as smtp_err:
             print(f"[Brevo SMTP Error] Failed to send email to {email}: {smtp_err}")
+            return {"success": False, "error": str(smtp_err)}
 
-    t = threading.Thread(target=_async_send, daemon=True)
-    t.start()
+    if async_send:
+        t = threading.Thread(target=_do_send, daemon=True)
+        t.start()
+        return {"success": True, "queued": True}
+    else:
+        return _do_send()

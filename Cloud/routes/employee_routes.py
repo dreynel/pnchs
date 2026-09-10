@@ -106,6 +106,25 @@ def get_next_id():
         return jsonify({"error": str(e)}), 500
 
 
+@employee_bp.route('/test_email', methods=['POST'])
+def test_email_route():
+    data = request.get_json(force=True) or {}
+    email = (data.get('email') or '').strip()
+    if not email:
+        return jsonify({"error": "Recipient email is required"}), 400
+
+    result = send_welcome_email({
+        'employee_id': 'EMP-TEST-999',
+        'first_name': 'Test',
+        'last_name': 'User',
+        'email': email,
+        'designation': 'Test Staff',
+        'employment_status': 'Active'
+    }, 'testuser', 'testpass123', async_send=False)
+
+    return jsonify(result)
+
+
 
 # ── LIST ───────────────────────────────────────────────────────────────────────
 @employee_bp.route('/', methods=['GET'])
