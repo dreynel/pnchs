@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, session
 from mysql.connector import Error
 from db import db_cursor
 from services.policy_engine import AuditService
+from services.email_service import send_welcome_email
 import json
 
 employee_bp = Blueprint('employees', __name__, url_prefix='/api/employees')
@@ -287,6 +288,16 @@ def create_employee():
             )
             
             AuditService.log_action(cur, 'EMPLOYEE_CREATED', employee_id=new_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=new_id, new_value=json.dumps(data))
+            
+            # Send welcome & account activation email via Brevo
+            send_welcome_email({
+                'employee_id': new_id,
+                'first_name': data['first_name'].strip(),
+                'last_name': data['last_name'].strip(),
+                'email': data['email'].strip(),
+                'designation': data['designation'].strip(),
+                'employment_status': emp_status
+            }, username, password)
             cur.execute("""
                 SELECT e.*, u.role as system_role
                 FROM tblemployee e
