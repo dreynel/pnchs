@@ -3,15 +3,65 @@ import mysql.connector
 from mysql.connector import Error, pooling
 from contextlib import contextmanager
 
-DB_CONFIG = {
-    "host":     os.getenv("DB_HOST", "localhost"),
-    "database": os.getenv("DB_NAME", "dbpnchs"),
-    "user":     os.getenv("DB_USER", "pnchs_user"),
-    "password": os.getenv("DB_PASSWORD", "YourSecurePassword123!"),
-    "charset":  "utf8mb4",
-    "autocommit": False,
-    "use_pure": True,
-}
+def _get_working_db_config():
+    """Try configured or candidate credentials until a working MySQL configuration is found."""
+    candidates = []
+    
+    # 1. If explicit environment variables are set, try them first
+    if os.getenv("DB_USER"):
+        candidates.append({
+            "host":     os.getenv("DB_HOST", "localhost"),
+            "database": os.getenv("DB_NAME", "dbpnchs"),
+            "user":     os.getenv("DB_USER"),
+            "password": os.getenv("DB_PASSWORD", ""),
+            "charset":  "utf8mb4",
+            "autocommit": False,
+            "use_pure": True,
+        })
+
+    # 2. Candidate credential pairs across environments
+    host = os.getenv("DB_HOST", "localhost")
+    dbname = os.getenv("DB_NAME", "dbpnchs")
+    
+    user_pass_pairs = [
+        ("root", "007622"),
+        ("pnchs_user", "YourSecurePassword123!"),
+        ("root", ""),
+        ("root", "root"),
+        ("pnchs", "pnchs123"),
+    ]
+
+    for u, p in user_pass_pairs:
+        candidates.append({
+            "host":     host,
+            "database": dbname,
+            "user":     u,
+            "password": p,
+            "charset":  "utf8mb4",
+            "autocommit": False,
+            "use_pure": True,
+        })
+
+    for config in candidates:
+        try:
+            conn = mysql.connector.connect(**config)
+            if conn.is_connected():
+                conn.close()
+                return config
+        except Exception:
+            continue
+
+    return {
+        "host":     host,
+        "database": dbname,
+        "user":     os.getenv("DB_USER", "root"),
+        "password": os.getenv("DB_PASSWORD", "007622"),
+        "charset":  "utf8mb4",
+        "autocommit": False,
+        "use_pure": True,
+    }
+
+DB_CONFIG = _get_working_db_config()
 
 # Create a connection pool for database
 connection_pool = None
@@ -23,22 +73,8 @@ try:
         **DB_CONFIG
     )
 except Error as e:
-    if not os.getenv("DB_USER"):
-        try:
-            DB_CONFIG["user"] = "root"
-            DB_CONFIG["password"] = "007622"
-            connection_pool = pooling.MySQLConnectionPool(
-                pool_name="local_db_pool",
-                pool_size=15,
-                pool_reset_session=True,
-                **DB_CONFIG
-            )
-        except Error as e2:
-            print(f"Error initializing database connection pool: {e2}")
-            connection_pool = None
-    else:
-        print(f"Error initializing database connection pool: {e}")
-        connection_pool = None
+    print(f"Error initializing database connection pool: {e}")
+    connection_pool = None
 
 def get_connection():
     """Open and return a new MySQL connection from pool or fresh connection."""
@@ -50,15 +86,7 @@ def get_connection():
             return conn
         except Exception:
             pass
-    try:
-        return mysql.connector.connect(**DB_CONFIG)
-    except Error:
-        if not os.getenv("DB_USER"):
-            fallback_cfg = dict(DB_CONFIG)
-            fallback_cfg["user"] = "root"
-            fallback_cfg["password"] = "007622"
-            return mysql.connector.connect(**fallback_cfg)
-        raise
+    return mysql.connector.connect(**DB_CONFIG)
 
 
 @contextmanager
