@@ -144,11 +144,7 @@ def dashboard():
 @login_required
 def pages(filename):
     role = session.get('user', {}).get('role')
-    if role == 'Admin' and filename in ['employee.html', 'payroll.html', 'salary_grades.html', 'registry.html', 'payroll_releasing.html']:
-        return jsonify({'error': 'Unauthorized page access'}), 403
-    if filename == 'approvals.html' and role not in ['Admin', 'HR', 'HR Officer']:
-        return jsonify({'error': 'Unauthorized page access'}), 403
-    if filename == 'payroll_releasing.html' and role not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
+    if role == 'Employee' and filename not in ['dtr.html', 'mypayslip.html', 'leaves.html', 'holidays.html', 'dtr_content.html']:
         return jsonify({'error': 'Unauthorized page access'}), 403
     pages_dir = os.path.join(app.root_path, 'pages')
     return send_from_directory(pages_dir, filename)
@@ -157,7 +153,7 @@ def pages(filename):
 @app.route('/employees')
 @login_required
 def employees():
-    if session['user'].get('role') not in ['Principal', 'HR', 'HR Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/employee.html', title='Employees')
 
@@ -165,16 +161,17 @@ def employees():
 @app.route('/payroll')
 @login_required
 def payroll():
-    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/payroll.html', title='Payroll Processing')
 
 @app.route('/payroll_releasing')
 @login_required
 def payroll_releasing():
-    if session['user'].get('role') not in ['Principal', 'Finance', 'Finance Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/payroll_releasing.html', title='Payroll Releasing')
+
 
 @app.route('/approvals')
 @app.route('/payroll_approvals')
@@ -188,7 +185,7 @@ def approvals():
 @app.route('/holidays')
 @login_required
 def holidays():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer', 'Auditor']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/holidays.html', title='Holiday Calendar')
 
@@ -214,6 +211,15 @@ def dtr():
     return render_template('index.html', user=session['user'], initial_page='/pages/dtr.html', title='DTR')
 
 
+@app.route('/logs')
+@app.route('/biometric_logs')
+@login_required
+def logs():
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html', user=session['user'], initial_page='/pages/logs.html', title='Biometric Logs')
+
+
 @app.route('/mypayslip')
 @login_required
 def mypayslip():
@@ -237,9 +243,17 @@ def registry():
 @app.route('/audit_trail')
 @login_required
 def audit_trail():
-    if session['user'].get('role') not in ['Auditor', 'Admin', 'Principal']:
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
     return render_template('index.html', user=session['user'], initial_page='/pages/audit_trail.html', title='Audit Trail')
+
+
+@app.route('/payroll_audit')
+@login_required
+def payroll_audit():
+    if session['user'].get('role') not in ['Admin', 'Auditor', 'Principal', 'Finance', 'Finance Officer', 'HR', 'HR Officer']:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html', user=session['user'], initial_page='/pages/payroll_audit.html', title='Payroll Audit')
 
 
 @app.route('/api/auth/me')
