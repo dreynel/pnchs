@@ -5,13 +5,11 @@ from services.policy_engine import AuditService
 
 salary_grade_bp = Blueprint('salary_grade', __name__, url_prefix='/api/salary_grades')
 
-@salary_grade_bp.before_request
-def check_role_access():
-    if (request.endpoint and 'lookup' in request.endpoint) or (request.path and 'lookup' in request.path):
-        return None
+def _check_salary_grade_access():
     role = session.get('user', {}).get('role')
     if role in ['Admin', 'HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized: Access to Salary Grades is restricted'}), 403
+    return None
 
 DEFAULT_THIRD_TRANCHE = [
     (1, None, 14634, 14730, 14849, 14968, 15089, 15211, 15333, 15456),
@@ -53,6 +51,10 @@ DEFAULT_THIRD_TRANCHE = [
 @salary_grade_bp.route('/', methods=['GET'])
 def get_all_salary_grades():
     """Retrieve full salary grade schedule (Grades 1-33), auto-seeding if empty."""
+    err = _check_salary_grade_access()
+    if err:
+        return err
+
     try:
         with db_cursor() as (conn, cur):
             cur.execute("""
@@ -95,6 +97,10 @@ def get_all_salary_grades():
 @salary_grade_bp.route('/<int:sg>', methods=['GET'])
 def get_salary_grade(sg):
     """Retrieve single salary grade row details."""
+    err = _check_salary_grade_access()
+    if err:
+        return err
+
     try:
         with db_cursor() as (conn, cur):
             cur.execute("SELECT * FROM tblsalary_grades WHERE salary_grade = %s", (sg,))
@@ -108,6 +114,10 @@ def get_salary_grade(sg):
 @salary_grade_bp.route('/<int:sg>', methods=['PUT'])
 def update_salary_grade(sg):
     """Update step values and position title for a specific salary grade."""
+    err = _check_salary_grade_access()
+    if err:
+        return err
+
     data = request.json or {}
     position_title = data.get('position_title')
     steps = [data.get(f'step_{i}') for i in range(1, 9)]
@@ -169,6 +179,10 @@ def lookup_rate():
 @salary_grade_bp.route('/reseed', methods=['POST'])
 def reseed_salary_grades():
     """Reseed/reset all salary grade rates to official Third Tranche defaults."""
+    err = _check_salary_grade_access()
+    if err:
+        return err
+
     try:
         with db_cursor() as (conn, cur):
             for row in DEFAULT_THIRD_TRANCHE:
