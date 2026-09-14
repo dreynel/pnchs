@@ -471,7 +471,7 @@
             <div class="pr-audit-meta">${auditText}</div>
             <div style="display:flex; gap:8px;">
               <button class="btn-view-details" onclick="openDetailsModal('${r.key}', '${r.period}')">📄 View Employees</button>
-              ${isApproved ? `<button class="btn-release" onclick="openReleaseModal('${r.key}', '${r.period}', ${r.total_employees}, ${r.total_net_pay})">🚀 Release Payroll</button>` : ''}
+              ${isPending ? `<button class="btn-release" onclick="openReleaseModal('${r.key}', '${r.period}', ${r.total_employees}, ${r.total_net_pay})">🚀 Release Payroll</button>` : ''}
             </div>
           </div>
         </div>

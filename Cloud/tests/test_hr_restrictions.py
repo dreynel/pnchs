@@ -43,5 +43,12 @@ class HRRestrictionsTestCase(unittest.TestCase):
             res = self.app.get(path)
             self.assertEqual(res.status_code, 403)
 
+    def test_hr_can_lookup_salary_grade(self):
+        with self.app.session_transaction() as sess:
+            sess['user'] = {'role': 'HR', 'username': 'hr_test'}
+
+        res = self.app.get('/api/salary_grades/lookup?salary_grade=11&step=1')
+        self.assertNotEqual(res.status_code, 403)
+
 if __name__ == '__main__':
     unittest.main()
