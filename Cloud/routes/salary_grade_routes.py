@@ -7,7 +7,7 @@ salary_grade_bp = Blueprint('salary_grade', __name__, url_prefix='/api/salary_gr
 
 @salary_grade_bp.before_request
 def check_role_access():
-    if request.path and 'lookup' in request.path:
+    if (request.endpoint and 'lookup' in request.endpoint) or (request.path and 'lookup' in request.path):
         return None
     role = session.get('user', {}).get('role')
     if role in ['Admin', 'HR', 'HR Officer']:
