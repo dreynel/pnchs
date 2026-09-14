@@ -949,11 +949,16 @@
           </div>
         </div>
 
-        <!-- Add Button -->
-        <button type="button" class="btn-ph-add" id="btnAddPh">
-          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-          Add Pay Head Item
-        </button>
+        <!-- Add Buttons -->
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn-ph-add" id="btnAddPh">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            Add Pay Head Item
+          </button>
+          <button type="button" class="btn-ph-add" id="btnAutoComputePh" style="background:var(--surface2); color:var(--navy); border:1px solid var(--border);">
+            ⚡ Auto-Compute Standard Payheads
+          </button>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1311,6 +1316,14 @@
 
   function addPhRow(ph = { pay_head: '', amount: 0, category: 'Earning', mode: 'Amount', percentage_value: 0 }) {
     const isBasic = ph.pay_head === 'Basic Salary';
+
+    if (!isBasic && ph.mode === 'Percentage' && ph.percentage_value && (!ph.amount || ph.amount == 0)) {
+      const bs = getBasicSalary();
+      if (bs > 0) {
+        ph.amount = (bs * (parseFloat(ph.percentage_value) / 100)).toFixed(2);
+      }
+    }
+
     const rowHtml = `
       <div class="ph-form-row ${isBasic ? 'is-basic-row' : ''}">
         <div style="display:flex; flex-direction:column; gap:3px; flex:1.2; min-width:0;">
@@ -1347,7 +1360,11 @@
 
   // ── Auto-compute logic ───────────────────────────────────────────────────
   function getBasicSalary() {
-    return parseFloat($('#phFormRows .ph-form-row:first [data-ph-amount]').val()) || 0;
+    let bsRow = $('#phFormRows .ph-form-row').filter(function() {
+      return $(this).find('[data-ph-name]').val() === 'Basic Salary';
+    });
+    if (!bsRow.length) bsRow = $('#phFormRows .ph-form-row:first');
+    return parseFloat(bsRow.find('[data-ph-amount]').val()) || 0;
   }
 
   $(document).on('change', '.ph-mode', function() {
@@ -1410,6 +1427,45 @@
   // Add pay head row button
   $(document).on('click', '#btnAddPh', function () { addPhRow(); });
 
+  function autoComputeStandardPayheads() {
+    const bs = getBasicSalary();
+    if (bs <= 0) {
+      alert('Please select a Salary Grade or enter a Basic Salary first.');
+      return;
+    }
+
+    const standardPayheads = [
+      { pay_head: 'PERA', description: 'Personal Economic Relief Allowance', amount: 2000, category: 'Earning', mode: 'Amount', percentage_value: 0 },
+      { pay_head: 'GSIS Premium', description: 'GSIS Employee Share (9%)', amount: (bs * 0.09).toFixed(2), category: 'Deduction', mode: 'Percentage', percentage_value: 9 },
+      { pay_head: 'PhilHealth', description: 'PhilHealth Employee Share (2.5%)', amount: (bs * 0.025).toFixed(2), category: 'Deduction', mode: 'Percentage', percentage_value: 2.5 },
+      { pay_head: 'Pag-IBIG Fund', description: 'Pag-IBIG Employee Share (2%)', amount: Math.min(bs * 0.02, 100).toFixed(2), category: 'Deduction', mode: 'Percentage', percentage_value: 2 }
+    ];
+
+    standardPayheads.forEach(std => {
+      let existingRow = $('#phFormRows .ph-form-row').filter(function() {
+        const name = ($(this).find('[data-ph-name]').val() || '').toLowerCase();
+        return name.includes(std.pay_head.toLowerCase()) || 
+               (std.pay_head === 'GSIS Premium' && name.includes('gsis')) || 
+               (std.pay_head === 'PhilHealth' && name.includes('philhealth')) || 
+               (std.pay_head === 'Pag-IBIG Fund' && name.includes('pag-ibig'));
+      });
+
+      if (existingRow.length) {
+        existingRow.find('[data-ph-mode]').val(std.mode);
+        existingRow.find('[data-ph-pct]').val(std.percentage_value).prop('disabled', std.mode === 'Amount');
+        existingRow.find('[data-ph-amount]').val(std.amount).trigger('input');
+      } else {
+        addPhRow(std);
+      }
+    });
+
+    updateModalPayheadTotals();
+  }
+
+  $(document).on('click', '#btnAutoComputePh', function() {
+    autoComputeStandardPayheads();
+  });
+
   function clearForm() {
     $('#fEmployeeId, #fFirstName, #fLastName, #fPositionTag, #fDesignation, #fEmployeeType, #fSalaryGrade, #fStep, #fSystemRole, #fEmploymentStatus, #fBirthday, #fEmail, #fContact, #fAddress').val('');
     $('#fEmploymentStatus').val('Active');
@@ -1464,6 +1520,17 @@
         if (res.position_title && !$('#fDesignation').val()) {
           $('#fDesignation').val(res.position_title);
         }
+
+        // Recalculate percentage payheads with updated basic salary
+        const bs = parseFloat(res.monthly_basic) || 0;
+        $('#phFormRows .ph-form-row').each(function() {
+          const r = $(this);
+          if (r.find('[data-ph-mode]').val() === 'Percentage') {
+            const pct = parseFloat(r.find('[data-ph-pct]').val()) || 0;
+            r.find('[data-ph-amount]').val((bs * (pct / 100)).toFixed(2));
+          }
+        });
+        updateModalPayheadTotals();
       }
     });
   }
