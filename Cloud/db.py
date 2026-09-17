@@ -94,19 +94,20 @@ def db_cursor(commit=False):
     """
     Context manager that yields (conn, cursor).
     Automatically commits or rolls back, then closes.
+    Uses buffered=True to prevent 'Unread result found' errors in pooled connections.
     """
     conn = None
     cur  = None
     try:
         conn = get_connection()
         try:
-            cur = conn.cursor(dictionary=True)
+            cur = conn.cursor(dictionary=True, buffered=True)
         except Error:
             if hasattr(conn, 'reconnect'):
                 conn.reconnect(attempts=3, delay=1)
             else:
                 conn = mysql.connector.connect(**DB_CONFIG)
-            cur = conn.cursor(dictionary=True)
+            cur = conn.cursor(dictionary=True, buffered=True)
 
         yield conn, cur
         if commit:
