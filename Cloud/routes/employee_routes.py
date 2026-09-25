@@ -278,7 +278,7 @@ def create_employee():
 
             # Initialize leave balances (4800 mins = 10 days default)
             cur.execute(
-                "INSERT INTO tblleave_balances (employee_id, vl_minutes, sl_minutes) VALUES (%s, 4800, 4800) ON DUPLICATE KEY UPDATE employee_id=employee_id",
+                "INSERT INTO tblleave_balances (employee_id, vl_minutes, sl_minutes) VALUES (%s, 4800, 4800) ON CONFLICT (employee_id) DO NOTHING",
                 (new_id,)
             )
 

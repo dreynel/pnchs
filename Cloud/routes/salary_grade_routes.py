@@ -59,20 +59,19 @@ def get_all_salary_grades():
         with db_cursor() as (conn, cur):
             cur.execute("""
             CREATE TABLE IF NOT EXISTS tblsalary_grades (
-                id            INT            NOT NULL AUTO_INCREMENT,
-                salary_grade  INT            NOT NULL UNIQUE,
-                position_title VARCHAR(120)  NULL,
-                step_1        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                step_2        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                step_3        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                step_4        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                step_5        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                step_6        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                step_7        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                step_8        DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
-                updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                id SERIAL PRIMARY KEY,
+                salary_grade INT NOT NULL UNIQUE,
+                position_title VARCHAR(120) NULL,
+                step_1 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                step_2 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                step_3 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                step_4 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                step_5 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                step_6 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                step_7 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                step_8 NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
             """)
             
             cur.execute("SELECT * FROM tblsalary_grades ORDER BY salary_grade ASC")
@@ -83,7 +82,10 @@ def get_all_salary_grades():
                     cur.execute(
                         "INSERT INTO tblsalary_grades (salary_grade, position_title, step_1, step_2, step_3, step_4, step_5, step_6, step_7, step_8) "
                         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-                        "ON DUPLICATE KEY UPDATE position_title=VALUES(position_title), step_1=VALUES(step_1), step_2=VALUES(step_2), step_3=VALUES(step_3), step_4=VALUES(step_4), step_5=VALUES(step_5), step_6=VALUES(step_6), step_7=VALUES(step_7), step_8=VALUES(step_8)",
+                        "ON CONFLICT (salary_grade) DO UPDATE SET "
+                        "position_title=EXCLUDED.position_title, step_1=EXCLUDED.step_1, step_2=EXCLUDED.step_2, "
+                        "step_3=EXCLUDED.step_3, step_4=EXCLUDED.step_4, step_5=EXCLUDED.step_5, step_6=EXCLUDED.step_6, "
+                        "step_7=EXCLUDED.step_7, step_8=EXCLUDED.step_8",
                         row
                     )
                 conn.commit()

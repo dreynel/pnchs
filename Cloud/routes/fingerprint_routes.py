@@ -132,9 +132,9 @@ def enroll_complete():
             cur.execute("""
                 INSERT INTO fingerprints (employee_id, user_name, fingerprint_template, finger_index)
                 VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE 
-                    fingerprint_template = VALUES(fingerprint_template),
-                    user_name = VALUES(user_name)
+                ON CONFLICT (employee_id, finger_index) DO UPDATE 
+                    SET fingerprint_template = EXCLUDED.fingerprint_template,
+                        user_name = EXCLUDED.user_name
             """, (emp_id, user_name, template_b64, finger_index))
 
             # Mark task success
