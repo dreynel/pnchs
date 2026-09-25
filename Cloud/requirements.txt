@@ -6,3 +6,4 @@ requests==2.32.5
 python-socketio==5.16.1
 python-engineio==4.13.1
 Werkzeug==3.1.5
+psycopg2-binary
