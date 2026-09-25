@@ -185,6 +185,13 @@
 
   <!-- Header Card -->
   <div class="bl-header-card">
+    <div>
+      <div class="bl-header-title">Daily Attendance Logs</div>
+      <div class="bl-header-sub">Categorized Morning (AM) & Afternoon (PM) biometric scans for today</div>
+      <div class="bl-header-sub" id="blHeaderSub">Categorized Morning (AM) & Afternoon (PM) biometric scans</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <input type="date" id="logDatePicker" class="date-input" title="Filter date">
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
       <select id="blDateMode" class="date-input" style="font-weight:600;" onchange="onBlDateModeChange()">
         <option value="daily">Daily</option>
@@ -382,6 +389,8 @@
   let activePunchFilter = 'all';
 
   // Set default date to today
+  const todayIso = new Date().toISOString().split('T')[0];
+  $('#logDatePicker').val(todayIso);
   const today = new Date();
   const todayIso = today.toISOString().split('T')[0];
   $('#blDateDaily').val(todayIso);
@@ -428,8 +437,10 @@
   }
 
   window.loadTodayLogs = function(silent = false) {
+    const selectedDate = $('#logDatePicker').val() || todayIso;
     const params = getBlDateParams();
     
+    $.getJSON('/api/attendance/today_categorized?date=' + selectedDate)
     $.getJSON('/api/attendance/today_categorized', params)
       .done(function(res) {
         todayData = res || { summary: {}, records: [], raw_punches: [] };

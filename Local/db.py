@@ -41,7 +41,7 @@ def db_cursor(commit=False):
     cur = None
     try:
         conn = get_connection()
-        cur = conn.cursor(dictionary=True, buffered=True)
+        cur = conn.cursor(dictionary=True)
         yield conn, cur
         if commit:
             conn.commit()

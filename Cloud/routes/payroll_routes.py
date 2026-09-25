@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request, session, current_app
 import json
-from mysql.connector import Error
-from db import db_cursor
+from db import db_cursor, Error
 from datetime import date, timedelta, datetime
 import calendar
 from services.policy_engine import (
@@ -990,8 +989,8 @@ def update_status(period_key):
                     cur.execute("""
                         INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, RequesterID, Title)
                         VALUES ('Payroll', %s, 'Pending', 'Principal', %s, %s)
-                        ON DUPLICATE KEY UPDATE ApprovalStatus='Pending', RequesterID=%s
-                    """, (period_key, user_name, f"Payroll Run - {period_key}", user_name))
+                        ON CONFLICT (DocType, DocNumber) DO UPDATE SET ApprovalStatus='Pending', RequesterID=EXCLUDED.RequesterID
+                    """, (period_key, user_name, f"Payroll Run - {period_key}"))
                     AuditService.log_action(cur, 'PAYROLL_SUBMITTED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
                 elif new_status == 'Released' and curr_status == 'Approved':
                     cur.execute("UPDATE tblpayroll SET is_released=1, released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
@@ -1328,8 +1327,8 @@ def file_leave():
             cur.execute("""
                 INSERT INTO tblapprovals (DocType, DocNumber, ApprovalStatus, ApproverRole, RequesterID, Title, Remarks)
                 VALUES ('Leave', %s, 'Pending', 'HR', %s, %s, %s)
-                ON DUPLICATE KEY UPDATE ApprovalStatus='Pending', RequesterID=%s, Title=%s, Remarks=%s
-            """, (str(leave_id), emp_name, f"{leave_type} Leave - {emp_name} ({leave_date})", reason, emp_name, f"{leave_type} Leave - {emp_name} ({leave_date})", reason))
+                ON CONFLICT (DocType, DocNumber) DO UPDATE SET ApprovalStatus='Pending', RequesterID=EXCLUDED.RequesterID, Title=EXCLUDED.Title, Remarks=EXCLUDED.Remarks
+            """, (str(leave_id), emp_name, f"{leave_type} Leave - {emp_name} ({leave_date})", reason))
 
             return jsonify({
                 'success': True,
@@ -1688,8 +1687,8 @@ def update_policy_configs():
                 v = item.get('value')
                 if k and v is not None:
                     cur.execute(
-                        "INSERT INTO tblpolicy_config (config_key, config_value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE config_value=%s",
-                        (k, str(v), str(v))
+                        "INSERT INTO tblpolicy_config (config_key, config_value) VALUES (%s, %s) ON CONFLICT (config_key) DO UPDATE SET config_value=EXCLUDED.config_value",
+                        (k, str(v))
                     )
             AuditService.log_action(cur, 'POLICY_UPDATED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblpolicy_config')
             conn.commit()

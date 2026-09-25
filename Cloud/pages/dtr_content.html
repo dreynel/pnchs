@@ -70,9 +70,28 @@
     margin-bottom: 4px;
   }
 
+  .cs48-header-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 14px;
+    padding: 2px 0;
+  }
+  .cs48-header-logo {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 68px;
+    height: 68px;
+    object-fit: contain;
+  }
+
   .cs48-header {
     text-align: center;
-    margin-bottom: 14px;
+    width: 100%;
+    padding: 0 76px;
   }
 
   .cs48-header .h-rep { font-size: 12px; }
@@ -451,15 +470,18 @@
 
           <div class="cs48-top-tag">Civil Service Form No. 48</div>
 
-          <div class="cs48-header">
-            <div class="h-rep">Republic of the Philippines</div>
-            <div class="h-dept">Department of Education</div>
-            <div class="h-reg">Region VI - Western Visayas</div>
-            <div class="h-div">SCHOOLS DIVISION OF ILOILO</div>
-            <div class="h-school">POTOTAN NATIONAL COMPREHENSIVE HIGH SCHOOL</div>
-            <div class="h-id">(302556)</div>
-            <div class="h-addr">CAU-AYAN, POTOTAN, ILOILO</div>
-            <div class="h-title">DAILY TIME RECORD</div>
+          <div class="cs48-header-wrap">
+            <img src="/static/logo.png" alt="PNCHS Seal" class="cs48-header-logo">
+            <div class="cs48-header">
+              <div class="h-rep">Republic of the Philippines</div>
+              <div class="h-dept">Department of Education</div>
+              <div class="h-reg">Region VI - Western Visayas</div>
+              <div class="h-div">SCHOOLS DIVISION OF ILOILO</div>
+              <div class="h-school">POTOTAN NATIONAL COMPREHENSIVE HIGH SCHOOL</div>
+              <div class="h-id">(School ID: 302556)</div>
+              <div class="h-addr">Cau-ayan, Pototan, Iloilo</div>
+              <div class="h-title">DAILY TIME RECORD</div>
+            </div>
           </div>
 
           <div class="cs48-emp-block">
@@ -571,8 +593,10 @@
     const analyticsHeaderHtml = `
     <div class="dtr-report-header">
       <div class="dtr-rh-left">
+        <img src="/static/logo.png" alt="PNCHS Seal" style="width:50px;height:50px;object-fit:contain;border-radius:50%;background:#fff;padding:2px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1.5px solid #c5d8f5;flex-shrink:0;">
         <div class="dtr-rh-avatar">${initials(emp.full_name)}</div>
         <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--navy-mid);font-weight:700;">Pototan National Comprehensive High School</div>
           <div class="dtr-rh-name">${emp.full_name}</div>
           <div class="dtr-rh-sub">${emp.id} · ${emp.designation}</div>
           <div class="dtr-rh-sub" style="font-size:10.5px;color:var(--navy-mid);margin-top:3px;">

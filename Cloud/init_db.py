@@ -2,8 +2,7 @@
 Run this once to create the database tables:
     python init_db.py
 """
-from db import get_connection
-from mysql.connector import Error
+from db import get_connection, Error
 
 DDL_USERS = """
 CREATE TABLE IF NOT EXISTS tblusers (
@@ -321,6 +320,14 @@ def _add_column_if_missing(cur, table, column, alter_sql):
 
 def init():
     try:
+        from db import is_postgres, db_cursor
+        if is_postgres():
+            with db_cursor(commit=True) as (conn, cur):
+                cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
+                tables = [r['tablename'] for r in cur.fetchall()]
+                print(f"[OK] PostgreSQL database ready with {len(tables)} tables.")
+            return
+
         conn = get_connection()
         cur  = conn.cursor(dictionary=True)
         cur.execute(DDL)

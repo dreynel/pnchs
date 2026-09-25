@@ -41,11 +41,6 @@ def _time_str(t):
     total_seconds = int(t.total_seconds())
     h = (total_seconds // 3600) % 24
     m = (total_seconds % 3600) // 60
-    suffix = 'AM' if h < 12 else 'PM'
-    h12 = h % 12
-    if h12 == 0:
-        h12 = 12
-    return f"{h12}:{m:02d} {suffix}"
 
 def _compute_status(row):
     """Derive attendance status from a log row."""
@@ -390,7 +385,7 @@ def get_dtr_report():
             },
             'days': days,
         })
-    except Exception as e:
+    except Error as e:
         return jsonify({'error': str(e)}), 500
 
 
