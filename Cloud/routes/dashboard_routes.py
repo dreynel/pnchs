@@ -21,7 +21,7 @@ def get_dashboard_stats():
 
             non_teaching_emps = max(0, total_emps - teaching_emps)
 
-            cur.execute("SELECT COUNT(*) as total FROM tblemployee WHERE created_at >= CURDATE() - INTERVAL 30 DAY")
+            cur.execute("SELECT COUNT(*) as total FROM tblemployee WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'")
             new_hires = cur.fetchone()['total'] or 0
 
             # 2. Leaves count

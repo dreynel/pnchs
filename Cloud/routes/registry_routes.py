@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request, session
-from db import db_cursor
-from mysql.connector import Error
+from db import db_cursor, Error
 from services.policy_engine import AuditService
 
 registry_bp = Blueprint('registry', __name__, url_prefix='/api/registry')

@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request, session
-from mysql.connector import Error
-from db import db_cursor
+from db import db_cursor, Error
 from services.policy_engine import AuditService
 from services.email_service import send_welcome_email
 import json
