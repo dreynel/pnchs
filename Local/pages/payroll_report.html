@@ -22,7 +22,7 @@
     border-radius: 12px;
     padding: 16px 20px;
     margin-bottom: 20px;
-    display: flex; gap: 16px; align-items: flex-end;flex-wrap: wrap;
+    display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
   }
   
   .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
@@ -66,7 +66,7 @@
     .rep-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
     .rep-controls { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; }
     .ctrl-group select { width: 100%; min-width: 0; }
-    .rep-controls div[style*="display: flex"] { width: 100%; }
+    .rep-controls div[style*="display:flex"] { width: 100%; }
     .rep-controls .btn { flex: 1; justify-content: center; width: 100%; }
     .rep-body { padding: 12px 8px; }
   }
@@ -118,12 +118,10 @@
       <!-- 1. Run Selector (Default) -->
       <div class="ctrl-group" id="wrapRepRun">
         <label>Select Payroll Run</label>
-        <select id="selRun">
-        <select id="selRun" style="min-width:240px;">
+        <select id="selRun" style="min-width:260px;">
           <option value="">Loading runs...</option>
         </select>
       </div>
-      <button class="btn btn-primary" id="btnLoadReport" style="margin-bottom: 2px;">Generate View</button>
 
       <!-- 2. Month Selector -->
       <div class="ctrl-group" id="wrapRepMonth" style="display:none;">
@@ -214,6 +212,8 @@
   const now = new Date();
   const $repSelYear = $('#repSelYear');
   const $repSelYearOnly = $('#repSelYearOnly');
+  $repSelYear.empty();
+  $repSelYearOnly.empty();
   for (let y = now.getFullYear() + 1; y >= 2020; y--) {
     const isCur = y === now.getFullYear() ? 'selected' : '';
     $repSelYear.append(`<option value="${y}" ${isCur}>${y}</option>`);
@@ -229,31 +229,37 @@
 
   function loadRuns() {
     $.get('/api/payroll/runs', function(data) {
-      currentRuns = data.filter(r => r.status === 'Approved' || r.status === 'Posted');
+      currentRuns = data || [];
       const $sel = $('#selRun');
       $sel.empty();
       if (currentRuns.length === 0) {
-        $sel.append('<option value="">No Approved Payrolls Found</option>');
+        $sel.append('<option value="">No Processed Payrolls Found</option>');
       } else {
-        currentRuns.forEach(r => {
-          $sel.append(`<option value="${r.year}|${r.month}|${r.half}">${r.period} (Approved ${r.approved_at || r.created_at})</option>`);
+        currentRuns.forEach((r, idx) => {
+          const isSelected = idx === 0 ? 'selected' : '';
+          const statusText = r.status ? ` (${r.status})` : '';
+          $sel.append(`<option value="${r.year}|${r.month}|${r.half}" ${isSelected}>${r.period}${statusText}</option>`);
         });
+        // Auto-load initial report for the first available run
+        $('#btnLoadReport').click();
       }
     });
   }
 
   function renderReport(data) {
     if (!data || !data.employees || data.employees.length === 0) {
-      $('#reportContent').html('<div class="loading-msg">No data found in this payroll run.</div>');
+      $('#reportContent').html('<div class="loading-msg">No payroll records found for this period.</div>');
       return;
     }
 
+    const periodStr = data.period || data.period_label || 'Current Period';
     let html = `
       <div class="print-only" style="margin-bottom: 20px; text-align: center;">
-        <h2 style="font-family:'Playfair Display',serif; margin:0;">PayCore Payroll Report</h2>
-        <h2 style="font-family:'Playfair Display',serif; margin:0;">Pototan National Comprehensive High School (PNCHS) Payroll Report</h2>
-        <div style="font-size:12px; color:#555;">Period: ${data.period}</div>
-        <div style="font-size:11px; color:#777; margin-top:4px;">Generated on: ${new Date().toLocaleString()} | Approved by: ${data.approved_by || 'Unknown'}</div>
+        <h2 style="font-family:'Playfair Display',serif; margin:0; font-size:18px; color:var(--navy);">POTOTAN NATIONAL COMPREHENSIVE HIGH SCHOOL</h2>
+        <div style="font-size:12px; color:#555; margin-top:2px;">Cau-ayan, Pototan, Iloilo · School ID: 302556</div>
+        <div style="font-size:14px; font-weight:700; margin-top:6px; letter-spacing:0.5px;">PAYROLL REPORT SUMMARY</div>
+        <div style="font-size:12px; color:#333; margin-top:4px;">Period: <strong>${periodStr}</strong></div>
+        <div style="font-size:11px; color:#777; margin-top:4px;">Generated on: ${new Date().toLocaleString()} | Approved by: ${data.approved_by || 'Administration'}</div>
       </div>
       <div class="table-card">
         <table>
@@ -329,9 +335,8 @@
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
+    const cleanPeriod = (data.period || data.period_label || 'Payroll').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute("href", url);
-    link.setAttribute("download", `Payroll_Report_${data.period.replace(/ /g, '_')}.csv`);
-    const cleanPeriod = (data.period || 'Payroll').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute("download", `Payroll_Report_${cleanPeriod}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
@@ -341,9 +346,6 @@
 
   // Bindings using delegation
   $(document).off('click', '#btnLoadReport').on('click', '#btnLoadReport', function() {
-    const val = $('#selRun').val();
-    if (!val) return;
-    const [year, month, half] = val.split('|');
     const mode = $('#repFilterMode').val() || 'run';
     const params = { date_mode: mode };
 
@@ -361,6 +363,7 @@
       params.year  = year;
       params.month = month;
       params.half  = half;
+      params.period_key = `${year}-${month}-${half}`;
     } else if (mode === 'month') {
       params.year  = $('#repSelYear').val();
       params.month = $('#repSelMonth').val();
