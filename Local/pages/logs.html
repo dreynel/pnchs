@@ -179,6 +179,13 @@
   .empty-state svg { width: 44px; height: 44px; margin-bottom: 12px; opacity: 0.4; }
   .empty-state-title { font-weight: 700; color: var(--navy); font-size: 14px; margin-bottom: 4px; }
   .empty-state-sub { font-size: 12px; }
+
+  @media (max-width: 900px) {
+    .bl-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .bl-header-card { flex-direction: column; align-items: stretch; gap: 12px; }
+    .bl-card-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .search-box { width: 100%; }
+  }
 </style>
 
 <div class="bl-page">
@@ -191,7 +198,7 @@
     </div>
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto;">
       <select id="blDateMode" class="date-input" style="font-weight:600;" onchange="onBlDateModeChange()">
-        <option value="daily">Daily</option>
+        <option value="daily" selected>Daily</option>
         <option value="month">Per Month</option>
         <option value="year">Per Year</option>
         <option value="range">Date Range</option>
@@ -218,22 +225,12 @@
           <option value="11">November</option>
           <option value="12">December</option>
         </select>
-        <select id="blDateYear" class="date-input" onchange="loadTodayLogs()">
-          <option value="2024">2024</option>
-          <option value="2025">2025</option>
-          <option value="2026" selected>2026</option>
-          <option value="2027">2027</option>
-        </select>
+        <select id="blDateYear" class="date-input" onchange="loadTodayLogs()"></select>
       </span>
 
       <!-- Year Only Picker -->
       <span id="blWrapYear" style="display:none;">
-        <select id="blDateYearOnly" class="date-input" onchange="loadTodayLogs()">
-          <option value="2024">2024</option>
-          <option value="2025">2025</option>
-          <option value="2026" selected>2026</option>
-          <option value="2027">2027</option>
-        </select>
+        <select id="blDateYearOnly" class="date-input" onchange="loadTodayLogs()"></select>
       </span>
 
       <!-- Range Pickers -->
@@ -243,7 +240,7 @@
         <input type="date" id="blDateTo" class="date-input" onchange="loadTodayLogs()">
       </span>
 
-      <button class="btn btn-sm btn-outline-secondary" onclick="loadTodayLogs()" style="border-radius:9px; font-weight:600; padding:6px 14px; display:inline-flex; align-items:center; gap:6px;">
+      <button class="btn btn-sm" onclick="loadTodayLogs()" style="border-radius:9px; font-weight:600; padding:7px 14px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:var(--surface); border:1.5px solid var(--border); color:var(--navy);">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Refresh
       </button>
@@ -327,14 +324,14 @@
     <div id="matrixViewContainer" class="table-scroll">
       <table>
         <thead>
-          <tr>
+          <tr id="matrixHeaderRow">
             <th style="width: 110px;">ID</th>
             <th>Employee Name</th>
             <th>Department / Designation</th>
-            <th style="width: 140px;">🌅 AM Time In</th>
-            <th style="width: 140px;">☀️ AM Time Out</th>
-            <th style="width: 140px;">🌤️ PM Time In</th>
-            <th style="width: 140px;">🌙 PM Time Out</th>
+            <th style="width: 140px;" id="colAmIn">🌅 AM Time In</th>
+            <th style="width: 140px;" id="colAmOut">☀️ AM Time Out</th>
+            <th style="width: 140px;" id="colPmIn">🌤️ PM Time In</th>
+            <th style="width: 140px;" id="colPmOut">🌙 PM Time Out</th>
           </tr>
         </thead>
         <tbody id="matrixTableBody">
@@ -342,7 +339,7 @@
             <td colspan="7">
               <div class="empty-state">
                 <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
-                <div class="empty-state-title" style="margin-top:10px;">Loading today's attendance…</div>
+                <div class="empty-state-title" style="margin-top:10px;">Loading attendance…</div>
               </div>
             </td>
           </tr>
@@ -385,14 +382,24 @@
   let currentTab = 'matrix';
   let activePunchFilter = 'all';
 
-  // Set default date to today
+  // Set default dates & populate year dropdowns
   const today = new Date();
   const todayIso = today.toISOString().split('T')[0];
   $('#blDateDaily').val(todayIso);
   $('#blDateMonth').val(today.getMonth() + 1);
-  $('#blDateYear').val(today.getFullYear());
-  $('#blDateYearOnly').val(today.getFullYear());
-  $('#blDateFrom').val(todayIso);
+
+  const $blDateYear = $('#blDateYear');
+  const $blDateYearOnly = $('#blDateYearOnly');
+  $blDateYear.empty();
+  $blDateYearOnly.empty();
+  for (let y = today.getFullYear() + 1; y >= 2020; y--) {
+    const isCur = y === today.getFullYear() ? 'selected' : '';
+    $blDateYear.append(`<option value="${y}" ${isCur}>${y}</option>`);
+    $blDateYearOnly.append(`<option value="${y}" ${isCur}>${y}</option>`);
+  }
+
+  const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  $('#blDateFrom').val(firstOfMonth);
   $('#blDateTo').val(todayIso);
 
   window.onBlDateModeChange = function() {
@@ -431,6 +438,20 @@
     return p;
   }
 
+  function updateMatrixHeaders(isSingleDay) {
+    if (isSingleDay) {
+      $('#colAmIn').html('🌅 AM Time In');
+      $('#colAmOut').html('☀️ AM Time Out');
+      $('#colPmIn').html('🌤️ PM Time In');
+      $('#colPmOut').html('🌙 PM Time Out');
+    } else {
+      $('#colAmIn').html('🌅 AM In (Scans)');
+      $('#colAmOut').html('☀️ AM Out (Scans)');
+      $('#colPmIn').html('🌤️ PM In (Scans)');
+      $('#colPmOut').html('🌙 PM Out (Scans)');
+    }
+  }
+
   window.loadTodayLogs = function(silent = false) {
     const params = getBlDateParams();
     
@@ -442,6 +463,7 @@
           $('#blHeaderSub').text(`Showing biometric logs for: ${res.period_label}`);
         }
         updateSummaryStats(todayData.summary || {});
+        updateMatrixHeaders(todayData.is_single_day !== false);
         renderMatrixTable();
         renderFeedTable();
       })
@@ -477,7 +499,7 @@
           <td colspan="7">
             <div class="empty-state">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <div class="empty-state-title">No attendance records for this date</div>
+              <div class="empty-state-title">No attendance records for this period</div>
               <div class="empty-state-sub">Punches recorded on the attendance kiosk will appear here automatically.</div>
             </div>
           </td>
@@ -492,10 +514,15 @@
       const pmInVal  = r.pm_time_in || r.pm_in;
       const pmOutVal = r.pm_time_out || r.pm_out;
 
-      const amInBadge  = amInVal  ? `<span class="punch-slot slot-am-in">${amInVal}</span>`   : `<span class="slot-empty">—</span>`;
-      const amOutBadge = amOutVal ? `<span class="punch-slot slot-am-out">${amOutVal}</span>` : `<span class="slot-empty">—</span>`;
-      const pmInBadge  = pmInVal  ? `<span class="punch-slot slot-pm-in">${pmInVal}</span>`   : `<span class="slot-empty">—</span>`;
-      const pmOutBadge = pmOutVal ? `<span class="punch-slot slot-pm-out">${pmOutVal}</span>` : `<span class="slot-empty">—</span>`;
+      const hasAmIn  = amInVal && amInVal !== '—' && amInVal !== '-';
+      const hasAmOut = amOutVal && amOutVal !== '—' && amOutVal !== '-';
+      const hasPmIn  = pmInVal && pmInVal !== '—' && pmInVal !== '-';
+      const hasPmOut = pmOutVal && pmOutVal !== '—' && pmOutVal !== '-';
+
+      const amInBadge  = hasAmIn  ? `<span class="punch-slot slot-am-in">${amInVal}</span>`   : `<span class="slot-empty">—</span>`;
+      const amOutBadge = hasAmOut ? `<span class="punch-slot slot-am-out">${amOutVal}</span>` : `<span class="slot-empty">—</span>`;
+      const pmInBadge  = hasPmIn  ? `<span class="punch-slot slot-pm-in">${pmInVal}</span>`   : `<span class="slot-empty">—</span>`;
+      const pmOutBadge = hasPmOut ? `<span class="punch-slot slot-pm-out">${pmOutVal}</span>` : `<span class="slot-empty">—</span>`;
 
       return `
         <tr>
@@ -601,13 +628,13 @@
   // Initial load
   loadTodayLogs();
 
-  // Real-time live background polling every 3 seconds
+  // Real-time live background polling every 4 seconds when table is mounted
   const autoLogsInterval = setInterval(function() {
     if (document.getElementById('matrixTableBody') || document.getElementById('feedTableBody')) {
       loadTodayLogs(true);
     } else {
       clearInterval(autoLogsInterval);
     }
-  }, 3000);
+  }, 4000);
 })();
 </script>
