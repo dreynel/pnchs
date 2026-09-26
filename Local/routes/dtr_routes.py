@@ -361,10 +361,7 @@ def get_dtr_report():
             },
             'period': {
                 'year': year_int, 'month': month_int,
-                'month_name': month_name, 'label': label,
-                'date_mode': mode,
-                'start_date': start_date.strftime('%Y-%m-%d'),
-                'end_date': end_date.strftime('%Y-%m-%d'),
+                'month_name': month_name, 'label': f"{month_name} {year_int}",
             },
             'summary': {
                 'total_present':          total_present,

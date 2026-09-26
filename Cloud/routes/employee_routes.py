@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, session
-from db import db_cursor, Error
+from mysql.connector import Error
+from db import db_cursor
 from services.policy_engine import AuditService
 from services.email_service import send_welcome_email
 import json
@@ -277,6 +278,7 @@ def create_employee():
 
             # Initialize leave balances (4800 mins = 10 days default)
             cur.execute(
+                "INSERT INTO tblleave_balances (employee_id, vl_minutes, sl_minutes) VALUES (%s, 4800, 4800) ON DUPLICATE KEY UPDATE employee_id=employee_id",
                 "INSERT INTO tblleave_balances (employee_id, vl_minutes, sl_minutes) VALUES (%s, 4800, 4800) ON CONFLICT (employee_id) DO NOTHING",
                 (new_id,)
             )

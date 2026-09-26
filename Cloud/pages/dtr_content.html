@@ -358,14 +358,13 @@
 <script>
   function format12HourHHMM(timeStr) {
     if (!timeStr) return '';
-    // Strip trailing AM/PM suffix and extra whitespace so it fits cleanly in 52px table cells
-    const clean = String(timeStr).replace(/\s*[AP]M\s*/i, '').trim();
-    const parts = clean.split(":");
-    if (parts.length < 2) return clean;
+    const parts = timeStr.split(":");
+    if (parts.length < 2) return timeStr;
     let h = parseInt(parts[0], 10);
-    let m = parts[1];
+    const m = parts[1];
+    // Keep 24-hour style format for CS48 grid if preferred or 12-hr
     const hh = String(h).padStart(2, '0');
-    return `${hh}:${m.padStart(2, '0')}`;
+    return `${hh}:${m}`;
   }
 
   function fmtMinutesToHHMM(mins) {
@@ -491,7 +490,7 @@
           </div>
 
           <div class="cs48-period-bar">
-            <div>Period: <strong>${period.label || (period.month_name ? (period.month_name + ' ' + period.year) : period.year)}</strong></div>
+            <div>For the month of <strong>${period.month_name}, ${period.year}</strong></div>
             <div>Date From: <strong>${startDateStr}</strong> &nbsp; To: <strong>${endDateStr}</strong></div>
           </div>
 
