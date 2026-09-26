@@ -1,8 +1,7 @@
 from flask import Blueprint, jsonify, request, session
-from mysql.connector import Error
 from db import db_cursor
 import calendar
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 from services.policy_engine import (
     AttendancePolicyService,
     LeavePolicyService,
@@ -17,10 +16,8 @@ MONTHS = ['January','February','March','April','May','June',
           'July','August','September','October','November','December']
 
 
-
-
 def _time_str(t):
-    """Convert timedelta (MySQL TIME), string, or None to 12-hour string (e.g. 7:30 AM)."""
+    """Convert timedelta (MySQL TIME), datetime.time (Postgres TIME), string, or None to 12-hour string (e.g. 7:30 AM)."""
     if t is None:
         return None
     if isinstance(t, str):
@@ -38,9 +35,24 @@ def _time_str(t):
             except ValueError:
                 pass
         return s
-    total_seconds = int(t.total_seconds())
-    h = (total_seconds // 3600) % 24
-    m = (total_seconds % 3600) // 60
+    if hasattr(t, 'hour') and hasattr(t, 'minute'):
+        h = t.hour
+        m = t.minute
+        suffix = 'AM' if h < 12 else 'PM'
+        h12 = h % 12
+        if h12 == 0:
+            h12 = 12
+        return f"{h12}:{m:02d} {suffix}"
+    if hasattr(t, 'total_seconds'):
+        total_seconds = int(t.total_seconds())
+        h = (total_seconds // 3600) % 24
+        m = (total_seconds % 3600) // 60
+        suffix = 'AM' if h < 12 else 'PM'
+        h12 = h % 12
+        if h12 == 0:
+            h12 = 12
+        return f"{h12}:{m:02d} {suffix}"
+    return str(t)
 
 def _compute_status(row):
     """Derive attendance status from a log row."""
@@ -103,7 +115,7 @@ def get_employees():
             'employee_type': r.get('employee_type', 'NON_TEACHING'),
             'full_name':     f"{r['first_name']} {r['last_name']}",
         } for r in rows])
-    except Error as e:
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
@@ -385,7 +397,7 @@ def get_dtr_report():
             },
             'days': days,
         })
-    except Error as e:
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 

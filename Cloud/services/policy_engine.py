@@ -62,12 +62,17 @@ class AttendancePolicyService:
             return None
         if isinstance(td, (int, float)):
             return int(td)
+        if hasattr(td, 'hour') and hasattr(td, 'minute'):
+            return td.hour * 60 + td.minute
         if hasattr(td, 'total_seconds'):
             return int(td.total_seconds()) // 60
         if isinstance(td, str):
             parts = td.split(':')
             if len(parts) >= 2:
-                return int(parts[0]) * 60 + int(parts[1])
+                try:
+                    return int(parts[0]) * 60 + int(parts[1])
+                except (ValueError, TypeError):
+                    pass
         return None
 
     @classmethod

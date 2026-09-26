@@ -420,20 +420,17 @@ def _workdays(start, end):
         current += timedelta(days=1)
 
 
-# ── GET /api/payroll/process & /api/payroll/report & /api/payroll/report_data ──
+# ── GET /api/payroll/process & /api/payroll/report ──────────────────────────
 @payroll_bp.route('/report', methods=['GET'])
-@payroll_bp.route('/report_data', methods=['GET'])
 @payroll_bp.route('/process', methods=['GET'])
 def process_payroll():
     role = session.get('user', {}).get('role')
-    if not role:
-        return jsonify({'error': 'Unauthorized: Login required'}), 401
     if request.path.endswith('/process') and role == 'Admin':
         return jsonify({'error': 'Unauthorized: Admin does not have access to Payroll Processing'}), 403
-    if role in ['HR', 'HR Officer', 'Employee']:
-        return jsonify({'error': 'Unauthorized: You do not have access to Payroll Processing or Reports'}), 403
+    if role in ['HR', 'HR Officer']:
+        return jsonify({'error': 'Unauthorized: HR does not have access to Payroll Processing or Reports'}), 403
 
-    mode = (request.args.get('filter_mode') or request.args.get('date_mode') or '').strip().lower()
+    mode = request.args.get('date_mode', '').strip().lower()
     year = request.args.get('year', '').strip()
     month = request.args.get('month', '').strip()
     half = request.args.get('half', '').strip()
@@ -460,24 +457,10 @@ def process_payroll():
         with db_cursor() as (conn, cur):
             # ── 1. Single Run Mode ───────────────────────────────────────────
             if mode == 'run':
-                run_param = request.args.get('run', '').strip()
-                if run_param and run_param != 'all':
-                    if '|' in run_param:
-                        parts = run_param.split('|')
-                        period_key = f"{int(parts[0])}-{int(parts[1])}-{int(parts[2])}"
-                    else:
-                        period_key = run_param
-
-                if not period_key and (year and month and half):
-                    period_key = f"{int(year)}-{int(month)}-{int(half)}"
-
                 if not period_key:
-                    cur.execute("SELECT period_key FROM tblpayroll ORDER BY year DESC, month DESC, half DESC LIMIT 1")
-                    latest = cur.fetchone()
-                    if latest:
-                        period_key = latest['period_key']
-                    else:
-                        period_key = f"{today.year}-{today.month}-1"
+                    if not (year and month and half):
+                        return jsonify({'error': 'year, month, and half or period_key are required for single run'}), 400
+                    period_key = f"{int(year)}-{int(month)}-{int(half)}"
 
                 cur.execute("""
                     SELECT d.*, e.first_name, e.last_name, e.designation,
@@ -552,13 +535,11 @@ def process_payroll():
                     gNet    += f('net_pay')
 
                 return jsonify({
-                    'period':       period_label,
-                    'period_label': period_label,
-                    'created_at':   created_at_str,
-                    'approved_by':  approved_by,
-                    'approved_at':  approved_at,
-                    'employees':    results,
-                    'records':      results,
+                    'period':      period_label,
+                    'created_at':  created_at_str,
+                    'approved_by': approved_by,
+                    'approved_at': approved_at,
+                    'employees':   results,
                     'summary': {
                         'total_employees':    len(results),
                         'grand_total_gross':  round(gGross,  2),
@@ -609,9 +590,9 @@ def process_payroll():
                 e_int = e_date.year * 10000 + e_date.month * 100 + e_date.day
 
                 where_clauses.append("""
-                    (p.year * 10000 + p.month * 100 + (CASE WHEN p.half = 1 THEN 1 ELSE 16 END)) <= %s
+                    (p.year * 10000 + p.month * 100 + IF(p.half = 1, 1, 16)) <= %s
                     AND
-                    (p.year * 10000 + p.month * 100 + (CASE WHEN p.half = 1 THEN 15 ELSE 31 END)) >= %s
+                    (p.year * 10000 + p.month * 100 + IF(p.half = 1, 15, 31)) >= %s
                 """)
                 params.extend([e_int, s_int])
                 period_label = f"{s_date.strftime('%b %d, %Y')} – {e_date.strftime('%b %d, %Y')}"
@@ -632,13 +613,11 @@ def process_payroll():
 
             if not active_hdrs:
                 return jsonify({
-                    'period':       period_label,
-                    'period_label': period_label,
-                    'created_at':   '—',
-                    'approved_by':  None,
-                    'approved_at':  None,
-                    'employees':    [],
-                    'records':      [],
+                    'period':      period_label,
+                    'created_at':  '—',
+                    'approved_by': None,
+                    'approved_at': None,
+                    'employees':   [],
                     'summary': {
                         'total_employees':    0,
                         'grand_total_gross':  0.0,
@@ -736,13 +715,11 @@ def process_payroll():
             approver_str = ", ".join(approvers) if approvers else "Multiple Runs"
 
             return jsonify({
-                'period':       f"{period_label} ({len(active_hdrs)} Runs Aggregated)",
-                'period_label': period_label,
-                'created_at':   f"{len(active_hdrs)} runs",
-                'approved_by':  approver_str,
-                'approved_at':  active_hdrs[-1]['approved_at'].strftime('%b %d, %Y') if active_hdrs[-1].get('approved_at') else None,
-                'employees':    results,
-                'records':      results,
+                'period':      f"{period_label} ({len(active_hdrs)} Runs Aggregated)",
+                'created_at':  f"{len(active_hdrs)} runs",
+                'approved_by': approver_str,
+                'approved_at': active_hdrs[-1]['approved_at'].strftime('%b %d, %Y') if active_hdrs[-1].get('approved_at') else None,
+                'employees':   results,
                 'summary': {
                     'total_employees':    len(results),
                     'grand_total_gross':  round(gGross,  2),
@@ -832,13 +809,11 @@ def process_payroll_single_run(cur, period_key, label_override=None):
         gNet    += f('net_pay')
 
     return json.dumps({
-        'period':       period_label,
-        'period_label': period_label,
-        'created_at':   created_at_str,
-        'approved_by':  approved_by,
-        'approved_at':  approved_at,
-        'employees':    results,
-        'records':      results,
+        'period':      period_label,
+        'created_at':  created_at_str,
+        'approved_by': approved_by,
+        'approved_at': approved_at,
+        'employees':   results,
         'summary': {
             'total_employees':    len(results),
             'grand_total_gross':  round(gGross,  2),

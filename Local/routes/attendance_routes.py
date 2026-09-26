@@ -1,5 +1,4 @@
 import datetime
-import calendar
 import time
 import os
 from flask import Blueprint, jsonify, request
@@ -40,6 +39,7 @@ def poll_kiosk():
         'last_error': KIOSK_STATE.get('last_error'),
         'server_time': time.time()
     })
+
 
 def _format_time_12h(time_val):
     if not time_val:
@@ -166,6 +166,7 @@ def log_attendance():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 
 def _parse_attendance_date_range(args):

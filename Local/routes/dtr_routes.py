@@ -1,8 +1,7 @@
 from flask import Blueprint, jsonify, request, session
-from mysql.connector import Error
 from db import db_cursor
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, time
 from services.policy_engine import (
     AttendancePolicyService,
     LeavePolicyService,
@@ -17,10 +16,8 @@ MONTHS = ['January','February','March','April','May','June',
           'July','August','September','October','November','December']
 
 
-
-
 def _time_str(t):
-    """Convert timedelta (MySQL TIME), string, or None to 12-hour string (e.g. 7:30 AM)."""
+    """Convert timedelta (MySQL TIME), datetime.time (Postgres TIME), string, or None to 12-hour string (e.g. 7:30 AM)."""
     if t is None:
         return None
     if isinstance(t, str):
@@ -38,9 +35,24 @@ def _time_str(t):
             except ValueError:
                 pass
         return s
-    total_seconds = int(t.total_seconds())
-    h = (total_seconds // 3600) % 24
-    m = (total_seconds % 3600) // 60
+    if hasattr(t, 'hour') and hasattr(t, 'minute'):
+        h = t.hour
+        m = t.minute
+        suffix = 'AM' if h < 12 else 'PM'
+        h12 = h % 12
+        if h12 == 0:
+            h12 = 12
+        return f"{h12}:{m:02d} {suffix}"
+    if hasattr(t, 'total_seconds'):
+        total_seconds = int(t.total_seconds())
+        h = (total_seconds // 3600) % 24
+        m = (total_seconds % 3600) // 60
+        suffix = 'AM' if h < 12 else 'PM'
+        h12 = h % 12
+        if h12 == 0:
+            h12 = 12
+        return f"{h12}:{m:02d} {suffix}"
+    return str(t)
 
 def _compute_status(row):
     """Derive attendance status from a log row."""
@@ -103,24 +115,60 @@ def get_employees():
             'employee_type': r.get('employee_type', 'NON_TEACHING'),
             'full_name':     f"{r['first_name']} {r['last_name']}",
         } for r in rows])
-    except Error as e:
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+def _parse_dtr_date_range(args):
+    mode = args.get('date_mode')
+    today = date.today()
+    if not mode:
+        if args.get('date'): mode = 'daily'
+        elif args.get('month'): mode = 'month'
+        elif args.get('year') and not (args.get('date_from') or args.get('date_to')): mode = 'year'
+        elif args.get('date_from') or args.get('date_to'): mode = 'range'
+        else: mode = 'month'
+
+    if mode == 'daily':
+        target = args.get('date') or today.strftime('%Y-%m-%d')
+        if isinstance(target, str):
+            parts = [int(x) for x in target.split('-')]
+            d_obj = date(parts[0], parts[1], parts[2])
+        else:
+            d_obj = target
+        return 'daily', d_obj, d_obj, f"Daily ({d_obj.strftime('%b %d, %Y')})", d_obj.year, d_obj.month
+    elif mode == 'month':
+        y = int(args.get('year') or today.year)
+        m = int(args.get('month') or today.month)
+        last_d = calendar.monthrange(y, m)[1]
+        m_name = MONTHS[m - 1] if 1 <= m <= 12 else ''
+        return 'month', date(y, m, 1), date(y, m, last_d), f"{m_name} {y}", y, m
+    elif mode == 'year':
+        y = int(args.get('year') or today.year)
+        return 'year', date(y, 1, 1), date(y, 12, 31), f"Year {y}", y, 1
+    elif mode == 'range':
+        s_str = args.get('date_from') or today.strftime('%Y-%m-%d')
+        e_str = args.get('date_to') or s_str
+        sp = [int(x) for x in s_str.split('-')]
+        ep = [int(x) for x in e_str.split('-')]
+        s_date = date(sp[0], sp[1], sp[2])
+        e_date = date(ep[0], ep[1], ep[2])
+        return 'range', s_date, e_date, f"{s_date.strftime('%b %d, %Y')} – {e_date.strftime('%b %d, %Y')}", s_date.year, s_date.month
+
+    return 'month', date(today.year, today.month, 1), date(today.year, today.month, calendar.monthrange(today.year, today.month)[1]), f"{MONTHS[today.month-1]} {today.year}", today.year, today.month
 
 
 # ── GET /api/dtr/report ────────────────────────────────────────────────────────
 @dtr_bp.route('/report', methods=['GET'])
 def get_dtr_report():
     emp_id = request.args.get('employee_id', '').strip()
-    year   = request.args.get('year',  '').strip()
-    month  = request.args.get('month', '').strip()
+    if not emp_id:
+        return jsonify({'error': 'employee_id is required'}), 400
 
-    if not emp_id or not year or not month:
-        return jsonify({'error': 'employee_id, year, and month are required'}), 400
     try:
-        year_int  = int(year)
-        month_int = int(month)
-    except ValueError:
-        return jsonify({'error': 'year and month must be integers'}), 400
+        mode, start_date, end_date, label, year_int, month_int = _parse_dtr_date_range(request.args)
+    except Exception as e:
+        return jsonify({'error': f'Invalid date parameters: {e}'}), 400
 
     try:
         with db_cursor() as (conn, cur):
@@ -141,17 +189,13 @@ def get_dtr_report():
             sal_row = cur.fetchone()
             basic_salary = float(sal_row['amount']) if sal_row else 0.0
             
-            # Fetch month working days
-            month_start_date = date(year_int, month_int, 1)
-            days_in_m = calendar.monthrange(year_int, month_int)[1]
-            month_end_date   = date(year_int, month_int, days_in_m)
-            
+            # Fetch working days in period
             work_days_count = 0
-            curr_d = month_start_date
-            while curr_d <= month_end_date:
+            curr_d = start_date
+            while curr_d <= end_date:
                 if curr_d.weekday() < 5:
                     work_days_count += 1
-                curr_d += calendar.timedelta(days=1) if hasattr(calendar, 'timedelta') else __import__('datetime').timedelta(days=1)
+                curr_d += timedelta(days=1)
                 
             rates = RateCalculationService.compute_rates(basic_salary, work_days_count or 22)
             per_min_rate = rates['per_min_rate']
@@ -174,13 +218,24 @@ def get_dtr_report():
                        remarks
                 FROM tbltime_logs
                 WHERE employee_id = %s
-                  AND YEAR(work_date)  = %s
-                  AND MONTH(work_date) = %s
+                  AND work_date >= %s
+                  AND work_date <= %s
                 ORDER BY work_date
-            """, (emp_id, year_int, month_int))
+            """, (emp_id, start_date, end_date))
             log_rows = cur.fetchall()
 
-        logs_by_day = {r['work_date'].day: r for r in log_rows}
+            # Fetch Principal for CS Form 48 approval block
+            cur.execute("""
+                SELECT first_name, last_name, designation
+                FROM tblemployee
+                WHERE LOWER(designation) LIKE %s OR LOWER(designation) LIKE %s
+                LIMIT 1
+            """, ('%principal%', '%head%'))
+            p_row = cur.fetchone()
+            principal_name = f"{p_row['first_name']} {p_row['last_name']}" if p_row else "GEMMA B. PEÑARANDA, EdD"
+            principal_desig = p_row['designation'] if p_row else "PRINCIPAL IV"
+
+        logs_by_date = {r['work_date'].strftime('%Y-%m-%d'): r for r in log_rows}
 
         days = []
         total_present = total_halfday = total_absent = 0
@@ -190,14 +245,17 @@ def get_dtr_report():
         h1 = {'present': 0, 'halfday': 0, 'absent': 0, 'late_min': 0, 'undertime_min': 0, 'vl_charged': 0, 'unpaid': 0, 'hours': 0.0}
         h2 = {'present': 0, 'halfday': 0, 'absent': 0, 'late_min': 0, 'undertime_min': 0, 'vl_charged': 0, 'unpaid': 0, 'hours': 0.0}
 
-        for d in range(1, days_in_m + 1):
-            work_date  = date(year_int, month_int, d)
+        curr_d = start_date
+        d_index = 1
+        while curr_d <= end_date:
+            work_date  = curr_d
+            d_key      = work_date.strftime('%Y-%m-%d')
             weekday    = work_date.strftime('%a')
             is_weekend = work_date.weekday() >= 5
-            half       = h1 if d <= 15 else h2
+            half       = h1 if work_date.day <= 15 else h2
 
-            if d in logs_by_day:
-                r      = logs_by_day[d]
+            if d_key in logs_by_date:
+                r      = logs_by_date[d_key]
                 status = _compute_status(r)
 
                 res = AttendancePolicyService.calculate_tardiness_and_undertime(
@@ -212,7 +270,6 @@ def get_dtr_report():
                 under = res['undertime_minutes']
                 hours_today = _compute_hours(r, emp_type, desig)
 
-                # Simulated charging if not already saved
                 total_deficiency = late + under
                 vl_charged = min(total_deficiency, vl_balance_min)
                 unpaid     = total_deficiency - vl_charged
@@ -220,7 +277,7 @@ def get_dtr_report():
 
                 entry = {
                     'log_id':        r['log_id'],
-                    'day':           d,
+                    'day':           work_date.day if mode == 'month' else d_index,
                     'date_str':      work_date.strftime('%b %d, %Y'),
                     'weekday':       weekday,
                     'is_weekend':    is_weekend,
@@ -239,10 +296,17 @@ def get_dtr_report():
                     'remarks':       r.get('remarks') or ''
                 }
             else:
-                status = 'weekend' if is_weekend else 'absent'
+                yesterday = date.today() - timedelta(days=1)
+                if is_weekend:
+                    status = 'weekend'
+                elif work_date > yesterday:
+                    status = 'pending'
+                else:
+                    status = 'absent'
+
                 entry = {
                     'log_id':        None,
-                    'day':           d,
+                    'day':           work_date.day if mode == 'month' else d_index,
                     'date_str':      work_date.strftime('%b %d, %Y'),
                     'weekday':       weekday,
                     'is_weekend':    is_weekend,
@@ -256,7 +320,7 @@ def get_dtr_report():
                     'payroll_deduction': 0.0,
                     'has_log':       False,
                     'hours':         0.0,
-                    'remarks':       ''
+                    'remarks':       'Pending' if status == 'pending' else ''
                 }
 
             if not is_weekend:
@@ -274,9 +338,11 @@ def get_dtr_report():
                 total_unpaid_min     += entry['unpaid_min'];     half['unpaid']        += entry['unpaid_min']
 
             days.append(entry)
+            curr_d += timedelta(days=1)
+            d_index += 1
 
         total_hours = round(h1['hours'] + h2['hours'], 2)
-        month_name  = MONTHS[month_int - 1]
+        month_name  = MONTHS[month_int - 1] if 1 <= month_int <= 12 else ''
         total_payroll_deduction = round(total_unpaid_min * per_min_rate, 2)
 
         return jsonify({
@@ -290,6 +356,8 @@ def get_dtr_report():
                 'schedule':      sch['label'],
                 'vl_balance_minutes': vl_balance_min,
                 'vl_balance_formatted': LeavePolicyService.format_minutes_to_dhm(vl_balance_min),
+                'principal_name': principal_name,
+                'principal_designation': principal_desig,
             },
             'period': {
                 'year': year_int, 'month': month_int,
@@ -329,7 +397,7 @@ def get_dtr_report():
             },
             'days': days,
         })
-    except Error as e:
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
