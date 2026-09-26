@@ -358,12 +358,11 @@
 <script>
   function format12HourHHMM(timeStr) {
     if (!timeStr) return '';
-    // Strip trailing AM/PM suffix and extra whitespace so it fits cleanly in 52px table cells
     const clean = String(timeStr).replace(/\s*[AP]M\s*/i, '').trim();
     const parts = clean.split(":");
     if (parts.length < 2) return clean;
     let h = parseInt(parts[0], 10);
-    let m = parts[1];
+    const m = parts[1];
     const hh = String(h).padStart(2, '0');
     return `${hh}:${m.padStart(2, '0')}`;
   }

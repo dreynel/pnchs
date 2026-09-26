@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request, session
-from mysql.connector import Error
 from db import db_cursor
 import calendar
 from datetime import date, datetime, timedelta
@@ -363,8 +362,13 @@ def get_dtr_report():
                 'principal_designation': principal_desig,
             },
             'period': {
-                'year': year_int, 'month': month_int,
-                'month_name': month_name, 'label': f"{month_name} {year_int}",
+                'mode': mode,
+                'year': year_int,
+                'month': month_int,
+                'month_name': month_name,
+                'label': label,
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d'),
             },
             'summary': {
                 'total_present':          total_present,

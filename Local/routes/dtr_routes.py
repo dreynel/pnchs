@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, session
 from db import db_cursor
 import calendar
-from datetime import date, datetime, timedelta, time
+from datetime import date, datetime, timedelta
 from services.policy_engine import (
     AttendancePolicyService,
     LeavePolicyService,
@@ -16,8 +16,10 @@ MONTHS = ['January','February','March','April','May','June',
           'July','August','September','October','November','December']
 
 
+
+
 def _time_str(t):
-    """Convert timedelta (MySQL TIME), datetime.time (Postgres TIME), string, or None to 12-hour string (e.g. 7:30 AM)."""
+    """Convert timedelta (MySQL TIME), string, or None to 12-hour string (e.g. 7:30 AM)."""
     if t is None:
         return None
     if isinstance(t, str):
@@ -35,7 +37,8 @@ def _time_str(t):
             except ValueError:
                 pass
         return s
-    if hasattr(t, 'hour') and hasattr(t, 'minute'):
+    # Handle datetime.time (PostgreSQL returns time type)
+    if hasattr(t, 'hour'):
         h = t.hour
         m = t.minute
         suffix = 'AM' if h < 12 else 'PM'
@@ -43,16 +46,15 @@ def _time_str(t):
         if h12 == 0:
             h12 = 12
         return f"{h12}:{m:02d} {suffix}"
-    if hasattr(t, 'total_seconds'):
-        total_seconds = int(t.total_seconds())
-        h = (total_seconds // 3600) % 24
-        m = (total_seconds % 3600) // 60
-        suffix = 'AM' if h < 12 else 'PM'
-        h12 = h % 12
-        if h12 == 0:
-            h12 = 12
-        return f"{h12}:{m:02d} {suffix}"
-    return str(t)
+    # Handle timedelta (MySQL returns timedelta for TIME columns)
+    total_seconds = int(t.total_seconds())
+    h = (total_seconds // 3600) % 24
+    m = (total_seconds % 3600) // 60
+    suffix = 'AM' if h < 12 else 'PM'
+    h12 = h % 12
+    if h12 == 0:
+        h12 = 12
+    return f"{h12}:{m:02d} {suffix}"
 
 def _compute_status(row):
     """Derive attendance status from a log row."""
@@ -360,8 +362,13 @@ def get_dtr_report():
                 'principal_designation': principal_desig,
             },
             'period': {
-                'year': year_int, 'month': month_int,
-                'month_name': month_name, 'label': f"{month_name} {year_int}",
+                'mode': mode,
+                'year': year_int,
+                'month': month_int,
+                'month_name': month_name,
+                'label': label,
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d'),
             },
             'summary': {
                 'total_present':          total_present,
