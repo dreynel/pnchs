@@ -118,10 +118,12 @@
       <!-- 1. Run Selector (Default) -->
       <div class="ctrl-group" id="wrapRepRun">
         <label>Select Payroll Run</label>
-        <select id="selRun" style="min-width:260px;">
+        <select id="selRun">
+        <select id="selRun" style="min-width:240px;">
           <option value="">Loading runs...</option>
         </select>
       </div>
+      <button class="btn btn-primary" id="btnLoadReport" style="margin-bottom: 2px;">Generate View</button>
 
       <!-- 2. Month Selector -->
       <div class="ctrl-group" id="wrapRepMonth" style="display:none;">
@@ -173,26 +175,6 @@
       </button>
     </div>
 
-    <!-- Summary KPI Cards -->
-    <div id="repSummaryKpi" style="display:none; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
-      <div style="background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:12px 16px;">
-        <div style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;">Total Employees</div>
-        <div id="kpiEmployees" style="font-size:1.4rem; font-weight:700; color:var(--navy); margin-top:2px;">0</div>
-      </div>
-      <div style="background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:12px 16px;">
-        <div style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;">Grand Total Gross</div>
-        <div id="kpiGross" style="font-size:1.4rem; font-weight:700; color:#059669; margin-top:2px;">₱0.00</div>
-      </div>
-      <div style="background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:12px 16px;">
-        <div style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;">Total Deductions</div>
-        <div id="kpiDeduct" style="font-size:1.4rem; font-weight:700; color:#dc2626; margin-top:2px;">₱0.00</div>
-      </div>
-      <div style="background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:12px 16px;">
-        <div style="font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;">Grand Total Net Pay</div>
-        <div id="kpiNet" style="font-size:1.4rem; font-weight:700; color:var(--navy); margin-top:2px;">₱0.00</div>
-      </div>
-    </div>
-
     <div id="printableArea">
       <div id="reportContent">
         <div class="loading-msg">
@@ -206,7 +188,7 @@
 
 <script>
 (function() {
-  const fCurrency = num => '₱' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fCurrency = num => '₱' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   
   let currentRuns = [];
   let currentReportData = null;
@@ -232,8 +214,6 @@
   const now = new Date();
   const $repSelYear = $('#repSelYear');
   const $repSelYearOnly = $('#repSelYearOnly');
-  $repSelYear.empty();
-  $repSelYearOnly.empty();
   for (let y = now.getFullYear() + 1; y >= 2020; y--) {
     const isCur = y === now.getFullYear() ? 'selected' : '';
     $repSelYear.append(`<option value="${y}" ${isCur}>${y}</option>`);
@@ -249,51 +229,31 @@
 
   function loadRuns() {
     $.get('/api/payroll/runs', function(data) {
-      if (!Array.isArray(data)) {
-        $('#selRun').html('<option value="">Failed to load runs</option>');
-        return;
-      }
-      currentRuns = data.filter(r => ['Approved', 'Released', 'Posted'].includes(r.status));
-      if (currentRuns.length === 0 && data.length > 0) {
-        currentRuns = data;
-      }
+      currentRuns = data.filter(r => r.status === 'Approved' || r.status === 'Posted');
       const $sel = $('#selRun');
       $sel.empty();
       if (currentRuns.length === 0) {
-        $sel.append('<option value="">No Payroll Runs Found</option>');
+        $sel.append('<option value="">No Approved Payrolls Found</option>');
       } else {
         currentRuns.forEach(r => {
-          const statusSuffix = r.status ? ` [${r.status}]` : '';
-          $sel.append(`<option value="${r.year}|${r.month}|${r.half}">${r.period}${statusSuffix}</option>`);
+          $sel.append(`<option value="${r.year}|${r.month}|${r.half}">${r.period} (Approved ${r.approved_at || r.created_at})</option>`);
         });
-        // Auto-load report for the first selected run
-        executeLoadReport();
       }
-    }).fail(function() {
-      $('#selRun').html('<option value="">Error connecting to server</option>');
     });
   }
 
   function renderReport(data) {
     if (!data || !data.employees || data.employees.length === 0) {
-      $('#repSummaryKpi').hide();
-      $('#reportContent').html('<div class="loading-msg">No data found matching the selected payroll criteria.</div>');
+      $('#reportContent').html('<div class="loading-msg">No data found in this payroll run.</div>');
       return;
     }
 
-    // Update KPI cards
-    $('#kpiEmployees').text(data.summary ? data.summary.total_employees : data.employees.length);
-    $('#kpiGross').text(fCurrency(data.summary ? data.summary.grand_total_gross : 0));
-    $('#kpiDeduct').text(fCurrency(data.summary ? data.summary.grand_total_deduct : 0));
-    $('#kpiNet').text(fCurrency(data.summary ? data.summary.grand_total_net : 0));
-    $('#repSummaryKpi').css('display', 'grid');
-
     let html = `
       <div class="print-only" style="margin-bottom: 20px; text-align: center;">
-        <h2 style="font-family:'Playfair Display',serif; margin:0; font-size:18px;">Pototan National Comprehensive High School (PNCHS)</h2>
-        <div style="font-weight:700; font-size:14px; margin-top:4px;">Payroll Report</div>
-        <div style="font-size:12px; color:#555; margin-top:2px;">Period: ${data.period}</div>
-        <div style="font-size:11px; color:#777; margin-top:4px;">Generated on: ${new Date().toLocaleString()} | Approved by: ${data.approved_by || '—'}</div>
+        <h2 style="font-family:'Playfair Display',serif; margin:0;">PayCore Payroll Report</h2>
+        <h2 style="font-family:'Playfair Display',serif; margin:0;">Pototan National Comprehensive High School (PNCHS) Payroll Report</h2>
+        <div style="font-size:12px; color:#555;">Period: ${data.period}</div>
+        <div style="font-size:11px; color:#777; margin-top:4px;">Generated on: ${new Date().toLocaleString()} | Approved by: ${data.approved_by || 'Unknown'}</div>
       </div>
       <div class="table-card">
         <table>
@@ -322,7 +282,7 @@
       html += `
         <tr>
           <td style="font-weight:600;">${e.name}</td>
-          <td>${e.designation || '—'}</td>
+          <td>${e.designation}</td>
           <td class="num amt-earn">${fCurrency(e.total_gross)}</td>
           <td class="num amt-net">${fCurrency(e.net_pay)}</td>
           <td class="num">${fCurrency(e.half_basic || 0)}</td>
@@ -338,19 +298,15 @@
       `;
     });
 
-    const sumGross = data.summary ? data.summary.grand_total_gross : 0;
-    const sumNet = data.summary ? data.summary.grand_total_net : 0;
-    const sumDeduct = data.summary ? data.summary.grand_total_deduct : 0;
-
     html += `
           </tbody>
           <tfoot>
             <tr style="background: var(--navy-light);">
               <td colspan="2" style="font-weight:700; text-align:right;">GRAND TOTAL</td>
-              <td class="num amt-earn" style="font-weight:700;">${fCurrency(sumGross)}</td>
-              <td class="num amt-net" style="font-weight:700; font-size:14px;">${fCurrency(sumNet)}</td>
+              <td class="num amt-earn" style="font-weight:700;">${fCurrency(data.summary.grand_total_gross)}</td>
+              <td class="num amt-net" style="font-weight:700; font-size:14px;">${fCurrency(data.summary.grand_total_net)}</td>
               <td colspan="8"></td>
-              <td class="num amt-deduct" style="font-weight:700;">-${fCurrency(sumDeduct)}</td>
+              <td class="num amt-deduct" style="font-weight:700;">-${fCurrency(data.summary.grand_total_deduct)}</td>
             </tr>
           </tfoot>
         </table>
@@ -361,20 +317,21 @@
   }
 
   function downloadCSV(data) {
-    if (!data || !data.employees || data.employees.length === 0) return;
+    if (!data || !data.employees) return;
     
     let csv = 'Employee Name,Designation,Basic Salary,Other Earnings,Gross Pay,Absent Deduction,Tardy/Undertime Deduction,GSIS/SSS,PhilHealth,Pag-IBIG,Withholding Tax,Total Deductions,Net Pay\n';
     
     data.employees.forEach(e => {
       const tardyUt = (e.tardiness_deduction || 0) + (e.undertime_deduction || 0);
-      csv += `"${e.name}","${e.designation || ''}",${e.half_basic || 0},${e.other_earnings || 0},${e.total_gross || 0},${e.absent_deduction || 0},${tardyUt},${e.gsis_ee || 0},${e.philhealth_ee || 0},${e.pagibig_ee || 0},${e.withholding_tax || 0},${e.total_deduct || 0},${e.net_pay || 0}\n`;
+      csv += `"${e.name}","${e.designation}",${e.half_basic || 0},${e.other_earnings || 0},${e.total_gross},${e.absent_deduction || 0},${tardyUt},${e.gsis_ee || 0},${e.philhealth_ee || 0},${e.pagibig_ee || 0},${e.withholding_tax || 0},${e.total_deduct},${e.net_pay}\n`;
     });
 
-    const cleanPeriod = (data.period || 'Payroll').replace(/[^a-zA-Z0-9_-]/g, '_');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
+    link.setAttribute("download", `Payroll_Report_${data.period.replace(/ /g, '_')}.csv`);
+    const cleanPeriod = (data.period || 'Payroll').replace(/[^a-zA-Z0-9_-]/g, '_');
     link.setAttribute("download", `Payroll_Report_${cleanPeriod}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
@@ -382,22 +339,28 @@
     document.body.removeChild(link);
   }
 
-  function executeLoadReport() {
+  // Bindings using delegation
+  $(document).off('click', '#btnLoadReport').on('click', '#btnLoadReport', function() {
+    const val = $('#selRun').val();
+    if (!val) return;
+    const [year, month, half] = val.split('|');
     const mode = $('#repFilterMode').val() || 'run';
     const params = { date_mode: mode };
 
     if (mode === 'run') {
       const val = $('#selRun').val();
       if (!val) {
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({ icon: 'info', title: 'Select Run', text: 'Please select a payroll run from the dropdown.' });
-        }
+        Swal.fire({
+          icon: 'info',
+          title: 'Select Run',
+          text: 'Please select a payroll run from the dropdown.'
+        });
         return;
       }
-      const parts = val.split('|');
-      params.year  = parts[0];
-      params.month = parts[1];
-      params.half  = parts[2];
+      const [year, month, half] = val.split('|');
+      params.year  = year;
+      params.month = month;
+      params.half  = half;
     } else if (mode === 'month') {
       params.year  = $('#repSelYear').val();
       params.month = $('#repSelMonth').val();
@@ -418,14 +381,8 @@
       renderReport(res);
       $('#btnExportCSV, #btnPrintReport').prop('disabled', false);
     }).fail(function(xhr) {
-      $('#repSummaryKpi').hide();
       $('#reportContent').html(`<div class="loading-msg"><span style="color:var(--red)">Failed to load data: ${(xhr.responseJSON && xhr.responseJSON.error) || 'Server error'}</span></div>`);
     });
-  }
-
-  // Bindings using delegation
-  $(document).off('click', '#btnLoadReport').on('click', '#btnLoadReport', function() {
-    executeLoadReport();
   });
 
   $(document).off('click', '#btnExportCSV').on('click', '#btnExportCSV', function() {
@@ -439,7 +396,7 @@
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Payroll Report - PNCHS</title>
+      <title>Payroll Report</title>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
       <style>
         :root {
@@ -464,23 +421,7 @@
         .print-only { display: block !important; visibility: visible !important; }
       </style>
     </head>
-    <body>
-      ${content}
-      <div style="margin-top:40px; display:flex; justify-content:space-between; text-align:center; font-size:11px;">
-        <div>
-          <div>Prepared by:</div>
-          <div style="margin-top:35px; border-top:1px solid #000; width:180px; padding-top:4px;">Payroll In-Charge</div>
-        </div>
-        <div>
-          <div>Certified Correct:</div>
-          <div style="margin-top:35px; border-top:1px solid #000; width:180px; padding-top:4px;">Finance Officer</div>
-        </div>
-        <div>
-          <div>Approved by:</div>
-          <div style="margin-top:35px; border-top:1px solid #000; width:180px; padding-top:4px;">School Principal</div>
-        </div>
-      </div>
-    </body>
+    <body>${content}</body>
     </html>`);
     win.document.close();
     win.focus();

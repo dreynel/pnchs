@@ -176,11 +176,11 @@ def get_biometric_logs():
             SELECT 
                 b.id, 
                 b.employee_id, 
-                CONCAT(e.first_name, ' ', e.last_name) as name,
+                COALESCE(CONCAT(e.first_name, ' ', e.last_name), b.employee_id) as name,
                 b.log_type, 
                 b.log_time
             FROM tblbiometric_logs b
-            JOIN tblemployee e ON b.employee_id = e.employee_id
+            LEFT JOIN tblemployee e ON b.employee_id = e.employee_id
             WHERE DATE(b.log_time) >= %s AND DATE(b.log_time) <= %s
             ORDER BY b.log_time DESC
         """
@@ -220,10 +220,10 @@ def get_today_categorized():
             employees = cur.fetchall()
 
             cur.execute("""
-                SELECT b.id, b.employee_id, CONCAT(e.first_name, ' ', e.last_name) as name,
+                SELECT b.id, b.employee_id, COALESCE(CONCAT(e.first_name, ' ', e.last_name), b.employee_id) as name,
                        b.log_type, b.log_time
                 FROM tblbiometric_logs b
-                JOIN tblemployee e ON b.employee_id = e.employee_id
+                LEFT JOIN tblemployee e ON b.employee_id = e.employee_id
                 WHERE DATE(b.log_time) >= %s AND DATE(b.log_time) <= %s
                 ORDER BY b.log_time DESC
             """, (start_date, end_date))
@@ -256,24 +256,35 @@ def get_today_categorized():
                 """, (start_date,))
                 time_logs = {row['employee_id']: row for row in cur.fetchall()}
 
+                # Index raw punches by employee & slot as fallback
+                emp_punches = {}
+                for p in raw_punches:
+                    eid = p['employee_id']
+                    lt = p.get('log_type')
+                    if eid not in emp_punches:
+                        emp_punches[eid] = {}
+                    if lt and lt not in emp_punches[eid]:
+                        emp_punches[eid][lt] = p.get('time_str')
+
                 for emp in employees:
                     emp_id = emp['employee_id']
                     log = time_logs.get(emp_id, {})
+                    raw_map = emp_punches.get(emp_id, {})
                     
                     am_in = log.get('am_time_in')
                     am_out = log.get('am_time_out')
                     pm_in = log.get('pm_time_in')
                     pm_out = log.get('pm_time_out')
 
-                    if am_in: am_in_count += 1
-                    if am_out: am_out_count += 1
-                    if pm_in: pm_in_count += 1
-                    if pm_out: pm_out_count += 1
+                    val_am_in  = _format_time_12h(am_in) or raw_map.get('am_time_in')
+                    val_am_out = _format_time_12h(am_out) or raw_map.get('am_time_out')
+                    val_pm_in  = _format_time_12h(pm_in) or raw_map.get('pm_time_in')
+                    val_pm_out = _format_time_12h(pm_out) or raw_map.get('pm_time_out')
 
-                    f_am_in  = _format_time_12h(am_in)
-                    f_am_out = _format_time_12h(am_out)
-                    f_pm_in  = _format_time_12h(pm_in)
-                    f_pm_out = _format_time_12h(pm_out)
+                    if val_am_in: am_in_count += 1
+                    if val_am_out: am_out_count += 1
+                    if val_pm_in: pm_in_count += 1
+                    if val_pm_out: pm_out_count += 1
 
                     matrix.append({
                         'employee_id': emp_id,
@@ -281,15 +292,15 @@ def get_today_categorized():
                         'department': emp.get('employee_type') or 'Faculty',
                         'designation': emp.get('designation') or 'Staff',
                         'employee_type': emp.get('employee_type') or 'Faculty',
-                        'am_time_in': f_am_in,
-                        'am_time_out': f_am_out,
-                        'pm_time_in': f_pm_in,
-                        'pm_time_out': f_pm_out,
-                        'am_in': f_am_in,
-                        'am_out': f_am_out,
-                        'pm_in': f_pm_in,
-                        'pm_out': f_pm_out,
-                        'has_activity': bool(am_in or am_out or pm_in or pm_out)
+                        'am_time_in': val_am_in,
+                        'am_time_out': val_am_out,
+                        'pm_time_in': val_pm_in,
+                        'pm_time_out': val_pm_out,
+                        'am_in': val_am_in,
+                        'am_out': val_am_out,
+                        'pm_in': val_pm_in,
+                        'pm_out': val_pm_out,
+                        'has_activity': bool(val_am_in or val_am_out or val_pm_in or val_pm_out)
                     })
             else:
                 cur.execute("""
