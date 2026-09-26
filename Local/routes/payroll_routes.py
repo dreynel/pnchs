@@ -415,12 +415,20 @@ def _workdays(start, end):
         current += timedelta(days=1)
 
 
-# ── GET /api/payroll/process ─────────────────────────────────────────────────
+# ── GET /api/payroll/process, /api/payroll/report & /api/payroll/report_data ──
+@payroll_bp.route('/report', methods=['GET'])
+@payroll_bp.route('/report_data', methods=['GET'])
 @payroll_bp.route('/process', methods=['GET'])
 def process_payroll():
+    period_key = request.args.get('period_key', '').strip() or request.args.get('key', '').strip()
     year  = request.args.get('year',  '').strip()
     month = request.args.get('month', '').strip()
     half  = request.args.get('half',  '').strip()
+
+    if not (year and month and half) and period_key:
+        parts = period_key.split('-')
+        if len(parts) == 3:
+            year, month, half = parts[0], parts[1], parts[2]
 
     if not year or not month or not half:
         return jsonify({'error': 'year, month, and half are required'}), 400

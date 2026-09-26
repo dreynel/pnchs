@@ -419,7 +419,113 @@ def _workdays(start, end):
 
 
 # ── GET /api/payroll/process & /api/payroll/report ──────────────────────────
+def get_payroll_run_dict(cur, period_key, label_override=None):
+    """Format a single run payload as a clean dictionary."""
+    cur.execute("""
+        SELECT d.*, e.first_name, e.last_name, e.designation,
+               COALESCE(b.vl_minutes, 4800) AS vl_minutes,
+               COALESCE(b.sl_minutes, 4800) AS sl_minutes
+        FROM tblpayroll_details d
+        JOIN tblemployee e ON d.employee_id = e.employee_id
+        LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
+        WHERE d.period_key = %s
+        ORDER BY e.last_name, e.first_name
+    """, (period_key,))
+    records = cur.fetchall()
+
+    cur.execute("SELECT year, month, half, created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s", (period_key,))
+    hdr = cur.fetchone()
+    created_at_str = hdr['created_at'].strftime('%b %d, %Y') if hdr and hdr.get('created_at') else '—'
+    approved_by    = hdr['approved_by'] if hdr else None
+    approved_at    = hdr['approved_at'].strftime('%b %d, %Y %I:%M %p') if hdr and hdr.get('approved_at') else None
+
+    p_parts = period_key.split('-')
+    p_year = hdr['year'] if hdr else (p_parts[0] if len(p_parts)>0 else '')
+    p_month = hdr['month'] if hdr else (int(p_parts[1]) if len(p_parts)>1 else 1)
+    p_half = hdr['half'] if hdr else (int(p_parts[2]) if len(p_parts)>2 else 1)
+    m_name = calendar.month_name[int(p_month)] if str(p_month).isdigit() and 1 <= int(p_month) <= 12 else ''
+    period_label = label_override or f"{m_name} {p_year} - {'1st' if int(p_half)==1 else '2nd'} Half"
+
+    results = []
+    gGross = gDeduct = gNet = 0.0
+    for rec in records:
+        def f(k): return float(rec.get(k) or 0)
+        vl_m = int(rec.get('vl_minutes') or 4800)
+        sl_m = int(rec.get('sl_minutes') or 4800)
+        results.append({
+            'id':                     rec['employee_id'],
+            'name':                   f"{rec['first_name']} {rec['last_name']}",
+            'designation':            rec['designation'],
+            'basic_salary':           f('basic_salary'),
+            'half_basic':             f('half_basic'),
+            'other_earnings':         f('other_earnings'),
+            'holiday_pay':            f('holiday_pay'),
+            'other_deductions':       f('other_deductions'),
+            'daily_rate':             f('daily_rate'),
+            'absent_days':            float(rec.get('absent_days') or 0),
+            'absent_deduction':       f('absent_deduction'),
+            'late_minutes':           int(rec.get('late_minutes') or 0),
+            'undertime_minutes':      int(rec.get('undertime_minutes') or 0),
+            'vl_tardiness_minutes':   int(rec.get('vl_tardiness_minutes') or 0),
+            'vl_undertime_minutes':   int(rec.get('vl_undertime_minutes') or 0),
+            'lwop_tardiness_minutes': int(rec.get('lwop_tardiness_minutes') or 0),
+            'lwop_undertime_minutes': int(rec.get('lwop_undertime_minutes') or 0),
+            'tardiness_deduction':    f('tardiness_deduction'),
+            'undertime_deduction':    f('undertime_deduction'),
+            'vl_minutes':              vl_m,
+            'sl_minutes':              sl_m,
+            'vl_formatted':            LeavePolicyService.format_minutes_to_dhm(vl_m),
+            'sl_formatted':            LeavePolicyService.format_minutes_to_dhm(sl_m),
+            'gsis_ee':                 f('sss_ee'),
+            'philhealth_ee':          f('philhealth_ee'),
+            'pagibig_ee':             f('pagibig_ee'),
+            'withholding_tax':        f('withholding_tax'),
+            # Compatibility aliases
+            'gsis':                   f('sss_ee'),
+            'philhealth':             f('philhealth_ee'),
+            'pagibig':                f('pagibig_ee'),
+            'tax':                    f('withholding_tax'),
+            'tardiness':              f('tardiness_deduction'),
+            'undertime':              f('undertime_deduction'),
+            'absence':                f('absent_deduction'),
+            'statutory_json':          rec.get('statutory_json'),
+            'payheads_json':           rec.get('payheads_json'),
+            'total_gross':            f('total_gross'),
+            'total_deduct':           f('total_deduct'),
+            'net_pay':                f('net_pay'),
+            'is_negative':            bool(rec.get('is_negative', 0)),
+            'below_net_floor':        bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
+            'dtr_filed':              bool(rec.get('dtr_filed', 0)),
+            'runs_count':             1
+        })
+        gGross  += f('total_gross')
+        gDeduct += f('total_deduct')
+        gNet    += f('net_pay')
+
+    return {
+        'period':      period_label,
+        'created_at':  created_at_str,
+        'approved_by': approved_by,
+        'approved_at': approved_at,
+        'employees':   results,
+        'summary': {
+            'total_employees':    len(results),
+            'grand_total_gross':  round(gGross,  2),
+            'grand_total_deduct': round(gDeduct, 2),
+            'grand_total_net':    round(gNet,    2),
+            'runs_count':         1
+        }
+    }
+
+
+def process_payroll_single_run(cur, period_key, label_override=None):
+    """Helper to format a single run payload as JSON string."""
+    return json.dumps(get_payroll_run_dict(cur, period_key, label_override))
+
+
+# ── GET /api/payroll/process, /api/payroll/report & /api/payroll/report_data ──
 @payroll_bp.route('/report', methods=['GET'])
+@payroll_bp.route('/report_data', methods=['GET'])
 @payroll_bp.route('/process', methods=['GET'])
 def process_payroll():
     role = session.get('user', {}).get('role')
@@ -432,7 +538,7 @@ def process_payroll():
     year = request.args.get('year', '').strip()
     month = request.args.get('month', '').strip()
     half = request.args.get('half', '').strip()
-    period_key = request.args.get('period_key', '').strip()
+    period_key = request.args.get('period_key', '').strip() or request.args.get('key', '').strip()
 
     today = date.today()
 
@@ -460,91 +566,7 @@ def process_payroll():
                         return jsonify({'error': 'year, month, and half or period_key are required for single run'}), 400
                     period_key = f"{int(year)}-{int(month)}-{int(half)}"
 
-                cur.execute("""
-                    SELECT d.*, e.first_name, e.last_name, e.designation,
-                           COALESCE(b.vl_minutes, 4800) AS vl_minutes,
-                           COALESCE(b.sl_minutes, 4800) AS sl_minutes
-                    FROM tblpayroll_details d
-                    JOIN tblemployee e ON d.employee_id = e.employee_id
-                    LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
-                    WHERE d.period_key = %s
-                    ORDER BY e.last_name, e.first_name
-                """, (period_key,))
-                records = cur.fetchall()
-
-                cur.execute("SELECT year, month, half, created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s", (period_key,))
-                hdr = cur.fetchone()
-                created_at_str = hdr['created_at'].strftime('%b %d, %Y') if hdr and hdr.get('created_at') else '—'
-                approved_by    = hdr['approved_by'] if hdr else None
-                approved_at    = hdr['approved_at'].strftime('%b %d, %Y %I:%M %p') if hdr and hdr.get('approved_at') else None
-
-                p_parts = period_key.split('-')
-                p_year = hdr['year'] if hdr else (p_parts[0] if len(p_parts)>0 else '')
-                p_month = hdr['month'] if hdr else (int(p_parts[1]) if len(p_parts)>1 else 1)
-                p_half = hdr['half'] if hdr else (int(p_parts[2]) if len(p_parts)>2 else 1)
-                m_name = calendar.month_name[int(p_month)] if str(p_month).isdigit() and 1 <= int(p_month) <= 12 else ''
-                period_label = f"{m_name} {p_year} - {'1st' if int(p_half)==1 else '2nd'} Half"
-
-                results = []
-                gGross = gDeduct = gNet = 0.0
-                for rec in records:
-                    def f(k): return float(rec.get(k) or 0)
-                    vl_m = int(rec.get('vl_minutes') or 4800)
-                    sl_m = int(rec.get('sl_minutes') or 4800)
-                    results.append({
-                        'id':                 rec['employee_id'],
-                        'name':               f"{rec['first_name']} {rec['last_name']}",
-                        'designation':        rec['designation'],
-                        'basic_salary':       f('basic_salary'),
-                        'half_basic':         f('half_basic'),
-                        'other_earnings':     f('other_earnings'),
-                        'holiday_pay':        f('holiday_pay'),
-                        'other_deductions':   f('other_deductions'),
-                        'daily_rate':         f('daily_rate'),
-                        'absent_days':        rec.get('absent_days', 0),
-                        'absent_deduction':   f('absent_deduction'),
-                        'late_minutes':        rec.get('late_minutes', 0),
-                        'undertime_minutes':   rec.get('undertime_minutes', 0),
-                        'vl_tardiness_minutes': rec.get('vl_tardiness_minutes', 0),
-                        'vl_undertime_minutes': rec.get('vl_undertime_minutes', 0),
-                        'lwop_tardiness_minutes': rec.get('lwop_tardiness_minutes', 0),
-                        'lwop_undertime_minutes': rec.get('lwop_undertime_minutes', 0),
-                        'tardiness_deduction': f('tardiness_deduction'),
-                        'undertime_deduction': f('undertime_deduction'),
-                        'vl_minutes':          vl_m,
-                        'sl_minutes':          sl_m,
-                        'vl_formatted':        LeavePolicyService.format_minutes_to_dhm(vl_m),
-                        'sl_formatted':        LeavePolicyService.format_minutes_to_dhm(sl_m),
-                        'gsis_ee':             f('sss_ee'),
-                        'philhealth_ee':      f('philhealth_ee'),
-                        'pagibig_ee':         f('pagibig_ee'),
-                        'withholding_tax':    f('withholding_tax'),
-                        'statutory_json':      rec.get('statutory_json'),
-                        'payheads_json':       rec.get('payheads_json'),
-                        'total_gross':        f('total_gross'),
-                        'total_deduct':       f('total_deduct'),
-                        'net_pay':            f('net_pay'),
-                        'is_negative':        bool(rec.get('is_negative', 0)),
-                        'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
-                        'dtr_filed':          bool(rec.get('dtr_filed', 0)),
-                    })
-                    gGross  += f('total_gross')
-                    gDeduct += f('total_deduct')
-                    gNet    += f('net_pay')
-
-                return jsonify({
-                    'period':      period_label,
-                    'created_at':  created_at_str,
-                    'approved_by': approved_by,
-                    'approved_at': approved_at,
-                    'employees':   results,
-                    'summary': {
-                        'total_employees':    len(results),
-                        'grand_total_gross':  round(gGross,  2),
-                        'grand_total_deduct': round(gDeduct, 2),
-                        'grand_total_net':    round(gNet,    2),
-                    }
-                })
+                return jsonify(get_payroll_run_dict(cur, period_key))
 
             # ── 2. Multi-Run / Aggregation Modes (Month, Year, Range, Daily) ─
             where_clauses = []
@@ -588,9 +610,9 @@ def process_payroll():
                 e_int = e_date.year * 10000 + e_date.month * 100 + e_date.day
 
                 where_clauses.append("""
-                    (p.year * 10000 + p.month * 100 + IF(p.half = 1, 1, 16)) <= %s
+                    (p.year * 10000 + p.month * 100 + CASE WHEN p.half = 1 THEN 1 ELSE 16 END) <= %s
                     AND
-                    (p.year * 10000 + p.month * 100 + IF(p.half = 1, 15, 31)) >= %s
+                    (p.year * 10000 + p.month * 100 + CASE WHEN p.half = 1 THEN 15 ELSE 31 END) >= %s
                 """)
                 params.extend([e_int, s_int])
                 period_label = f"{s_date.strftime('%b %d, %Y')} – {e_date.strftime('%b %d, %Y')}"
@@ -605,8 +627,8 @@ def process_payroll():
             """, tuple(params))
             hdrs = cur.fetchall()
 
-            # Prefer approved / posted runs, but fallback to any found if none approved yet
-            approved_hdrs = [h for h in hdrs if h['status'] in ['Approved', 'Posted']]
+            # Prefer approved / released / posted runs, but fallback to any found if none approved yet
+            approved_hdrs = [h for h in hdrs if h['status'] in ['Approved', 'Posted', 'Released']]
             active_hdrs = approved_hdrs if approved_hdrs else hdrs
 
             if not active_hdrs:
@@ -628,7 +650,7 @@ def process_payroll():
             # If exactly 1 run was found, delegate to single run display for full detail
             if len(active_hdrs) == 1:
                 single_hdr = active_hdrs[0]
-                return jsonify(json.loads(process_payroll_single_run(cur, single_hdr['period_key'], period_label)))
+                return jsonify(get_payroll_run_dict(cur, single_hdr['period_key'], period_label))
 
             # Multiple runs: Aggregate across all matched periods
             keys = [h['period_key'] for h in active_hdrs]
@@ -672,38 +694,46 @@ def process_payroll():
             for rec in records:
                 def f(k): return float(rec.get(k) or 0)
                 results.append({
-                    'id':                 rec['employee_id'],
-                    'name':               f"{rec['first_name']} {rec['last_name']}",
-                    'designation':        rec['designation'],
-                    'basic_salary':       f('basic_salary'),
-                    'half_basic':         f('half_basic'),
-                    'other_earnings':     f('other_earnings'),
-                    'holiday_pay':        f('holiday_pay'),
-                    'other_deductions':   f('other_deductions'),
-                    'daily_rate':         f('daily_rate'),
-                    'absent_days':        rec.get('absent_days', 0),
-                    'absent_deduction':   f('absent_deduction'),
-                    'late_minutes':        rec.get('late_minutes', 0),
-                    'undertime_minutes':   rec.get('undertime_minutes', 0),
-                    'vl_tardiness_minutes': rec.get('vl_tardiness_minutes', 0),
-                    'vl_undertime_minutes': rec.get('vl_undertime_minutes', 0),
-                    'lwop_tardiness_minutes': rec.get('lwop_tardiness_minutes', 0),
-                    'lwop_undertime_minutes': rec.get('lwop_undertime_minutes', 0),
-                    'tardiness_deduction': f('tardiness_deduction'),
-                    'undertime_deduction': f('undertime_deduction'),
-                    'gsis_ee':             f('sss_ee'),
-                    'philhealth_ee':      f('philhealth_ee'),
-                    'pagibig_ee':         f('pagibig_ee'),
-                    'withholding_tax':    f('withholding_tax'),
-                    'statutory_json':      None,
-                    'payheads_json':       None,
-                    'total_gross':        f('total_gross'),
-                    'total_deduct':       f('total_deduct'),
-                    'net_pay':            f('net_pay'),
-                    'is_negative':        bool(f('net_pay') < 0),
-                    'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
-                    'dtr_filed':          True,
-                    'runs_count':         rec.get('runs_count', len(active_hdrs)),
+                    'id':                     rec['employee_id'],
+                    'name':                   f"{rec['first_name']} {rec['last_name']}",
+                    'designation':            rec['designation'],
+                    'basic_salary':           f('basic_salary'),
+                    'half_basic':             f('half_basic'),
+                    'other_earnings':         f('other_earnings'),
+                    'holiday_pay':            f('holiday_pay'),
+                    'other_deductions':       f('other_deductions'),
+                    'daily_rate':             f('daily_rate'),
+                    'absent_days':            float(rec.get('absent_days') or 0),
+                    'absent_deduction':       f('absent_deduction'),
+                    'late_minutes':           int(rec.get('late_minutes') or 0),
+                    'undertime_minutes':      int(rec.get('undertime_minutes') or 0),
+                    'vl_tardiness_minutes':   0,
+                    'vl_undertime_minutes':   0,
+                    'lwop_tardiness_minutes': 0,
+                    'lwop_undertime_minutes': 0,
+                    'tardiness_deduction':    f('tardiness_deduction'),
+                    'undertime_deduction':    f('undertime_deduction'),
+                    'gsis_ee':                 f('sss_ee'),
+                    'philhealth_ee':          f('philhealth_ee'),
+                    'pagibig_ee':             f('pagibig_ee'),
+                    'withholding_tax':        f('withholding_tax'),
+                    # Compatibility aliases
+                    'gsis':                   f('sss_ee'),
+                    'philhealth':             f('philhealth_ee'),
+                    'pagibig':                f('pagibig_ee'),
+                    'tax':                    f('withholding_tax'),
+                    'tardiness':              f('tardiness_deduction'),
+                    'undertime':              f('undertime_deduction'),
+                    'absence':                f('absent_deduction'),
+                    'statutory_json':          None,
+                    'payheads_json':           None,
+                    'total_gross':            f('total_gross'),
+                    'total_deduct':           f('total_deduct'),
+                    'net_pay':                f('net_pay'),
+                    'is_negative':            bool(f('net_pay') < 0),
+                    'below_net_floor':        bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
+                    'dtr_filed':              True,
+                    'runs_count':             int(rec.get('runs_count') or len(active_hdrs)),
                 })
                 gGross  += f('total_gross')
                 gDeduct += f('total_deduct')
@@ -729,97 +759,6 @@ def process_payroll():
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'trace': traceback.format_exc()}), 500
-
-
-def process_payroll_single_run(cur, period_key, label_override=None):
-    """Helper to format a single run payload as JSON string."""
-    cur.execute("""
-        SELECT d.*, e.first_name, e.last_name, e.designation,
-               COALESCE(b.vl_minutes, 4800) AS vl_minutes,
-               COALESCE(b.sl_minutes, 4800) AS sl_minutes
-        FROM tblpayroll_details d
-        JOIN tblemployee e ON d.employee_id = e.employee_id
-        LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
-        WHERE d.period_key = %s
-        ORDER BY e.last_name, e.first_name
-    """, (period_key,))
-    records = cur.fetchall()
-
-    cur.execute("SELECT year, month, half, created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s", (period_key,))
-    hdr = cur.fetchone()
-    created_at_str = hdr['created_at'].strftime('%b %d, %Y') if hdr and hdr.get('created_at') else '—'
-    approved_by    = hdr['approved_by'] if hdr else None
-    approved_at    = hdr['approved_at'].strftime('%b %d, %Y %I:%M %p') if hdr and hdr.get('approved_at') else None
-
-    p_parts = period_key.split('-')
-    p_year = hdr['year'] if hdr else (p_parts[0] if len(p_parts)>0 else '')
-    p_month = hdr['month'] if hdr else (int(p_parts[1]) if len(p_parts)>1 else 1)
-    p_half = hdr['half'] if hdr else (int(p_parts[2]) if len(p_parts)>2 else 1)
-    m_name = calendar.month_name[int(p_month)] if str(p_month).isdigit() and 1 <= int(p_month) <= 12 else ''
-    period_label = label_override or f"{m_name} {p_year} - {'1st' if int(p_half)==1 else '2nd'} Half"
-
-    results = []
-    gGross = gDeduct = gNet = 0.0
-    for rec in records:
-        def f(k): return float(rec.get(k) or 0)
-        vl_m = int(rec.get('vl_minutes') or 4800)
-        sl_m = int(rec.get('sl_minutes') or 4800)
-        results.append({
-            'id':                 rec['employee_id'],
-            'name':               f"{rec['first_name']} {rec['last_name']}",
-            'designation':        rec['designation'],
-            'basic_salary':       f('basic_salary'),
-            'half_basic':         f('half_basic'),
-            'other_earnings':     f('other_earnings'),
-            'holiday_pay':        f('holiday_pay'),
-            'other_deductions':   f('other_deductions'),
-            'daily_rate':         f('daily_rate'),
-            'absent_days':        rec.get('absent_days', 0),
-            'absent_deduction':   f('absent_deduction'),
-            'late_minutes':        rec.get('late_minutes', 0),
-            'undertime_minutes':   rec.get('undertime_minutes', 0),
-            'vl_tardiness_minutes': rec.get('vl_tardiness_minutes', 0),
-            'vl_undertime_minutes': rec.get('vl_undertime_minutes', 0),
-            'lwop_tardiness_minutes': rec.get('lwop_tardiness_minutes', 0),
-            'lwop_undertime_minutes': rec.get('lwop_undertime_minutes', 0),
-            'tardiness_deduction': f('tardiness_deduction'),
-            'undertime_deduction': f('undertime_deduction'),
-            'vl_minutes':          vl_m,
-            'sl_minutes':          sl_m,
-            'vl_formatted':        LeavePolicyService.format_minutes_to_dhm(vl_m),
-            'sl_formatted':        LeavePolicyService.format_minutes_to_dhm(sl_m),
-            'gsis_ee':             f('sss_ee'),
-            'philhealth_ee':      f('philhealth_ee'),
-            'pagibig_ee':         f('pagibig_ee'),
-            'withholding_tax':    f('withholding_tax'),
-            'statutory_json':      rec.get('statutory_json'),
-            'payheads_json':       rec.get('payheads_json'),
-            'total_gross':        f('total_gross'),
-            'total_deduct':       f('total_deduct'),
-            'net_pay':            f('net_pay'),
-            'is_negative':        bool(rec.get('is_negative', 0)),
-            'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
-            'dtr_filed':          bool(rec.get('dtr_filed', 0)),
-            'runs_count':         1
-        })
-        gGross  += f('total_gross')
-        gDeduct += f('total_deduct')
-        gNet    += f('net_pay')
-
-    return json.dumps({
-        'period':      period_label,
-        'created_at':  created_at_str,
-        'approved_by': approved_by,
-        'approved_at': approved_at,
-        'employees':   results,
-        'summary': {
-            'total_employees':    len(results),
-            'grand_total_gross':  round(gGross,  2),
-            'grand_total_deduct': round(gDeduct, 2),
-            'grand_total_net':    round(gNet,    2),
-            'runs_count':         1
-        }
-    })
 
 
 # ── GET /api/payroll/my_payslip ──────────────────────────────────────────────

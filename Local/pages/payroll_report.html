@@ -126,16 +126,27 @@
 
   function loadRuns() {
     $.get('/api/payroll/runs', function(data) {
-      currentRuns = data.filter(r => r.status === 'Approved' || r.status === 'Posted');
+      if (!Array.isArray(data)) {
+        $('#selRun').html('<option value="">Failed to load runs</option>');
+        return;
+      }
+      currentRuns = data.filter(r => ['Approved', 'Released', 'Posted'].includes(r.status));
+      if (currentRuns.length === 0 && data.length > 0) {
+        currentRuns = data;
+      }
       const $sel = $('#selRun');
       $sel.empty();
       if (currentRuns.length === 0) {
-        $sel.append('<option value="">No Approved Payrolls Found</option>');
+        $sel.append('<option value="">No Payroll Runs Found</option>');
       } else {
         currentRuns.forEach(r => {
-          $sel.append(`<option value="${r.year}|${r.month}|${r.half}">${r.period} (Approved ${r.approved_at || r.created_at})</option>`);
+          const statusSuffix = r.status ? ` [${r.status}]` : '';
+          $sel.append(`<option value="${r.year}|${r.month}|${r.half}">${r.period}${statusSuffix}</option>`);
         });
+        $('#btnLoadReport').click();
       }
+    }).fail(function() {
+      $('#selRun').html('<option value="">Error connecting to server</option>');
     });
   }
 
