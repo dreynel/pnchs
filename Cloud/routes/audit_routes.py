@@ -42,15 +42,15 @@ def _build_date_filter(args):
         m = args.get('month')
         y = args.get('year')
         if y and str(y).isdigit():
-            where.append("YEAR(created_at) = %s")
+            where.append("EXTRACT(YEAR FROM created_at) = %s")
             params.append(int(y))
         if m and str(m).isdigit():
-            where.append("MONTH(created_at) = %s")
+            where.append("EXTRACT(MONTH FROM created_at) = %s")
             params.append(int(m))
     elif mode == 'year':
         y = args.get('year')
         if y and str(y).isdigit():
-            where.append("YEAR(created_at) = %s")
+            where.append("EXTRACT(YEAR FROM created_at) = %s")
             params.append(int(y))
     elif mode == 'range':
         d_from = args.get('date_from')
@@ -313,7 +313,7 @@ def get_audit_payroll_periods():
     periods = []
     for r in rows:
         m_name = calendar.month_name[r['month']] if (r.get('month') and 1 <= r['month'] <= 12) else 'Month'
-        p_name = f"{m_name} {r.get('year', '')} — {'1st' if r.get('half')==1 else '2nd'} Half"
+        p_name = f"{m_name} {r.get('year', '')} - {'1st' if r.get('half')==1 else '2nd'} Half"
         created = r.get('created_at')
         periods.append({
             'period_key': r['period_key'],
@@ -462,6 +462,7 @@ def get_payroll_verification():
             'pagibig_ee': pagibig_ee,
             'withholding_tax': withholding_tax,
             'other_deductions': other_deductions + ph_deductions,
+            'ph_deductions': ph_deductions,
             'stored_deductions': stored_deductions,
             'audited_deductions': audited_deductions,
             'deduction_variance': deduction_var,
@@ -544,9 +545,9 @@ def export_payroll_verification():
             f"{d['philhealth_ee']:.2f}",
             f"{d['pagibig_ee']:.2f}",
             f"{d['sss_ee']:.2f}",
-            f"{d['withholding_tax']:.2f}",
-            f"{d['ph_deductions']:.2f}",
-            f"{d['stored_deductions']:.2f}",
+            f"{d.get('withholding_tax', 0):.2f}",
+            f"{d.get('other_deductions', 0):.2f}",
+            f"{d.get('stored_deductions', 0):.2f}",
             f"{d['audited_deductions']:.2f}",
             f"{d['deduction_variance']:.2f}",
             f"{d['stored_net']:.2f}",

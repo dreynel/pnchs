@@ -25,8 +25,9 @@ class TestAuditRoutes(unittest.TestCase):
         # Insert a dummy payroll period if none exists
         with db_cursor(commit=True) as (conn, cur):
             cur.execute("""
-                INSERT IGNORE INTO tblpayroll (period_key, year, month, half, status, is_released)
+                INSERT INTO tblpayroll (period_key, year, month, half, status, is_released)
                 VALUES ('TEST_AUDIT_2026_09_1', 2026, 9, 1, 'Approved', 1)
+                ON CONFLICT (period_key) DO NOTHING
             """)
 
         for role in roles:
@@ -50,6 +51,46 @@ class TestAuditRoutes(unittest.TestCase):
         # Clean up test period
         with db_cursor(commit=True) as (conn, cur):
             cur.execute("DELETE FROM tblpayroll WHERE period_key='TEST_AUDIT_2026_09_1'")
+
+    def test_payroll_verification_calculation(self):
+        with self.app.session_transaction() as sess:
+            sess['user'] = {'name': 'Auditor Admin', 'role': 'Admin', 'employee_id': 'ADM-001'}
+
+        res = self.app.get('/api/audit/payroll-verification?period_key=2026-8-2')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn('summary', data)
+        self.assertIn('details', data)
+        self.assertEqual(data['period_key'], '2026-8-2')
+        self.assertGreater(data['summary']['total_employees'], 0)
+        self.assertIn('compliance_rate', data['summary'])
+        
+        # Verify first detail item mathematical formulas
+        item = data['details'][0]
+        self.assertIn('formulas', item)
+        self.assertIn('daily_rate', item['formulas'])
+        self.assertIn('gross_sum', item['formulas'])
+        self.assertIn('ded_sum', item['formulas'])
+        self.assertIn('net_sum', item['formulas'])
+        self.assertIn(item['status'], ['ACCURATE', 'DISCREPANCY'])
+
+    def test_payroll_verification_export_csv(self):
+        with self.app.session_transaction() as sess:
+            sess['user'] = {'name': 'Finance Lead', 'role': 'Finance', 'employee_id': 'FIN-001'}
+
+        res = self.app.get('/api/audit/export-payroll-verification?period_key=2026-8-2')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('text/csv', res.headers.get('Content-Type', ''))
+        csv_text = res.get_data(as_text=True)
+        lines = csv_text.strip().splitlines()
+        self.assertGreater(len(lines), 1, "CSV should contain header and employee data rows")
+        header = lines[0]
+        self.assertIn('Period Key', header)
+        self.assertIn('Employee ID', header)
+        self.assertIn('Audited Gross', header)
+        self.assertIn('Audited Total Deductions', header)
+        self.assertIn('Audited Net Pay', header)
+        self.assertIn('Audit Status', header)
 
 if __name__ == '__main__':
     unittest.main()
