@@ -186,7 +186,7 @@
 
 <script>
 (function() {
-  const fCurrency = num => '₱' + Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fCurrency = num => '₱' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   
   let currentRuns = [];
   let currentReportData = null;
@@ -241,7 +241,7 @@
           $sel.append(`<option value="${r.year}|${r.month}|${r.half}" ${isSelected}>${r.period}${statusText}</option>`);
         });
         // Auto-load initial report for the first available run
-        $('#btnLoadReport').click();
+        loadReportData();
       }
     });
   }
@@ -304,15 +304,16 @@
       `;
     });
 
+    const summary = data.summary || {};
     html += `
           </tbody>
           <tfoot>
             <tr style="background: var(--navy-light);">
               <td colspan="2" style="font-weight:700; text-align:right;">GRAND TOTAL</td>
-              <td class="num amt-earn" style="font-weight:700;">${fCurrency(data.summary.grand_total_gross)}</td>
-              <td class="num amt-net" style="font-weight:700; font-size:14px;">${fCurrency(data.summary.grand_total_net)}</td>
+              <td class="num amt-earn" style="font-weight:700;">${fCurrency(summary.grand_total_gross)}</td>
+              <td class="num amt-net" style="font-weight:700; font-size:14px;">${fCurrency(summary.grand_total_net)}</td>
               <td colspan="8"></td>
-              <td class="num amt-deduct" style="font-weight:700;">-${fCurrency(data.summary.grand_total_deduct)}</td>
+              <td class="num amt-deduct" style="font-weight:700;">-${fCurrency(summary.grand_total_deduct)}</td>
             </tr>
           </tfoot>
         </table>
@@ -344,8 +345,7 @@
     document.body.removeChild(link);
   }
 
-  // Bindings using delegation
-  $(document).off('click', '#btnLoadReport').on('click', '#btnLoadReport', function() {
+  function loadReportData() {
     const mode = $('#repFilterMode').val() || 'run';
     const params = { date_mode: mode };
 
@@ -359,11 +359,11 @@
         });
         return;
       }
-      const [year, month, half] = val.split('|');
-      params.year  = year;
-      params.month = month;
-      params.half  = half;
-      params.period_key = `${year}-${month}-${half}`;
+      const parts = val.split('|');
+      params.year  = parts[0];
+      params.month = parts[1];
+      params.half  = parts[2];
+      params.period_key = `${parts[0]}-${parts[1]}-${parts[2]}`;
     } else if (mode === 'month') {
       params.year  = $('#repSelYear').val();
       params.month = $('#repSelMonth').val();
@@ -386,6 +386,11 @@
     }).fail(function(xhr) {
       $('#reportContent').html(`<div class="loading-msg"><span style="color:var(--red)">Failed to load data: ${(xhr.responseJSON && xhr.responseJSON.error) || 'Server error'}</span></div>`);
     });
+  }
+
+  // Bindings using delegation
+  $(document).off('click', '#btnLoadReport').on('click', '#btnLoadReport', function() {
+    loadReportData();
   });
 
   $(document).off('click', '#btnExportCSV').on('click', '#btnExportCSV', function() {
