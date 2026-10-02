@@ -154,16 +154,32 @@ def verify_admin():
     if not username or not password:
         return jsonify({'success': False, 'error': 'Username and password required'}), 400
 
+    from werkzeug.security import check_password_hash, generate_password_hash
     try:
-        with db_cursor() as (conn, cur):
+        with db_cursor(commit=True) as (conn, cur):
             cur.execute("""
-                SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name
+                SELECT u.id, u.employee_id, u.username, u.password AS stored_password, u.name AS fallback_name, u.role, e.first_name, e.last_name
                 FROM tblusers u
                 LEFT JOIN tblemployee e ON u.employee_id = e.employee_id
-                WHERE u.username=%s AND u.password=%s
-            """, (username, password))
+                WHERE LOWER(u.username)=LOWER(%s)
+                ORDER BY u.id DESC
+                LIMIT 1
+            """, (username,))
             emp = cur.fetchone()
             if emp:
+                stored = emp.get('stored_password') or ''
+                is_valid = False
+                if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
+                    is_valid = check_password_hash(stored, password)
+                else:
+                    is_valid = (stored == password)
+                    if is_valid:
+                        new_hash = generate_password_hash(password)
+                        cur.execute("UPDATE tblusers SET password=%s WHERE id=%s", (new_hash, emp['id']))
+
+                if not is_valid:
+                    return jsonify({'success': False, 'error': 'Invalid admin credentials.'}), 401
+
                 if emp['role'] not in ['Admin', 'HR', 'HR Officer']:
                     return jsonify({'success': False, 'error': 'Access Denied: Admin or HR credentials required.'}), 403
 

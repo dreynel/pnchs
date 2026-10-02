@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
 from routes import employee_bp, dtr_bp, payroll_bp, fingerprint_bp, attendance_bp, registry_bp, dashboard_bp, salary_grade_bp, audit_bp, approval_bp
+from werkzeug.security import generate_password_hash, check_password_hash
 from services.policy_engine import AuditService
 from services.email_service import send_login_notification_email
 import os
@@ -76,12 +77,32 @@ def login():
         from db import db_cursor
         with db_cursor(commit=True) as (conn, cur):
             cur.execute("""
-                SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name, e.email AS emp_email
+                SELECT u.id, u.employee_id, u.username, u.password AS stored_password, u.name AS fallback_name, u.role, e.first_name, e.last_name, e.email AS emp_email
                 FROM tblusers u
                 LEFT JOIN tblemployee e ON u.employee_id = e.employee_id
-                WHERE u.username=%s AND u.password=%s
-            """, (email, password))
-            emp = cur.fetchone()
+                WHERE LOWER(u.username)=LOWER(%s) OR (e.email IS NOT NULL AND LOWER(e.email)=LOWER(%s))
+                ORDER BY u.id DESC
+                LIMIT 1
+            """, (email, email))
+            user_row = cur.fetchone()
+
+            emp = None
+            if user_row:
+                stored = user_row.get('stored_password') or ''
+                is_valid = False
+                if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
+                    is_valid = check_password_hash(stored, password)
+                else:
+                    # Legacy plaintext fallback
+                    is_valid = (stored == password)
+                    if is_valid:
+                        # Auto-upgrade to secure scrypt hash
+                        new_hash = generate_password_hash(password)
+                        cur.execute("UPDATE tblusers SET password=%s WHERE id=%s", (new_hash, user_row['id']))
+
+                if is_valid:
+                    emp = user_row
+
             if emp:
                 # Prioritize official HR registry name if mapped, else fallback
                 display_name = emp['fallback_name']

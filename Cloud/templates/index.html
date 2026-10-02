@@ -358,13 +358,36 @@
     .content {
       flex: 1; overflow: hidden; position: relative;
     }
+    /* ── Global Dark & Wider Scrollbar ── */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #334155 #e2e8f0;
+    }
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+      border-radius: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 6px;
+      border: 2px solid #e2e8f0;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #1e293b;
+    }
+
     #pageContent {
       width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
       background: var(--bg);
     }
-    #pageContent::-webkit-scrollbar { width: 5px; }
-    #pageContent::-webkit-scrollbar-track { background: var(--bg); }
-    #pageContent::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    #pageContent::-webkit-scrollbar { width: 10px; }
+    #pageContent::-webkit-scrollbar-track { background: #e2e8f0; }
+    #pageContent::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; border: 2px solid #e2e8f0; }
+    #pageContent::-webkit-scrollbar-thumb:hover { background: #1e293b; }
     .page-loader {
       display: flex; align-items: center; justify-content: center;
       height: 100%; gap: 10px; color: var(--muted2); font-size: 13px;
@@ -408,13 +431,18 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 160px;
+        max-width: 150px;
       }
       .breadcrumb {
         display: none;
       }
-      .topbar-right .tb-btn:not(:last-child) {
-        display: none;
+      .topbar-right {
+        gap: 6px;
+      }
+      .notif-dropdown {
+        right: -8px;
+        width: 320px;
+        max-width: calc(100vw - 20px);
       }
       #pageContent {
         -webkit-overflow-scrolling: touch;
@@ -822,6 +850,7 @@
       // Start global real-time synchronization ticker (every 3.5 seconds)
       setInterval(pollDatabaseFeed, 3500);
       pollDatabaseFeed();
+      loadNotificationsList();
 
       // ── Load page into #pageContent ──────────────────────────────────────
       function loadPage(url) {

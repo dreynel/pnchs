@@ -663,18 +663,23 @@
     targetAction = act;
     $('#actionModalTitle').text(`Confirm ${act}`);
     $('#actionModalText').text(`Are you sure you want to mark document "${activeApproval.Title}" as ${act.toUpperCase()}?`);
-    $('#confirmActionBtn').attr('class', `btn ${act === 'Approved' ? 'btn-success' : 'btn-danger'}`).text(`Confirm ${act}`);
+    $('#confirmActionBtn').attr('class', `btn ${act === 'Approved' ? 'btn-success' : 'btn-danger'}`).prop('disabled', false).text(`Confirm ${act}`);
     $('#actionRemarks').val('');
     $('#actionModal').addClass('open');
   };
 
   window.closeActionModal = function() {
+    $('#confirmActionBtn').prop('disabled', false);
+    if (targetAction) {
+      $('#confirmActionBtn').text(`Confirm ${targetAction}`);
+    }
     $('#actionModal').removeClass('open');
   };
 
   window.submitAction = function() {
     if (!activeApproval || !targetAction) return;
 
+    const actionName = targetAction;
     const remarks = $('#actionRemarks').val();
     $('#confirmActionBtn').prop('disabled', true).text('Processing...');
 
@@ -682,15 +687,15 @@
       url: `/api/approvals/${activeApproval.ApprovalID}/action`,
       method: 'POST',
       contentType: 'application/json',
-      data: JSON.stringify({ action: targetAction, remarks: remarks }),
+      data: JSON.stringify({ action: actionName, remarks: remarks }),
       success: function(res) {
         closeActionModal();
-        $('#confirmActionBtn').prop('disabled', false);
+        $('#confirmActionBtn').prop('disabled', false).text(`Confirm ${actionName}`);
         Swal.fire({ icon: 'success', title: 'Success', text: res.message, timer: 1500, showConfirmButton: false });
         loadApprovals();
       },
       error: function(xhr) {
-        $('#confirmActionBtn').prop('disabled', false);
+        $('#confirmActionBtn').prop('disabled', false).text(`Confirm ${actionName}`);
         Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.error || 'Action failed.' });
       }
     });

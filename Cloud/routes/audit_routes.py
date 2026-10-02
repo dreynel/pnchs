@@ -546,6 +546,7 @@ def export_payroll_verification():
             f"{d['pagibig_ee']:.2f}",
             f"{d['sss_ee']:.2f}",
             f"{d.get('withholding_tax', 0):.2f}",
+            f"{d.get('ph_deductions', 0):.2f}",
             f"{d.get('other_deductions', 0):.2f}",
             f"{d.get('stored_deductions', 0):.2f}",
             f"{d['audited_deductions']:.2f}",

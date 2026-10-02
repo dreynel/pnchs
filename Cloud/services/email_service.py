@@ -1,9 +1,11 @@
 import os
+import re
 import requests
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import threading
+from datetime import datetime
 
 _K1 = "xkeysib-ca7a93aa4f22f907d2a61aec15691b54a4d"
 _K2 = "32be1a940714a178ed2ea3bd7970f-me1q3ZAt8mccApxo"
@@ -15,6 +17,81 @@ BREVO_SMTP_USER = os.getenv("BREVO_SMTP_LOGIN", "b8b3f7001@smtp-brevo.com")
 SENDER_NAME = os.getenv("SENDER_NAME", "Pototan National Comprehensive High School (PNCHS)")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "jasperiansusarno9@gmail.com")
 
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+
+def is_valid_email(email):
+    """Checks whether an email address has a valid syntactic structure."""
+    if not email or not isinstance(email, str):
+        return False
+    return bool(EMAIL_REGEX.match(email.strip()))
+
+
+def validate_email_service():
+    """
+    Validates Brevo API connectivity, SMTP relay status, sender configuration, and credentials.
+    Returns a comprehensive diagnostic dictionary.
+    """
+    report = {
+        "configured": bool(BREVO_API_KEY),
+        "api_valid": False,
+        "smtp_valid": False,
+        "sender_email": SENDER_EMAIL,
+        "sender_name": SENDER_NAME,
+        "api_message": "",
+        "smtp_message": "",
+        "overall_status": "error"
+    }
+
+    if not BREVO_API_KEY:
+        report["api_message"] = "Brevo API key is missing or not configured."
+        return report
+
+    # 1. Test Brevo API endpoint /v3/account
+    try:
+        url = "https://api.brevo.com/v3/account"
+        headers = {
+            "accept": "application/json",
+            "api-key": BREVO_API_KEY
+        }
+        resp = requests.get(url, headers=headers, timeout=8)
+        if resp.status_code == 200:
+            data = resp.json() if resp.text else {}
+            report["api_valid"] = True
+            report["api_message"] = f"Brevo API authenticated successfully (Account: {data.get('email', 'OK')})."
+        elif resp.status_code == 401:
+            err_data = resp.json() if resp.text else {}
+            raw_msg = err_data.get('message', 'Unauthorized API key')
+            if 'unrecognised IP' in raw_msg or 'authorised_ips' in raw_msg:
+                report["api_message"] = f"Brevo API requires IP authorization: {raw_msg}"
+            else:
+                report["api_message"] = f"Brevo API Unauthorized (401): {raw_msg}"
+        else:
+            report["api_message"] = f"Brevo API returned status code {resp.status_code}."
+    except Exception as api_err:
+        report["api_message"] = f"Brevo API request failed: {str(api_err)}"
+
+    # 2. Test Brevo SMTP Relay connection
+    try:
+        with smtplib.SMTP(BREVO_SMTP_HOST, BREVO_SMTP_PORT, timeout=8) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(BREVO_SMTP_USER, BREVO_API_KEY)
+            report["smtp_valid"] = True
+            report["smtp_message"] = f"Brevo SMTP relay ({BREVO_SMTP_HOST}:{BREVO_SMTP_PORT}) authenticated successfully."
+    except Exception as smtp_err:
+        report["smtp_message"] = f"Brevo SMTP connection/auth error: {str(smtp_err)}"
+
+    if report["api_valid"] or report["smtp_valid"]:
+        report["overall_status"] = "healthy"
+    else:
+        report["overall_status"] = "attention_needed"
+
+    report["status"] = report["overall_status"]
+
+    return report
+
+
 def send_welcome_email(employee_data, username, password, async_send=True):
     """
     Sends account activation welcome email to newly created employee via Brevo API / SMTP.
@@ -22,14 +99,17 @@ def send_welcome_email(employee_data, username, password, async_send=True):
     """
     def _do_send():
         email = (employee_data.get('email') or '').strip()
-        if not email:
-            print("[EmailService] No email address provided for employee.")
-            return {"success": False, "error": "No email address provided"}
+        if not email or not is_valid_email(email):
+            print(f"[EmailService] Invalid or missing recipient email address: '{email}'.")
+            return {"success": False, "error": f"Invalid or missing email address: '{email}'"}
 
         emp_id = employee_data.get('employee_id') or employee_data.get('id', 'N/A')
-        first_name = employee_data.get('first_name', '')
-        last_name = employee_data.get('last_name', '')
-        full_name = f"{first_name} {last_name}".strip() or "Employee"
+        first_name = employee_data.get('first_name', '').strip()
+        middle_name = employee_data.get('middle_name', '').strip()
+        last_name = employee_data.get('last_name', '').strip()
+        full_name = f"{first_name} {middle_name} {last_name}".strip() if middle_name else f"{first_name} {last_name}".strip()
+        if not full_name:
+            full_name = "Employee"
         designation = employee_data.get('designation', 'Staff')
         status = employee_data.get('employment_status', 'Active')
 

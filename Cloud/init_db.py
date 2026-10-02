@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS tblemployee (
     id            INT          NOT NULL AUTO_INCREMENT,
     employee_id   VARCHAR(20)  NOT NULL UNIQUE,
     first_name    VARCHAR(80)  NOT NULL,
+    middle_name   VARCHAR(80)  NULL,
     last_name     VARCHAR(80)  NOT NULL,
     designation   VARCHAR(120) NOT NULL,
     birthday      DATE         NULL,
@@ -400,6 +401,7 @@ def init():
             ('tblleaves',          'reviewed_at',      'ALTER TABLE tblleaves ADD COLUMN reviewed_at DATETIME NULL AFTER reviewed_by'),
             ('tblleaves',          'filed_at',         'ALTER TABLE tblleaves ADD COLUMN filed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER reviewed_at'),
             ('tblaudit_logs',      'ip_address',       'ALTER TABLE tblaudit_logs ADD COLUMN ip_address VARCHAR(45) NULL AFTER reason'),
+            ('tblemployee',        'middle_name',      'ALTER TABLE tblemployee ADD COLUMN middle_name VARCHAR(100) NULL AFTER first_name'),
         ]
         for table, col, sql in migrations:
             _add_column_if_missing(cur, table, col, sql)
@@ -430,11 +432,12 @@ def init():
               AND employee_id NOT IN (SELECT employee_id FROM tblemployee)
         """)
 
-        # Seed initial admin users if employee exists or employee_id is None
+        # Seed initial admin users with hashed passwords if employee exists or employee_id is None
+        from werkzeug.security import generate_password_hash
         users = [
-            ('admin', 'admin123', 'System Administrator', 'Admin', None),
-            ('hr', 'hr1234', 'HR Officer', 'HR', None),
-            ('finance', 'finance123', 'Finance Officer', 'Finance', None)
+            ('admin', generate_password_hash('Password123!'), 'System Administrator', 'Admin', None),
+            ('hr', generate_password_hash('hr1234'), 'HR Officer', 'HR', None),
+            ('finance', generate_password_hash('finance123'), 'Finance Officer', 'Finance', None)
         ]
         for u in users:
             cur.execute("SELECT id FROM tblusers WHERE username=%s", (u[0],))

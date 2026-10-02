@@ -573,6 +573,7 @@
           <div class="section-card-body">
             <div class="info-grid">
               <div class="info-field"><label>First Name</label><span id="dFirstName">–</span></div>
+              <div class="info-field"><label>Middle Name</label><span id="dMiddleName">–</span></div>
               <div class="info-field"><label>Last Name</label><span id="dLastName">–</span></div>
               <div class="info-field"><label>Employee Type</label><span id="dEmployeeType">–</span></div>
               <div class="info-field"><label>System Role</label><span id="dSystemRole">–</span></div>
@@ -656,6 +657,7 @@
           </select>
         </div>
         <div class="form-group"><label>First Name *</label><input type="text" id="fFirstName" placeholder="Maria"></div>
+        <div class="form-group"><label>Middle Name</label><input type="text" id="fMiddleName" placeholder="Dela Cruz (Optional)"></div>
         <div class="form-group"><label>Last Name *</label><input type="text" id="fLastName" placeholder="Santos"></div>
         <div class="form-group">
           <label>Position Tag (Preset)</label>
@@ -945,13 +947,14 @@
       const isTeaching = (e.employee_type || 'TEACHING').toUpperCase() === 'TEACHING';
       const isElevatedRole = e.system_role && e.system_role !== 'Employee';
       const isEnrolled = (e.enrolled_fingers || []).length > 0;
+      const fullName = e.middle_name ? `${e.first_name} ${e.middle_name} ${e.last_name}` : `${e.first_name} ${e.last_name}`;
       
       return `
       <div class="emp-row ${e.id === selectedId ? 'active' : ''}" data-id="${e.id}">
         <div class="emp-avatar">${initials(e.first_name, e.last_name)}</div>
         <div class="emp-info">
           <div style="display:flex; align-items:center; gap:5px;">
-            <span class="emp-name">${e.first_name} ${e.last_name}</span>
+            <span class="emp-name">${fullName}</span>
             <span class="badge-bio-dot ${isEnrolled ? 'enrolled' : 'not-enrolled'}" title="${isEnrolled ? 'Biometrics Enrolled' : 'Not Enrolled'}"></span>
           </div>
           <div class="emp-meta">${e.id} · ${e.designation}</div>
@@ -1008,9 +1011,11 @@
     $('#detailEmpty').hide();
     $('#detailView').addClass('visible');
     $('#detailAvatar').text(initials(emp.first_name, emp.last_name));
-    $('#detailName').text(emp.first_name + ' ' + emp.last_name);
+    const fullName = emp.middle_name ? `${emp.first_name} ${emp.middle_name} ${emp.last_name}` : `${emp.first_name} ${emp.last_name}`;
+    $('#detailName').text(fullName);
     $('#detailSub').text(emp.designation + ' · ' + emp.id);
     $('#dFirstName').text(emp.first_name);
+    $('#dMiddleName').text(emp.middle_name || '–');
     $('#dLastName').text(emp.last_name);
     $('#dEmployeeType').text(emp.employee_type || 'Faculty');
     $('#dSystemRole').text(emp.system_role || 'Employee');
@@ -1145,7 +1150,7 @@
   $(document).on('click', '#btnAddPh', function () { addPhRow(); });
 
   function clearForm() {
-    $('#fEmployeeId, #fFirstName, #fLastName, #fPositionTag, #fDesignation, #fEmployeeType, #fSalaryGrade, #fStep, #fSystemRole, #fBirthday, #fEmail, #fContact, #fAddress').val('');
+    $('#fEmployeeId, #fFirstName, #fMiddleName, #fLastName, #fPositionTag, #fDesignation, #fEmployeeType, #fSalaryGrade, #fStep, #fSystemRole, #fBirthday, #fEmail, #fContact, #fAddress').val('');
     $('#fEmployeeType').val('Faculty');
     $('#fSystemRole').val('Employee');
     $('#fStep').val('1');
@@ -1234,6 +1239,7 @@
       $('#fStep').val(emp.step || 1);
       $('#fSystemRole').val(emp.system_role || 'Employee');
       $('#fFirstName').val(emp.first_name);
+      $('#fMiddleName').val(emp.middle_name || '');
       $('#fLastName').val(emp.last_name);
       $('#fDesignation').val(emp.designation);
 
@@ -1292,6 +1298,7 @@
       step: $('#fStep').val() || 1,
       system_role: $('#fSystemRole').val(),
       first_name:  $('#fFirstName').val().trim(),
+      middle_name: $('#fMiddleName').val().trim(),
       last_name:   $('#fLastName').val().trim(),
       designation: $('#fDesignation').val().trim(),
       birthday:    $('#fBirthday').val(),

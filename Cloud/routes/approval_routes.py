@@ -31,10 +31,13 @@ def get_approvals():
             # Role-tailored filtering
             if role in ['HR', 'HR Officer']:
                 query += " AND a.DocType='Leave'"
-            elif role in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer']:
+            elif role in ['Admin', 'Administrator', 'Principal']:
+                # Admin/Principal can view and manage both Leave and Payroll approvals
+                pass
+            elif role in ['Finance', 'Finance Officer']:
                 query += " AND a.DocType='Payroll'"
             else:
-                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR (Leaves) and Admin (Payroll Approvals).'}), 403
+                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR, Admin, Principal, and Finance.'}), 403
 
             if status_filter and status_filter.lower() != 'all':
                 query += " AND a.ApprovalStatus = %s"
@@ -257,9 +260,9 @@ def approval_action(approval_id):
             doc_number = approval['DocNumber']
 
             if doc_type == 'Payroll' and role not in ['Admin', 'Administrator', 'Principal']:
-                return jsonify({'error': 'Unauthorized: Payroll approvals are reserved for Admin only.'}), 403
-            elif doc_type == 'Leave' and role not in ['HR', 'HR Officer']:
-                return jsonify({'error': 'Unauthorized: Leave approvals are reserved for HR only.'}), 403
+                return jsonify({'error': 'Unauthorized: Payroll approvals are reserved for Admin and Principal only.'}), 403
+            elif doc_type == 'Leave' and role not in ['HR', 'HR Officer', 'Admin', 'Administrator', 'Principal']:
+                return jsonify({'error': 'Unauthorized: Leave approvals are reserved for HR, Admin, and Principal only.'}), 403
 
             # Update tblapprovals record
             cur.execute("""
@@ -278,10 +281,20 @@ def approval_action(approval_id):
                 AuditService.log_action(cur, audit_tag, user_name=user_name, target_table='tblpayroll', new_value=doc_number)
 
             elif doc_type == 'Leave':
+                leave = None
                 leave_id = int(doc_number) if (doc_number and str(doc_number).isdigit()) else 0
                 if leave_id > 0:
                     cur.execute("SELECT * FROM tblleaves WHERE id=%s", (leave_id,))
                     leave = cur.fetchone()
+                else:
+                    # Fallback match by requester ID if doc_number is missing or non-numeric
+                    req_id = approval.get('RequesterID')
+                    if req_id:
+                        cur.execute("SELECT * FROM tblleaves WHERE employee_id=%s ORDER BY id DESC LIMIT 1", (req_id,))
+                        leave = cur.fetchone()
+                        if leave:
+                            leave_id = leave['id']
+
                 if leave:
                     old_status = leave['status']
                     emp_id = leave['employee_id']
@@ -313,25 +326,40 @@ def approval_action(approval_id):
                             old_value=f"Status: {old_status}", new_value=f"Status: Approved (-480m {leave_type})",
                             reason=remarks or leave.get('reason') or 'Leave Approved'
                         )
-                    elif old_status == 'Approved' and action == 'Rejected':
-                        bal = LeavePolicyService.get_balance(cur, emp_id)
-                        target_key = 'vl_minutes' if leave_type == 'VL' else 'sl_minutes'
-                        curr_mins = bal.get(target_key, 0)
-                        new_mins = curr_mins + 480
+                    elif action == 'Rejected':
+                        if old_status == 'Approved':
+                            bal = LeavePolicyService.get_balance(cur, emp_id)
+                            target_key = 'vl_minutes' if leave_type == 'VL' else 'sl_minutes'
+                            curr_mins = bal.get(target_key, 0)
+                            new_mins = curr_mins + 480
 
-                        cur.execute(f"UPDATE tblleave_balances SET {target_key}=%s WHERE employee_id=%s", (new_mins, emp_id))
-                        cur.execute("""
-                            INSERT INTO tblleave_transactions
-                            (employee_id, date, leave_type, minutes, transaction_type, source, reference_id, remarks, created_by)
-                            VALUES (%s, %s, %s, 480, 'ACCRUAL', 'LEAVE_REVERSAL', %s, %s, %s)
-                        """, (emp_id, leave_date_str, leave_type, f"REV-LEAVE-{leave_id}", f"Refunded rejected {leave_type} leave on {leave_date_str}", user_name))
+                            cur.execute(f"UPDATE tblleave_balances SET {target_key}=%s WHERE employee_id=%s", (new_mins, emp_id))
+                            cur.execute("""
+                                INSERT INTO tblleave_transactions
+                                (employee_id, date, leave_type, minutes, transaction_type, source, reference_id, remarks, created_by)
+                                VALUES (%s, %s, %s, 480, 'ACCRUAL', 'LEAVE_REVERSAL', %s, %s, %s)
+                            """, (emp_id, leave_date_str, leave_type, f"REV-LEAVE-{leave_id}", f"Refunded rejected {leave_type} leave on {leave_date_str}", user_name))
 
-                        AuditService.log_action(
-                            cur, action='LEAVE_REJECTED', employee_id=emp_id, user_name=user_name,
-                            target_table='tblleaves', target_id=str(leave_id),
-                            old_value="Status: Approved", new_value="Status: Rejected (+480m refunded)",
-                            reason=remarks or 'Leave Rejected'
-                        )
+                            AuditService.log_action(
+                                cur, action='LEAVE_REJECTED', employee_id=emp_id, user_name=user_name,
+                                target_table='tblleaves', target_id=str(leave_id),
+                                old_value="Status: Approved", new_value="Status: Rejected (+480m refunded)",
+                                reason=remarks or 'Leave Rejected'
+                            )
+                        else:
+                            AuditService.log_action(
+                                cur, action='LEAVE_REJECTED', employee_id=emp_id, user_name=user_name,
+                                target_table='tblleaves', target_id=str(leave_id),
+                                old_value=f"Status: {old_status}", new_value="Status: Rejected",
+                                reason=remarks or 'Leave Rejected'
+                            )
+                else:
+                    AuditService.log_action(
+                        cur, action=f'APPROVAL_{action.upper()}', user_name=user_name,
+                        target_table='tblapprovals', target_id=str(approval_id),
+                        old_value=approval.get('ApprovalStatus', 'Pending'), new_value=action,
+                        reason=remarks or f'Approval marked as {action}'
+                    )
 
             conn.commit()
             return jsonify({'success': True, 'message': f'Document {doc_number} successfully {action.lower()}.'})

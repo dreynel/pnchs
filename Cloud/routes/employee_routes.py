@@ -2,14 +2,15 @@ from flask import Blueprint, jsonify, request, session
 from mysql.connector import Error
 from db import db_cursor
 from services.policy_engine import AuditService
-from services.email_service import send_welcome_email
+from services.email_service import send_welcome_email, validate_email_service, is_valid_email
+from werkzeug.security import generate_password_hash
 import json
 
 employee_bp = Blueprint('employees', __name__, url_prefix='/api/employees')
 
 @employee_bp.before_request
 def check_role_access():
-    if request.path and 'test_email' in request.path:
+    if request.path and ('test_email' in request.path or 'validate_email' in request.path):
         return None
     role = session.get('user', {}).get('role')
     if role == 'Admin':
@@ -78,6 +79,7 @@ def _row_to_dict(row, pay_heads, enrolled_fingers=None):
     return {
         "id":          row["employee_id"],
         "first_name":  row["first_name"],
+        "middle_name": row.get("middle_name") or "",
         "last_name":   row["last_name"],
         "designation": row["designation"],
         "employee_type": row.get("employee_type", "TEACHING"),
@@ -104,6 +106,16 @@ def get_next_id():
         return jsonify({"next_id": new_id})
     except Error as e:
         return jsonify({"error": str(e)}), 500
+
+
+@employee_bp.route('/validate_email', methods=['GET', 'POST'])
+def validate_email_endpoint():
+    try:
+        report = validate_email_service()
+        status_code = 200 if report.get("status") == "healthy" else 503
+        return jsonify(report), status_code
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @employee_bp.route('/test_email', methods=['GET', 'POST'])
@@ -141,6 +153,7 @@ def list_employees():
                 cur.execute("""
                     SELECT e.employee_id, 
                            MAX(e.first_name) as first_name, 
+                           MAX(e.middle_name) as middle_name,
                            MAX(e.last_name) as last_name, 
                            MAX(e.designation) as designation, 
                            MAX(e.employee_type) as employee_type, 
@@ -149,16 +162,18 @@ def list_employees():
                     FROM tblemployee e
                     LEFT JOIN tblusers u ON e.employee_id = u.employee_id
                     WHERE e.first_name  LIKE %s
+                       OR e.middle_name LIKE %s
                        OR e.last_name   LIKE %s
                        OR e.employee_id LIKE %s
                        OR e.designation LIKE %s
                     GROUP BY e.employee_id
                     ORDER BY MIN(e.id)
-                """, (like, like, like, like))
+                """, (like, like, like, like, like))
             else:
                 cur.execute("""
                     SELECT e.employee_id, 
                            MAX(e.first_name) as first_name, 
+                           MAX(e.middle_name) as middle_name,
                            MAX(e.last_name) as last_name, 
                            MAX(e.designation) as designation, 
                            MAX(e.employee_type) as employee_type, 
@@ -191,6 +206,7 @@ def list_employees():
         return jsonify([{
             "id":          r["employee_id"],
             "first_name":  r["first_name"],
+            "middle_name": r.get("middle_name") or "",
             "last_name":   r["last_name"],
             "designation": r["designation"],
             "employee_type": r.get("employee_type", "TEACHING"),
@@ -256,13 +272,20 @@ def create_employee():
             if emp_status not in ['Active', 'Inactive']:
                 emp_status = 'Active'
 
+            email = data['email'].strip()
+            if not is_valid_email(email):
+                return jsonify({"error": f"Invalid email format: '{email}'"}), 400
+
+            middle_name = (data.get('middle_name') or '').strip()
+
             cur.execute("""
                 INSERT INTO tblemployee
-                    (employee_id, first_name, last_name, designation, employee_type, salary_grade, step, employment_status, birthday, email, contact, address)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (employee_id, first_name, middle_name, last_name, designation, employee_type, salary_grade, step, employment_status, birthday, email, contact, address)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 new_id,
                 data['first_name'].strip(),
+                middle_name or None,
                 data['last_name'].strip(),
                 data['designation'].strip(),
                 emp_type,
@@ -270,7 +293,7 @@ def create_employee():
                 step_val,
                 emp_status,
                 data['birthday'] or None,
-                data['email'].strip(),
+                email,
                 data['contact'].strip(),
                 data['address'].strip(),
             ))
@@ -278,7 +301,6 @@ def create_employee():
 
             # Initialize leave balances (4800 mins = 10 days default)
             cur.execute(
-                "INSERT INTO tblleave_balances (employee_id, vl_minutes, sl_minutes) VALUES (%s, 4800, 4800) ON DUPLICATE KEY UPDATE employee_id=employee_id",
                 "INSERT INTO tblleave_balances (employee_id, vl_minutes, sl_minutes) VALUES (%s, 4800, 4800) ON CONFLICT (employee_id) DO NOTHING",
                 (new_id,)
             )
@@ -293,8 +315,11 @@ def create_employee():
             # --- CREATE USER LOGIN ---
             # Username/Password = last_name (lowercase, stripped)
             username = data['last_name'].strip().lower()
-            password = username
-            fullname = f"{data['first_name'].strip()} {data['last_name'].strip()}"
+            raw_password = username
+            if middle_name:
+                fullname = f"{data['first_name'].strip()} {middle_name} {data['last_name'].strip()}"
+            else:
+                fullname = f"{data['first_name'].strip()} {data['last_name'].strip()}"
             
             # Check for username collision (tblusers.username is UNIQUE)
             cur.execute("SELECT id FROM tblusers WHERE username = %s", (username,))
@@ -302,13 +327,14 @@ def create_employee():
                 # If collision, append employee ID suffix (e.g., smith001)
                 suffix = new_id.split('-')[-1] if '-' in new_id else new_id
                 username = f"{username}{suffix}"
-                password = username # Keep password same as username for initial setup
+                raw_password = username # Keep password same as username for initial setup
             
+            hashed_password = generate_password_hash(raw_password)
             db_role = normalize_role(data.get('system_role'))
             
             cur.execute(
                 "INSERT INTO tblusers (username, password, name, role, employee_id) VALUES (%s, %s, %s, %s, %s)",
-                (username, password, fullname, db_role, new_id)
+                (username, hashed_password, fullname, db_role, new_id)
             )
             
             AuditService.log_action(cur, 'EMPLOYEE_CREATED', employee_id=new_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=new_id, new_value=json.dumps(data))
@@ -317,11 +343,12 @@ def create_employee():
             send_welcome_email({
                 'employee_id': new_id,
                 'first_name': data['first_name'].strip(),
+                'middle_name': middle_name,
                 'last_name': data['last_name'].strip(),
-                'email': data['email'].strip(),
+                'email': email,
                 'designation': data['designation'].strip(),
                 'employment_status': emp_status
-            }, username, password)
+            }, username, raw_password)
             cur.execute("""
                 SELECT e.*, u.role as system_role
                 FROM tblemployee e
@@ -360,13 +387,19 @@ def update_employee(emp_id):
             if emp_status not in ['Active', 'Inactive']:
                 emp_status = 'Active'
 
+            middle_name = (data.get('middle_name') or '').strip()
+            email = data.get('email','').strip()
+            if email and not is_valid_email(email):
+                return jsonify({"error": f"Invalid email format: '{email}'"}), 400
+
             cur.execute("""
                 UPDATE tblemployee
-                SET first_name=%s, last_name=%s, designation=%s, employee_type=%s,
+                SET first_name=%s, middle_name=%s, last_name=%s, designation=%s, employee_type=%s,
                     salary_grade=%s, step=%s, employment_status=%s, birthday=%s, email=%s, contact=%s, address=%s
                 WHERE employee_id=%s
             """, (
                 data.get('first_name','').strip(),
+                middle_name or None,
                 data.get('last_name','').strip(),
                 data.get('designation','').strip(),
                 emp_type,
@@ -374,7 +407,7 @@ def update_employee(emp_id):
                 step_val,
                 emp_status,
                 data.get('birthday') or None,
-                data.get('email','').strip(),
+                email,
                 data.get('contact','').strip(),
                 data.get('address','').strip(),
                 emp_id,
@@ -382,7 +415,16 @@ def update_employee(emp_id):
 
             
             db_role = normalize_role(data.get('system_role'))
-            cur.execute("UPDATE tblusers SET role=%s WHERE employee_id=%s", (db_role, emp_id))
+            fn = data.get('first_name', '').strip()
+            ln = data.get('last_name', '').strip()
+            if fn or ln:
+                if middle_name:
+                    fullname = f"{fn} {middle_name} {ln}".strip()
+                else:
+                    fullname = f"{fn} {ln}".strip()
+                cur.execute("UPDATE tblusers SET role=%s, name=%s WHERE employee_id=%s", (db_role, fullname, emp_id))
+            else:
+                cur.execute("UPDATE tblusers SET role=%s WHERE employee_id=%s", (db_role, emp_id))
             
             AuditService.log_action(cur, 'EMPLOYEE_UPDATED', employee_id=emp_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=emp_id, old_value=json.dumps(old_row, default=str), new_value=json.dumps(data))
             

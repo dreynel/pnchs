@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
 from routes import employee_bp, dtr_bp, payroll_bp, fingerprint_bp, attendance_bp, registry_bp, salary_grade_bp, dashboard_bp
 import os
 
@@ -70,25 +71,38 @@ def login():
 
         try:
             from db import db_cursor
-            with db_cursor() as (conn, cur):
+            with db_cursor(commit=True) as (conn, cur):
                 cur.execute("""
-                    SELECT u.employee_id, u.username, u.name AS fallback_name, u.role, e.first_name, e.last_name
+                    SELECT u.id, u.employee_id, u.username, u.password AS stored_password, u.name AS fallback_name, u.role, e.first_name, e.last_name
                     FROM tblusers u
                     LEFT JOIN tblemployee e ON u.employee_id = e.employee_id
-                    WHERE u.username=%s AND u.password=%s
-                """, (email, password))
-                emp = cur.fetchone()
-                if emp:
-                    display_name = emp['fallback_name']
-                    if emp['first_name'] and emp['last_name']:
-                        display_name = f"{emp['first_name']} {emp['last_name']}"
+                    WHERE LOWER(u.username)=LOWER(%s)
+                    ORDER BY u.id DESC
+                    LIMIT 1
+                """, (email,))
+                user_row = cur.fetchone()
+                if user_row:
+                    stored = user_row.get('stored_password') or ''
+                    is_valid = False
+                    if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
+                        is_valid = check_password_hash(stored, password)
+                    else:
+                        is_valid = (stored == password)
+                        if is_valid:
+                            new_hash = generate_password_hash(password)
+                            cur.execute("UPDATE tblusers SET password=%s WHERE id=%s", (new_hash, user_row['id']))
 
-                    authenticated_user = {
-                        'email': emp['username'],
-                        'name': display_name,
-                        'role': emp['role'],
-                        'employee_id': emp['employee_id']
-                    }
+                    if is_valid:
+                        display_name = user_row['fallback_name']
+                        if user_row['first_name'] and user_row['last_name']:
+                            display_name = f"{user_row['first_name']} {user_row['last_name']}"
+
+                        authenticated_user = {
+                            'email': user_row['username'],
+                            'name': display_name,
+                            'role': user_row['role'],
+                            'employee_id': user_row['employee_id']
+                        }
         except Exception as local_db_err:
             print(f"[AUTH] Database error: {local_db_err}")
 

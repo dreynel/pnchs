@@ -165,6 +165,8 @@
   let payrollAuditData = [];
   const fmtCurr = num => '₱' + Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  function toggleRow(id) {
+    $(`#${id}`).toggleClass('open');
   function togglePayrollAuditRow(id) {
     $('#' + id).toggleClass('open');
   }
@@ -246,6 +248,7 @@
       const netVarStr   = d.net_variance !== 0 ? ` <span style="color:var(--red); font-size:10px;">(${d.net_variance > 0 ? '+' : ''}${d.net_variance})</span>` : '';
 
       html += `
+        <tr class="audit-row" onclick="toggleRow('pdet-${idx}')">
         <tr class="audit-row" onclick="togglePayrollAuditRow('pdet-${idx}')">
           <td>
             <strong>${d.employee_name}</strong>
@@ -269,9 +272,11 @@
           </td>
           <td>
             <span class="${badgeClass}">${badgeText}</span>
+            ${d.warnings.length ? `<div style="font-size:9.5px; color:var(--red); margin-top:2px;">${d.warnings[0]}</div>` : ''}
             ${d.warnings && d.warnings.length ? `<div style="font-size:9.5px; color:var(--red); margin-top:2px;">${d.warnings[0]}</div>` : ''}
           </td>
           <td>
+            <button class="btn btn-outline" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); toggleRow('pdet-${idx}')">
             <button class="btn btn-outline" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); togglePayrollAuditRow('pdet-${idx}')">
               Inspect Math
             </button>
