@@ -1,153 +1,497 @@
 <style>
-  .audit-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); padding: 24px; gap: 20px; }
-  .audit-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); padding: 24px; gap: 16px; }
-  
-  /* Segmented Tab Header */
-  .audit-tabs { display: flex; gap: 8px; background: var(--surface2); padding: 4px; border-radius: 12px; border: 1px solid var(--border); width: fit-content; flex-shrink: 0; }
-  .tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 9px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all 0.2s; border: none; background: transparent; }
-  .tab-btn:hover { color: var(--navy); background: rgba(255,255,255,0.5); }
-  .tab-btn.active { background: #fff; color: var(--navy); font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  :root {
+    --navy:       #1e3a5f;
+    --navy-mid:   #2a4f80;
+    --navy-light: #e8f0fb;
+    --accent:     #c8973a;
+    --accent-dim: rgba(200,151,58,0.12);
+    --bg:         #f0ede8;
+    --surface:    #ffffff;
+    --surface2:   #fafaf8;
+    --border:     #e2ddd6;
+    --border2:    #cbd5e1;
+    --text:       #1a1a2e;
+    --muted:      #5a6272;
+    --muted2:     #9fa5b4;
+    --green:      #16a34a;
+    --green-dim:  rgba(22,163,74,0.10);
+    --red:        #c0392b;
+    --red-dim:    rgba(192,57,43,0.08);
+    --blue:       #2563eb;
+    --blue-dim:   rgba(37,99,235,0.08);
+  }
 
-  .audit-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0; }
-  .sum-card { background: var(--surface); border: 1px solid var(--border); padding: 18px 22px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 16px; }
-  .sum-card-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--navy-light); color: var(--navy-mid); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .sum-card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 14px; }
-  .sum-card-icon { width: 44px; height: 44px; border-radius: 11px; background: var(--navy-light); color: var(--navy-mid); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .sum-card-info { flex: 1; }
-  .sum-lbl { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .sum-val { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--navy); }
-  .sum-lbl { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-  .sum-val { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--navy); }
-  
-  .audit-toolbar { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 16px 20px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.02); flex-wrap: wrap; flex-shrink: 0; }
-  .audit-toolbar { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 14px 18px; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.02); flex-wrap: wrap; flex-shrink: 0; }
-  .audit-filter { display: flex; flex-direction: column; gap: 4px; }
-  .audit-filter label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; }
-  .audit-filter input, .audit-filter select { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; outline: none; transition: all 0.2s; }
-  .audit-filter input, .audit-filter select { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 12px; outline: none; transition: all 0.2s; }
-  .audit-filter input:focus, .audit-filter select:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 3px rgba(42,79,128,0.1); background: #fff; }
-  
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 15px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; }
-  .btn-primary { background: var(--navy); color: #fff; box-shadow: 0 4px 10px rgba(30, 58, 95, 0.2); }
-  .btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); }
-  .btn-outline { background: var(--surface); border: 1.5px solid var(--border); color: var(--muted); }
-  .btn-outline:hover { background: var(--surface2); color: var(--navy); border-color: var(--border2); }
-  
-  .audit-content { flex: 1; display: flex; flex-direction: column; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-  .audit-content { flex: 1; display: flex; flex-direction: column; background: var(--surface); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-  .audit-table-wrap { flex: 1; overflow-y: auto; }
-  
-  table.audit-table { width: 100%; border-collapse: collapse; text-align: left; }
-  .audit-table th { position: sticky; top: 0; background: var(--surface2); z-index: 5; padding: 14px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted2); border-bottom: 1.5px solid var(--border); letter-spacing: 0.5px; }
-  .audit-table td { padding: 14px 16px; border-bottom: 1px solid rgba(226,221,214,0.3); font-size: 12.5px; color: var(--text); }
-  .audit-table th { position: sticky; top: 0; background: var(--surface2); z-index: 5; padding: 12px 14px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--muted2); border-bottom: 1.5px solid var(--border); letter-spacing: 0.5px; }
-  .audit-table td { padding: 12px 14px; border-bottom: 1px solid rgba(226,221,214,0.3); font-size: 12px; color: var(--text); }
-  .audit-row { cursor: pointer; transition: background 0.2s; }
-  .audit-row:hover { background: var(--surface2); }
-  
-  .badge { display: inline-flex; padding: 4px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; }
-  .badge { display: inline-flex; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
-  .badge.green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
-  .badge.blue { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
-  .badge.amber { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
-  .badge.red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(220,38,38,0.2); }
-  
-  .detail-row { display: none; background: #fafaf8; border-bottom: 1.5px solid var(--border); }
-  .detail-row.open { display: table-row; }
-  .detail-box { padding: 16px; margin: 0 16px 16px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: flex; gap: 20px; font-family: monospace; font-size: 11.5px; white-space: pre-wrap; word-break: break-all; }
-  .detail-box { padding: 14px; margin: 0 14px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: flex; gap: 20px; font-family: monospace; font-size: 11.5px; white-space: pre-wrap; word-break: break-all; }
-  .detail-col { flex: 1; }
-  .detail-lbl { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-  .detail-box { padding: 14px; margin: 0 14px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: flex; gap: 20px; font-family: monospace; font-size: 11.5px; white-space: pre-wrap; word-break: break-all; }
-  
-  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--surface); border-top: 1.5px solid var(--border); flex-shrink: 0; }
-  .page-info { font-size: 12px; color: var(--muted); }
-  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: var(--surface); border-top: 1.5px solid var(--border); flex-shrink: 0; }
-  .page-info { font-size: 11.5px; color: var(--muted); }
-  .page-btns { display: flex; gap: 8px; }
+  .audit-page-wrap {
+    min-height: 100%;
+    background: var(--bg);
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-sizing: border-box;
+  }
+
+  /* ── Header & Tabs ── */
+  .audit-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .audit-title-block h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0 0 4px 0;
+    line-height: 1.2;
+  }
+  .audit-title-block p {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+  }
+  .audit-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Segmented Tab Header */
+  .audit-tabs {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--surface2);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  }
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    border: none;
+    background: transparent;
+    user-select: none;
+    text-decoration: none;
+  }
+  .tab-btn:hover {
+    color: var(--navy);
+    background: rgba(255,255,255,0.6);
+  }
+  .tab-btn.active {
+    background: #fff;
+    color: var(--navy);
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  /* ── Summary KPI Cards ── */
+  .audit-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .sum-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .sum-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+  }
+  .sum-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .sum-card-icon.navy { background: var(--navy-light); color: var(--navy); }
+  .sum-card-icon.green { background: var(--green-dim); color: var(--green); }
+  .sum-card-icon.blue { background: #e0f2fe; color: #0284c7; }
+  .sum-card-icon.amber { background: var(--accent-dim); color: #9a6c18; }
+  .sum-card-info { flex: 1; min-width: 0; }
+  .sum-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+  .sum-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.1;
+  }
+
+  /* ── Toolbar & Filters ── */
+  .audit-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    background: var(--surface);
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    flex-wrap: wrap;
+  }
+  .audit-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .audit-filter label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .audit-filter input,
+  .audit-filter select {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 7px 11px;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: all 0.2s ease;
+    height: 38px;
+    box-sizing: border-box;
+  }
+  .audit-filter input:focus,
+  .audit-filter select:focus {
+    border-color: var(--navy-mid);
+    box-shadow: 0 0 0 3px rgba(42,79,128,0.1);
+    background: #fff;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 16px;
+    height: 38px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    user-select: none;
+    white-space: nowrap;
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(30,58,95,0.18);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, var(--navy-mid) 0%, #355f97 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(30,58,95,0.25);
+    color: #fff;
+  }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-outline {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    color: var(--navy);
+  }
+  .btn-outline:hover {
+    background: var(--surface2);
+    border-color: var(--border2);
+  }
+  .btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ── Audit Table Card ── */
+  .audit-content-card {
+    background: var(--surface);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.03);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .audit-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table.audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    min-width: 800px;
+  }
+  .audit-table th {
+    position: sticky;
+    top: 0;
+    background: var(--surface2);
+    z-index: 2;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1.5px solid var(--border);
+    letter-spacing: 0.05em;
+  }
+  .audit-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(226,221,214,0.4);
+    font-size: 12.5px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .audit-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .audit-row:hover {
+    background: #f8fafc;
+  }
+  .audit-row:active {
+    background: #f1f5f9;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .badge.green  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(22,163,74,0.25); }
+  .badge.blue   { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+  .badge.amber  { background: rgba(200,151,58,0.14); color: #9a6c18; border: 1px solid rgba(200,151,58,0.28); }
+  .badge.red    { background: var(--red-dim); color: var(--red); border: 1px solid rgba(192,57,43,0.25); }
+  .badge.purple { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+
+  /* Expanded Detail Drawer */
+  .detail-row {
+    display: none;
+    background: #fafaf9;
+    border-bottom: 1.5px solid var(--border);
+  }
+  .detail-row.open {
+    display: table-row;
+  }
+  .detail-box {
+    padding: 14px 18px;
+    margin: 0 16px 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .detail-col {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .detail-lbl {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .detail-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+
+  /* ── Pagination ── */
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .page-info {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .page-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1024px) {
+    .audit-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    .audit-page-wrap { padding: 14px 10px 32px; gap: 14px; }
+    .audit-header-row { flex-direction: column; align-items: stretch; gap: 12px; }
+    .audit-header-actions { flex-direction: column; align-items: stretch; }
+    .audit-tabs { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+    .tab-btn { justify-content: center; }
+    .audit-summary-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .audit-toolbar { flex-direction: column; align-items: stretch; }
+    .audit-filter { width: 100%; }
+    .audit-filter input, .audit-filter select { width: 100% !important; }
+    .toolbar-actions { width: 100%; display: flex; gap: 8px; }
+    .toolbar-actions .btn { flex: 1; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .audit-summary-grid { grid-template-columns: 1fr; }
+    .sum-val { font-size: 1.3rem; }
+  }
 </style>
 
-<div class="audit-page">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink: 0;">
-    <div>
-      <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--navy); margin-bottom:4px;">Audit Trail</h2>
-      <p style="font-size:12px; color:var(--muted2);">Monitor system activity and security events</p>
-      <h2 style="font-family:'Playfair Display',serif; font-size:1.5rem; color:var(--navy); margin-bottom:2px;">Audit Trail</h2>
-      <p style="font-size:11.5px; color:var(--muted2);">Monitor system activity and security events</p>
+<div class="audit-page-wrap">
+
+  <!-- ── Header Section ── -->
+  <div class="audit-header-row">
+    <div class="audit-title-block">
+      <div style="display:inline-flex; align-items:center; gap:6px; background:var(--navy-light); border:1px solid rgba(30,58,95,0.15); border-radius:20px; padding:3px 10px; font-size:10.5px; font-weight:700; color:var(--navy); margin-bottom:6px;">
+        <span>🛡️ Security & Compliance Logs</span>
+      </div>
+      <h2>System Audit Trail</h2>
+      <p>Immutable chronological logs of authentication events, staff changes, and payroll administrative actions</p>
     </div>
-    <button class="btn btn-primary" onclick="exportAudit()">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-      Export CSV
-    </button>
-    
-    <!-- Tab Switcher -->
-    <div class="audit-tabs">
-      <button class="tab-btn active">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-        System Event Logs
-      </button>
-      <button class="tab-btn" onclick="if(window.navigate) window.navigate(event, null, 'Payroll Audit', '/pages/payroll_audit.html');">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-        Payroll Computation Audit
+
+    <div class="audit-header-actions">
+      <!-- Segmented Tab Switcher -->
+      <div class="audit-tabs">
+        <button class="tab-btn active">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          System Event Logs
+        </button>
+        <button class="tab-btn" onclick="if(window.navigate) window.navigate(event, null, 'Payroll Audit', '/pages/payroll_audit.html', '/payroll_audit'); else window.location.href='/payroll_audit';">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Payroll Computation Audit
+        </button>
+      </div>
+
+      <!-- Export CSV CTA -->
+      <button class="btn btn-primary" onclick="exportAudit()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export Audit CSV
       </button>
     </div>
   </div>
 
-  <div class="audit-summary">
-  <div class="audit-summary" style="margin-bottom:16px;">
+  <!-- ── Summary KPI Cards ── -->
+  <div class="audit-summary-grid">
     <div class="sum-card">
-      <div class="sum-card-icon">
-        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      <div class="sum-card-icon navy">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
       </div>
       <div class="sum-card-info">
-        <div class="sum-lbl">Total Events</div>
-        <div class="sum-val" id="sumTotal">0</div>
+        <div class="sum-lbl">Total Events Recorded</div>
+        <div class="sum-val" id="sumTotal">...</div>
       </div>
     </div>
+
     <div class="sum-card">
-      <div class="sum-card-icon">
-        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <div class="sum-card-icon green">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
       </div>
       <div class="sum-card-info">
-        <div class="sum-lbl">Today's Events</div>
-        <div class="sum-val" id="sumToday">0</div>
+        <div class="sum-lbl">Today's Activity</div>
+        <div class="sum-val" id="sumToday">...</div>
       </div>
     </div>
+
     <div class="sum-card">
-      <div class="sum-card-icon">
-        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+      <div class="sum-card-icon blue">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
       </div>
       <div class="sum-card-info">
-        <div class="sum-lbl">Logins Today</div>
-        <div class="sum-val" id="sumLogins">0</div>
+        <div class="sum-lbl">Logins &amp; Sessions</div>
+        <div class="sum-val" id="sumLogins">...</div>
       </div>
     </div>
+
     <div class="sum-card">
-      <div class="sum-card-icon">
-        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+      <div class="sum-card-icon amber">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
       </div>
       <div class="sum-card-info">
         <div class="sum-lbl">Payroll Actions</div>
-        <div class="sum-val" id="sumPayroll">0</div>
+        <div class="sum-val" id="sumPayroll">...</div>
       </div>
     </div>
   </div>
 
+  <!-- ── Filter & Search Toolbar ── -->
   <div class="audit-toolbar">
-  <div class="audit-toolbar" style="margin-bottom:14px;">
     <div class="audit-filter">
       <label>Date Filter</label>
-      <select id="fDateMode" style="width: 135px;" onchange="onDateModeChange()">
+      <select id="fDateMode" style="width: 140px;" onchange="onDateModeChange()">
         <option value="all">All Dates</option>
-        <option value="daily">Daily</option>
-        <option value="month">Per Month</option>
-        <option value="year">Per Year</option>
-        <option value="range">Date Range</option>
+        <option value="daily">Specific Day</option>
+        <option value="month">Specific Month</option>
+        <option value="year">Specific Year</option>
+        <option value="range">Custom Range</option>
       </select>
     </div>
 
@@ -158,7 +502,7 @@
 
     <div class="audit-filter" id="wrapMonth" style="display:none;">
       <label>Month</label>
-      <select id="fDateMonth" style="width:125px;" onchange="loadLogs(1)">
+      <select id="fDateMonth" style="width:130px;" onchange="loadLogs(1)">
         <option value="1">January</option>
         <option value="2">February</option>
         <option value="3">March</option>
@@ -173,9 +517,10 @@
         <option value="12">December</option>
       </select>
     </div>
+
     <div class="audit-filter" id="wrapYear" style="display:none;">
       <label>Year</label>
-      <select id="fDateYear" style="width:95px;" onchange="loadLogs(1)">
+      <select id="fDateYear" style="width:100px;" onchange="loadLogs(1)">
         <option value="2024">2024</option>
         <option value="2025">2025</option>
         <option value="2026" selected>2026</option>
@@ -185,73 +530,89 @@
 
     <div class="audit-filter" id="wrapRangeFrom" style="display:none;">
       <label>Date From</label>
-      <input type="date" id="fDateFrom">
       <input type="date" id="fDateFrom" onchange="loadLogs(1)">
     </div>
-    <div class="audit-filter">
+
     <div class="audit-filter" id="wrapRangeTo" style="display:none;">
       <label>Date To</label>
-      <input type="date" id="fDateTo">
       <input type="date" id="fDateTo" onchange="loadLogs(1)">
     </div>
 
     <div class="audit-filter">
-      <label>Action Type</label>
-      <select id="fAction" style="width: 160px;">
-      <select id="fAction" style="width: 155px;" onchange="loadLogs(1)">
-        <option value="">All Actions</option>
-        <option value="LOGIN">Login Events</option>
-        <option value="EMPLOYEE">Employee Events</option>
-        <option value="PAYROLL">Payroll Events</option>
-        <option value="LEAVE">Leave Events</option>
-        <option value="ATTENDANCE">Attendance Events</option>
-        <option value="SETTINGS">Settings Events</option>
+      <label>Action Category</label>
+      <select id="fAction" style="width: 170px;" onchange="loadLogs(1)">
+        <option value="">All Action Types</option>
+        <option value="LOGIN">User Logins &amp; Sessions</option>
+        <option value="EMPLOYEE">Employee Registry</option>
+        <option value="PAYROLL">Payroll Operations</option>
+        <option value="LEAVE">Leave Processing</option>
+        <option value="ATTENDANCE">Attendance &amp; Biometrics</option>
+        <option value="SETTINGS">Settings &amp; Statutory</option>
       </select>
     </div>
-    <div class="audit-filter" style="flex:1;">
-    <div class="audit-filter" style="flex:1; min-width: 180px;">
-      <label>Search User / Details</label>
-      <input type="text" id="fSearch" placeholder="Search by name, ID, or action...">
+
+    <div class="audit-filter" style="flex:1; min-width: 200px;">
+      <label>Search Officer / Target</label>
       <input type="text" id="fSearch" placeholder="Search by name, ID, or action..." onkeypress="if(event.key==='Enter') loadLogs(1)">
     </div>
-    <div style="display:flex; align-items:flex-end; gap:8px; align-self:stretch; padding-bottom:1.5px;">
-      <button class="btn btn-primary" onclick="loadLogs(1)" style="height:35px;">Search</button>
-      <button class="btn btn-outline" onclick="clearFilters()" style="height:35px;">Clear</button>
-      <button class="btn btn-primary" onclick="loadLogs(1)">Filter</button>
+
+    <div class="toolbar-actions" style="display:flex; align-items:flex-end; gap:8px;">
+      <button class="btn btn-primary" onclick="loadLogs(1)">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+        Filter
+      </button>
       <button class="btn btn-outline" onclick="clearFilters()">Reset</button>
-      <button class="btn btn-primary" onclick="exportAudit()">Export CSV</button>
     </div>
   </div>
 
-  <div class="audit-content">
+  <!-- ── Audit Table Card ── -->
+  <div class="audit-content-card">
     <div class="audit-table-wrap">
       <table class="audit-table">
         <thead>
           <tr>
             <th style="width: 18%;">Timestamp</th>
-            <th style="width: 18%;">User</th>
+            <th style="width: 20%;">User / Officer</th>
             <th style="width: 15%;">Action</th>
-            <th style="width: 25%;">Target</th>
-            <th style="width: 12%;">IP Address</th>
-            <th style="width: 5%;"></th>
+            <th style="width: 25%;">Target / Context</th>
+            <th style="width: 14%;">IP Address</th>
+            <th style="width: 8%; text-align:center;">Details</th>
           </tr>
         </thead>
         <tbody id="auditTableBody">
-          <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted2);">Loading...</td></tr>
+          <tr>
+            <td colspan="6" style="text-align:center; padding:36px; color:var(--muted2);">
+              <div style="display:inline-flex; align-items:center; gap:8px;">
+                <span class="spinner" style="width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--navy-mid); border-radius:50%; animation:spin 0.7s linear infinite;"></span>
+                <span>Fetching real-time audit records…</span>
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
-    <div class="pagination">
+
+    <!-- Pagination -->
+    <div class="pagination-bar">
       <div class="page-info" id="pageInfo">Showing 0 to 0 of 0 entries</div>
-      <div class="page-btns">
-        <button class="btn btn-outline" id="btnPrev" onclick="loadLogs(currentPage - 1)">Previous</button>
-        <button class="btn btn-outline" id="btnNext" onclick="loadLogs(currentPage + 1)">Next</button>
+      <div class="page-actions">
+        <button class="btn btn-outline" id="btnPrev" onclick="loadLogs(currentPage - 1)">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          Previous
+        </button>
+        <span id="pageBadge" style="font-size:12px; font-weight:700; color:var(--navy); padding:0 8px;">Page 1</span>
+        <button class="btn btn-outline" id="btnNext" onclick="loadLogs(currentPage + 1)">
+          Next
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
       </div>
     </div>
   </div>
+
 </div>
 
 <script>
+(function() {
   let currentPage = 1;
   let totalPages = 1;
 
@@ -261,35 +622,45 @@
   }
 
   function getBadgeColor(action) {
-    const a = action.toUpperCase();
-    if (a.includes('CREATE') || a.includes('ADD')) return 'green';
-    if (a.includes('LOGIN') || a.includes('VIEW')) return 'blue';
-    if (a.includes('UPDATE') || a.includes('SUBMIT') || a.includes('APPROVE') || a.includes('EDIT')) return 'amber';
+    const a = (action || '').toUpperCase();
+    if (a.includes('CREATE') || a.includes('ADD') || a.includes('ENROLL')) return 'green';
+    if (a.includes('LOGIN') || a.includes('VIEW') || a.includes('ACCESS')) return 'blue';
+    if (a.includes('UPDATE') || a.includes('SUBMIT') || a.includes('APPROVE') || a.includes('EDIT') || a.includes('RELEASE')) return 'amber';
     if (a.includes('DELETE') || a.includes('FAIL') || a.includes('REJECT') || a.includes('REMOVE')) return 'red';
-    return 'blue';
+    return 'purple';
   }
 
   function toggleRow(id) {
     $(`#det-${id}`).toggleClass('open');
+    const $arrow = $(`#arrow-${id}`);
+    if ($(`#det-${id}`).hasClass('open')) {
+      $arrow.css('transform', 'rotate(180deg)');
+    } else {
+      $arrow.css('transform', 'rotate(0deg)');
+    }
   }
 
   async function loadSummary() {
     try {
       const res = await $.get('/api/audit/summary');
-      $('#sumTotal').text(res.total.toLocaleString());
-      $('#sumToday').text(res.today.toLocaleString());
-      $('#sumLogins').text((res.by_category.login || 0).toLocaleString());
-      $('#sumPayroll').text((res.by_category.payroll || 0).toLocaleString());
-    } catch(e) { console.error('Failed to load audit summary', e); }
+      if (res) {
+        $('#sumTotal').text(Number(res.total || 0).toLocaleString());
+        $('#sumToday').text(Number(res.today || 0).toLocaleString());
+        $('#sumLogins').text(Number(res.by_category?.login || 0).toLocaleString());
+        $('#sumPayroll').text(Number(res.by_category?.payroll || 0).toLocaleString());
+      }
+    } catch(e) {
+      console.error('Failed to load audit summary', e);
+      $('#sumTotal').text('—');
+      $('#sumToday').text('—');
+      $('#sumLogins').text('—');
+      $('#sumPayroll').text('—');
+    }
   }
 
   function onDateModeChange() {
     const mode = $('#fDateMode').val();
-    $('#wrapDaily').hide();
-    $('#wrapMonth').hide();
-    $('#wrapYear').hide();
-    $('#wrapRangeFrom').hide();
-    $('#wrapRangeTo').hide();
+    $('#wrapDaily, #wrapMonth, #wrapYear, #wrapRangeFrom, #wrapRangeTo').hide();
 
     const today = new Date();
     const todayIso = today.toISOString().split('T')[0];
@@ -298,16 +669,14 @@
       $('#wrapDaily').show();
       if (!$('#fDateDaily').val()) $('#fDateDaily').val(todayIso);
     } else if (mode === 'month') {
-      $('#wrapMonth').show();
-      $('#wrapYear').show();
+      $('#wrapMonth, #wrapYear').show();
       if (!$('#fDateMonth').val()) $('#fDateMonth').val(today.getMonth() + 1);
       if (!$('#fDateYear').val()) $('#fDateYear').val(today.getFullYear());
     } else if (mode === 'year') {
       $('#wrapYear').show();
       if (!$('#fDateYear').val()) $('#fDateYear').val(today.getFullYear());
     } else if (mode === 'range') {
-      $('#wrapRangeFrom').show();
-      $('#wrapRangeTo').show();
+      $('#wrapRangeFrom, #wrapRangeTo').show();
     }
     loadLogs(1);
   }
@@ -332,130 +701,146 @@
   async function loadLogs(page) {
     if (page < 1 || (page > totalPages && totalPages > 0)) return;
     currentPage = page;
-    
+
     const params = {
       page: page,
       per_page: 50,
-      date_from: $('#fDateFrom').val(),
-      date_to: $('#fDateTo').val(),
-      search: $('#fSearch').val()
       search: $('#fSearch').val(),
       ...getDateParams()
     };
-    
+
     const actionFilter = $('#fAction').val();
     if (actionFilter) {
       if (actionFilter === 'SETTINGS') {
-        params.search = 'STATUTORY|POLICY|SALARY';
+        params.search = (params.search ? params.search + ' ' : '') + 'STATUTORY|POLICY|SALARY';
       } else {
         params.action = actionFilter;
       }
     }
 
     try {
-      $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted2);">Loading...</td></tr>');
+      $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--muted2); font-size:12.5px;">Loading audit logs…</td></tr>');
       const res = await $.get('/api/audit/logs', params);
-      
+
       totalPages = res.total_pages || 1;
-      
-      $('#pageInfo').text(`Showing ${(res.page - 1) * res.per_page + 1} to Math.min(${res.page * res.per_page}, ${res.total}) of ${res.total} entries`);
       const startEntry = res.total > 0 ? (res.page - 1) * res.per_page + 1 : 0;
       const endEntry = Math.min(res.page * res.per_page, res.total);
-      $('#pageInfo').text(`Showing ${startEntry} to ${endEntry} of ${res.total} entries`);
+
+      $('#pageInfo').text(`Showing ${startEntry.toLocaleString()} to ${endEntry.toLocaleString()} of ${Number(res.total || 0).toLocaleString()} entries`);
+      $('#pageBadge').text(`Page ${res.page} of ${totalPages}`);
       $('#btnPrev').prop('disabled', res.page <= 1);
       $('#btnNext').prop('disabled', res.page >= totalPages);
 
-      if (res.logs.length === 0) {
-        $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted2);">No audit records found matching filters.</td></tr>');
+      if (!res.logs || res.logs.length === 0) {
+        $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--muted2); font-size:13px;">No audit records found matching the selected filters.</td></tr>');
         return;
       }
 
       let html = '';
       res.logs.forEach(l => {
-        const d = new Date(l.timestamp);
-        const d = new Date(l.timestamp || l.created_at);
-        const dateStr = d.toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true });
-        
-        let targetStr = l.target_table ? `${l.target_table} ${l.target_id ? `(#${l.target_id})` : ''}` : 'System';
-        if (l.employee_id) targetStr += ` — Emp: ${l.employee_id}`;
+        const rawDate = l.timestamp || l.created_at;
+        const d = rawDate ? new Date(rawDate) : null;
+        const dateStr = d && !isNaN(d.getTime())
+          ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+          : (rawDate || '—');
+
+        let targetStr = l.target_table ? `${l.target_table} ${l.target_id ? `(#${l.target_id})` : ''}` : 'System Session';
+        if (l.employee_id) targetStr += ` · Emp: ${l.employee_id}`;
+
+        const badgeColor = getBadgeColor(l.action);
 
         html += `
           <tr class="audit-row" onclick="toggleRow(${l.id})">
-            <td>${dateStr}</td>
-            <td><strong>${l.user_name || 'Unknown'}</strong></td>
-            <td><span class="badge ${getBadgeColor(l.action)}">${l.action}</span></td>
-            <td style="font-size:11px; color:var(--muted);">${targetStr}</td>
-            <td style="font-size:11px; color:var(--muted2);">${l.ip_address || '—'}</td>
             <td>
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted2)"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              <div style="font-weight:600; color:var(--navy);">${dateStr}</div>
+            </td>
+            <td>
+              <strong style="color:var(--text);">${l.user_name || 'System User'}</strong>
+              ${l.employee_id ? `<div style="font-size:10.5px; color:var(--muted2);">ID: ${l.employee_id}</div>` : ''}
+            </td>
+            <td>
+              <span class="badge ${badgeColor}">${l.action}</span>
+            </td>
+            <td>
+              <div style="font-size:12px; color:var(--muted);">${targetStr}</div>
+            </td>
+            <td>
+              <div style="font-size:11.5px; color:var(--muted); font-family:monospace;">${l.ip_address || '—'}</div>
+            </td>
+            <td style="text-align:center;">
+              <svg id="arrow-${l.id}" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted); transition:transform 0.2s ease;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </td>
           </tr>
           <tr class="detail-row" id="det-${l.id}">
             <td colspan="6" style="padding:0;">
               <div class="detail-box">
-                <div class="detail-col">
-                <div style="flex:1;">
-                  <div class="detail-lbl">Old Value</div>
-                  <div>${l.old_value ? (typeof l.old_value === 'string' ? l.old_value : JSON.stringify(l.old_value, null, 2)) : '—'}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                  <span style="font-weight:700; color:var(--navy); font-size:12px;">Audit Log Record Detail #${l.id}</span>
+                  <span style="font-size:11px; color:var(--muted2);">${dateStr} · IP: ${l.ip_address || 'Internal'}</span>
                 </div>
-                <div class="detail-col">
-                <div style="flex:1;">
-                  <div class="detail-lbl">New Value</div>
-                  <div>${l.new_value ? (typeof l.new_value === 'string' ? l.new_value : JSON.stringify(l.new_value, null, 2)) : '—'}</div>
+                <div class="detail-grid">
+                  <div class="detail-col">
+                    <div class="detail-lbl"><span>⏮️ Previous / Old Value</span></div>
+                    <div class="detail-code">${l.old_value ? (typeof l.old_value === 'string' ? l.old_value : JSON.stringify(l.old_value, null, 2)) : '— (None / New Entry)'}</div>
+                  </div>
+                  <div class="detail-col">
+                    <div class="detail-lbl"><span>⏭️ Applied / New Value</span></div>
+                    <div class="detail-code">${l.new_value ? (typeof l.new_value === 'string' ? l.new_value : JSON.stringify(l.new_value, null, 2)) : '— (Unchanged / Session Event)'}</div>
+                  </div>
                 </div>
-                ${l.reason ? `<div class="detail-col"><div class="detail-lbl">Reason</div><div>${l.reason}</div></div>` : ''}
-                ${l.reason ? `<div style="flex:1;"><div class="detail-lbl">Reason</div><div>${l.reason}</div></div>` : ''}
+                ${l.reason ? `
+                  <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:9px 12px; font-size:11.5px;">
+                    <strong style="color:var(--navy); font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em;">Reason / Remarks:</strong> ${l.reason}
+                  </div>
+                ` : ''}
               </div>
             </td>
           </tr>
         `;
       });
-      
+
       $('#auditTableBody').html(html);
-      
+
     } catch(e) {
       console.error(e);
-      $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--red);">Failed to load audit logs.</td></tr>');
+      $('#auditTableBody').html('<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--red); font-size:12.5px;">Failed to load audit logs. Please check network connection or permissions.</td></tr>');
     }
   }
 
   function clearFilters() {
     $('#fDateMode').val('all');
-    $('#fDateDaily').val('');
-    $('#fDateFrom').val('');
-    $('#fDateTo').val('');
+    $('#fDateDaily, #fDateFrom, #fDateTo').val('');
     $('#fAction').val('');
     $('#fSearch').val('');
-    loadLogs(1);
     onDateModeChange();
   }
 
   function exportAudit() {
     let url = '/api/audit/export?';
-    if ($('#fDateFrom').val()) url += 'date_from=' + $('#fDateFrom').val() + '&';
-    if ($('#fDateTo').val()) url += 'date_to=' + $('#fDateTo').val() + '&';
     const dp = getDateParams();
     for (const [k, v] of Object.entries(dp)) {
       if (v) url += `${k}=${encodeURIComponent(v)}&`;
     }
-    if ($('#fAction').val()) {
-        const actionFilter = $('#fAction').val();
-        if (actionFilter === 'SETTINGS') {
-            url += 'search=STATUTORY|POLICY|SALARY&';
-        } else {
-            url += 'action=' + actionFilter + '&';
-        }
-      const actionFilter = $('#fAction').val();
+    const actionFilter = $('#fAction').val();
+    if (actionFilter) {
       if (actionFilter === 'SETTINGS') {
         url += 'search=STATUTORY|POLICY|SALARY&';
       } else {
-        url += 'action=' + actionFilter + '&';
+        url += 'action=' + encodeURIComponent(actionFilter) + '&';
       }
     }
     if ($('#fSearch').val()) url += 'search=' + encodeURIComponent($('#fSearch').val()) + '&';
-    
+
     window.open(url, '_blank');
   }
 
+  // Expose methods to window for inline onclick in SPA
+  window.toggleRow = toggleRow;
+  window.onDateModeChange = onDateModeChange;
+  window.loadLogs = loadLogs;
+  window.clearFilters = clearFilters;
+  window.exportAudit = exportAudit;
+
   initAudit();
+})();
 </script>

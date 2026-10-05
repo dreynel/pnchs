@@ -1,10 +1,11 @@
 from flask import Blueprint, jsonify, request, session
-from mysql.connector import Error
 from db import db_cursor
 from services.policy_engine import AuditService
 from services.email_service import send_welcome_email, validate_email_service, is_valid_email
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 import json
+import secrets
+import string
 
 employee_bp = Blueprint('employees', __name__, url_prefix='/api/employees')
 
@@ -13,11 +14,35 @@ def check_role_access():
     if request.path and ('test_email' in request.path or 'validate_email' in request.path):
         return None
     role = session.get('user', {}).get('role')
-    if role == 'Admin':
-        return jsonify({'error': 'Unauthorized: Admin does not have access to Employee Registry'}), 403
+    if role in ['Admin', 'Principal']:
+        return jsonify({'error': 'Unauthorized: Principal/Admin does not have access to Employee Registry'}), 403
+    if role in ['Accounting', 'Finance', 'Finance Officer']:
+        return jsonify({'error': 'Unauthorized: Accounting does not have access to Employee Registry'}), 403
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def generate_random_password(length=10):
+    """
+    Generates a secure random temporary password containing uppercase,
+    lowercase, digits, and special characters (e.g. 'mK8#xL2@9v').
+    """
+    upper = string.ascii_uppercase
+    lower = string.ascii_lowercase
+    digits = string.digits
+    special = "!@#$%"
+
+    # Guarantee at least 1 character from each group
+    pwd = [
+        secrets.choice(upper),
+        secrets.choice(lower),
+        secrets.choice(digits),
+        secrets.choice(special)
+    ]
+    pool = upper + lower + digits + special
+    pwd += [secrets.choice(pool) for _ in range(max(0, length - len(pwd)))]
+    secrets.SystemRandom().shuffle(pwd)
+    return "".join(pwd)
 
 def _next_employee_id(cur):
     """Generate the next EMP-000-XXX id based on the highest existing one."""
@@ -62,14 +87,12 @@ def normalize_role(role_input):
         return 'Employee'
     r = str(role_input).strip()
     r_upper = r.upper()
-    if r_upper in ['PRINCIPAL', 'SCHOOL HEAD', 'SUPERINTENDENT']:
+    if r_upper in ['PRINCIPAL', 'SCHOOL HEAD', 'SUPERINTENDENT', 'ADMIN', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'IT']:
         return 'Principal'
-    elif r_upper in ['ADMIN', 'ADMINISTRATOR', 'SYSTEM ADMIN', 'IT']:
-        return 'Admin'
     elif r_upper in ['HR', 'HR OFFICER', 'HUMAN RESOURCES']:
         return 'HR'
-    elif r_upper in ['FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER', 'ACCOUNTANT', 'CASHIER']:
-        return 'Finance'
+    elif r_upper in ['ACCOUNTING', 'ACCOUNTANT', 'FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER', 'CASHIER', 'BOOKKEEPER']:
+        return 'Accounting'
     return 'Employee'
 
 
@@ -104,7 +127,7 @@ def get_next_id():
         with db_cursor() as (conn, cur):
             new_id = _next_employee_id(cur)
         return jsonify({"next_id": new_id})
-    except Error as e:
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
@@ -167,7 +190,7 @@ def list_employees():
                        OR e.employee_id LIKE %s
                        OR e.designation LIKE %s
                     GROUP BY e.employee_id
-                    ORDER BY MIN(e.id)
+                    ORDER BY MAX(e.id) DESC
                 """, (like, like, like, like, like))
             else:
                 cur.execute("""
@@ -182,7 +205,7 @@ def list_employees():
                     FROM tblemployee e
                     LEFT JOIN tblusers u ON e.employee_id = u.employee_id
                     GROUP BY e.employee_id
-                    ORDER BY MIN(e.id)
+                    ORDER BY MAX(e.id) DESC
                 """)
             rows = cur.fetchall()
 
@@ -197,10 +220,9 @@ def list_employees():
                 fp_map[emp_id].append(int(fp['finger_index']))
 
         def _map_role(r):
-            if r == 'Principal': return 'Principal'
-            if r == 'Admin': return 'Admin'
-            if r == 'HR': return 'HR Officer'
-            if r == 'Finance': return 'Finance Officer'
+            if r in ['Principal', 'Admin']: return 'Principal'
+            if r in ['HR', 'HR Officer']: return 'HR Officer'
+            if r in ['Accounting', 'Finance', 'Finance Officer']: return 'Accounting Officer'
             return 'Employee'
 
         return jsonify([{
@@ -313,9 +335,10 @@ def create_employee():
                     )
             
             # --- CREATE USER LOGIN ---
-            # Username/Password = last_name (lowercase, stripped)
+            # Username = last_name (lowercase, stripped)
+            # Generate random password for newly registered employees
             username = data['last_name'].strip().lower()
-            raw_password = username
+            raw_password = generate_random_password(10)
             if middle_name:
                 fullname = f"{data['first_name'].strip()} {middle_name} {data['last_name'].strip()}"
             else:
@@ -327,7 +350,6 @@ def create_employee():
                 # If collision, append employee ID suffix (e.g., smith001)
                 suffix = new_id.split('-')[-1] if '-' in new_id else new_id
                 username = f"{username}{suffix}"
-                raw_password = username # Keep password same as username for initial setup
             
             hashed_password = generate_password_hash(raw_password)
             db_role = normalize_role(data.get('system_role'))
@@ -339,8 +361,8 @@ def create_employee():
             
             AuditService.log_action(cur, 'EMPLOYEE_CREATED', employee_id=new_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=new_id, new_value=json.dumps(data))
             
-            # Send welcome & account activation email via Brevo
-            send_welcome_email({
+            # Send welcome & account activation email with credentials
+            email_res = send_welcome_email({
                 'employee_id': new_id,
                 'first_name': data['first_name'].strip(),
                 'middle_name': middle_name,
@@ -348,7 +370,8 @@ def create_employee():
                 'email': email,
                 'designation': data['designation'].strip(),
                 'employment_status': emp_status
-            }, username, raw_password)
+            }, username, raw_password, async_send=False)
+            
             cur.execute("""
                 SELECT e.*, u.role as system_role
                 FROM tblemployee e
@@ -358,8 +381,17 @@ def create_employee():
             row = cur.fetchone()
             ph_saved = _get_payheads(cur, new_id)
             enrolled_fingers = _get_enrolled_fingers(cur, new_id)
-        return jsonify(_row_to_dict(row, ph_saved, enrolled_fingers)), 201
-    except Error as e:
+            
+            resp_data = _row_to_dict(row, ph_saved, enrolled_fingers)
+            resp_data['credentials'] = {
+                'username': username,
+                'email': email,
+                'email_sent': bool(email_res.get('success')),
+                'email_method': email_res.get('method', ''),
+                'email_message': email_res.get('message') or email_res.get('error') or ('Credentials email dispatched successfully.' if email_res.get('success') else 'Email delivery pending.')
+            }
+        return jsonify(resp_data), 201
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
@@ -445,7 +477,7 @@ def update_employee(emp_id):
             ph_saved = _get_payheads(cur, emp_id)
             enrolled_fingers = _get_enrolled_fingers(cur, emp_id)
         return jsonify(_row_to_dict(row, ph_saved, enrolled_fingers))
-    except Error as e:
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
@@ -459,7 +491,9 @@ def delete_employee(emp_id):
             if not old_row:
                 return jsonify({"error": "Employee not found"}), 404
             
-            # Cascade delete to all foreign tables
+            # Cascade delete to all foreign tables referencing employee_id
+            cur.execute("DELETE FROM tblleave_transactions WHERE employee_id=%s", (emp_id,))
+            cur.execute("DELETE FROM tblleave_balances WHERE employee_id=%s", (emp_id,))
             cur.execute("DELETE FROM tblpayhead WHERE employee_id=%s", (emp_id,))
             cur.execute("DELETE FROM tblpayroll_details WHERE employee_id=%s", (emp_id,))
             cur.execute("DELETE FROM fingerprints WHERE employee_id=%s", (emp_id,))
@@ -471,7 +505,120 @@ def delete_employee(emp_id):
             
             cur.execute("DELETE FROM tblemployee WHERE employee_id=%s", (emp_id,))
             
-            AuditService.log_action(cur, 'EMPLOYEE_DELETED', employee_id=emp_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=emp_id, old_value=json.dumps(old_row, default=str))
+            AuditService.log_action(
+                cur, 'EMPLOYEE_DELETED',
+                employee_id=emp_id,
+                user_name=session.get('user', {}).get('name', 'Unknown'),
+                target_table='tblemployee',
+                target_id=emp_id,
+                old_value=json.dumps(dict(old_row), default=str)
+            )
         return jsonify({"message": f"Employee {emp_id} deleted successfully."})
-    except Error as e:
+    except Exception as e:
+        print(f"[delete_employee ERROR] Failed to delete employee {emp_id}: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ── RESEND CREDENTIALS EMAIL ──────────────────────────────────────────────────
+@employee_bp.route('/<emp_id>/resend_credentials', methods=['POST'])
+def resend_credentials(emp_id):
+    try:
+        with db_cursor() as (conn, cur):
+            cur.execute("SELECT * FROM tblemployee WHERE employee_id = %s", (emp_id,))
+            emp = cur.fetchone()
+            if not emp:
+                return jsonify({"error": f"Employee {emp_id} not found"}), 404
+
+            cur.execute("SELECT username, password FROM tblusers WHERE employee_id = %s", (emp_id,))
+            user_row = cur.fetchone()
+            username = user_row['username'] if user_row else emp['last_name'].strip().lower()
+            stored_hash = user_row['password'] if user_row else ''
+            
+            # If the user still has sample password Password123!, preserve Password123!
+            if stored_hash and check_password_hash(stored_hash, "Password123!"):
+                raw_password = "Password123!"
+            else:
+                # If they have a custom or generated password, generate fresh random password and update
+                raw_password = generate_random_password(10)
+                new_hash = generate_password_hash(raw_password)
+                cur.execute("UPDATE tblusers SET password = %s WHERE employee_id = %s", (new_hash, emp_id))
+
+            email_res = send_welcome_email({
+                'employee_id': emp_id,
+                'first_name': emp['first_name'],
+                'middle_name': emp.get('middle_name') or '',
+                'last_name': emp['last_name'],
+                'email': emp['email'],
+                'designation': emp['designation'],
+                'employment_status': emp.get('employment_status', 'Active')
+            }, username, raw_password, async_send=False)
+
+            AuditService.log_action(
+                cur, 'CREDENTIALS_EMAIL_RESENT',
+                employee_id=emp_id,
+                user_name=session.get('user', {}).get('name', 'Unknown'),
+                target_table='tblemployee',
+                target_id=emp_id,
+                new_value=json.dumps({"recipient": emp['email'], "result": email_res})
+            )
+
+        return jsonify({
+            "success": bool(email_res.get("success")),
+            "username": username,
+            "email": emp['email'],
+            "method": email_res.get("method", ""),
+            "message": email_res.get("message") or email_res.get("error") or "Credentials email processed."
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── CHANGE EMPLOYEE PASSWORD ──────────────────────────────────────────────────
+@employee_bp.route('/<emp_id>/change_password', methods=['POST'])
+def change_employee_password(emp_id):
+    try:
+        data = request.get_json(silent=True) or {}
+        new_password = (data.get('new_password') or '').strip()
+        if not new_password or len(new_password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters long."}), 400
+
+        with db_cursor() as (conn, cur):
+            cur.execute("SELECT employee_id, first_name, last_name, email FROM tblemployee WHERE employee_id = %s", (emp_id,))
+            emp = cur.fetchone()
+            if not emp:
+                return jsonify({"error": f"Employee {emp_id} not found."}), 404
+
+            cur.execute("SELECT id, username FROM tblusers WHERE employee_id = %s", (emp_id,))
+            user_row = cur.fetchone()
+            new_hash = generate_password_hash(new_password)
+
+            if user_row:
+                cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (new_hash, user_row['id']))
+                user_id = user_row['id']
+                username = user_row['username']
+            else:
+                # If user account didn't exist yet, create one
+                username = (emp['last_name'] or emp_id).strip().lower()
+                full_name = f"{emp['first_name']} {emp['last_name']}".strip()
+                cur.execute(
+                    "INSERT INTO tblusers (username, password, name, role, employee_id) VALUES (%s, %s, %s, %s, %s)",
+                    (username, new_hash, full_name, 'Employee', emp_id)
+                )
+                user_id = cur.lastrowid
+
+            AuditService.log_action(
+                cur, 'EMPLOYEE_PASSWORD_CHANGED_BY_ADMIN',
+                employee_id=emp_id,
+                user_name=session.get('user', {}).get('name', 'Admin/HR'),
+                target_table='tblusers',
+                target_id=user_id,
+                new_value=json.dumps({"employee_id": emp_id, "username": username})
+            )
+
+        return jsonify({
+            "success": True,
+            "message": f"Password for {emp['first_name']} {emp['last_name']} ({emp_id}) was updated successfully."
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+

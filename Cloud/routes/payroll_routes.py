@@ -11,6 +11,7 @@ from services.policy_engine import (
     HabitualTardinessService,
     AuditService
 )
+from services.notification_service import NotificationService
 
 payroll_bp = Blueprint('payroll', __name__, url_prefix='/api/payroll')
 
@@ -148,7 +149,7 @@ def get_approved_leave_dates(cur, emp_id, start_date, end_date):
 @payroll_bp.route('/runs', methods=['POST'])
 def create_run():
     from flask import session
-    if session.get('user', {}).get('role') not in ['Principal', 'Finance', 'Finance Officer']:
+    if session.get('user', {}).get('role') not in ['Accounting', 'Finance', 'Finance Officer']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.json
@@ -180,16 +181,27 @@ def create_run():
 
     try:
         with db_cursor() as (conn, cur):
-            # Duplicate check
-            cur.execute("SELECT id FROM tblpayroll WHERE period_key=%s", (period_key,))
-            if cur.fetchone():
-                return jsonify({'error': 'Payroll record for this period already exists.'}), 400
-
-            # Create header record
-            cur.execute(
-                "INSERT INTO tblpayroll (period_key, year, month, half, status) VALUES (%s, %s, %s, %s, 'Draft')",
-                (period_key, year_int, month_int, half_int)
-            )
+            # Duplicate / Existing check
+            cur.execute("SELECT id, status FROM tblpayroll WHERE period_key=%s", (period_key,))
+            existing_run = cur.fetchone()
+            if existing_run:
+                st = existing_run.get('status')
+                if st in ['Approved', 'Released']:
+                    return jsonify({'error': f'Payroll for period {period_key} is already {st} and cannot be regenerated.'}), 400
+                # If Draft or Rejected, clean existing details so it can be recomputed cleanly
+                cur.execute("DELETE FROM tblpayroll_details WHERE period_key=%s", (period_key,))
+                cur.execute("UPDATE tblpayroll SET status='Draft', remarks=NULL, updated_at=NOW() WHERE period_key=%s", (period_key,))
+            else:
+                # Create header record with ON CONFLICT safety
+                cur.execute(
+                    """
+                    INSERT INTO tblpayroll (period_key, year, month, half, status) 
+                    VALUES (%s, %s, %s, %s, 'Draft')
+                    ON CONFLICT (period_key) DO UPDATE SET updated_at = NOW()
+                    """,
+                    (period_key, year_int, month_int, half_int)
+                )
+                cur.execute("DELETE FROM tblpayroll_details WHERE period_key=%s", (period_key,))
             
             AuditService.log_action(cur, 'PAYROLL_CREATED', user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblpayroll', new_value=period_key)
 
@@ -362,7 +374,7 @@ def create_run():
                                 + undertime_deduction
                                 + gsis_ee + philhealth_ee + pagibig_ee + withholding_tax)
                 raw_net      = total_gross - total_deduct
-                net_pay      = max(0.0, raw_net)
+                net_pay      = round(raw_net, 2)
                 is_negative  = 1 if raw_net < 0 else 0
                 dtr_filed    = 1 if len(logs) > 0 else 0
 
@@ -402,6 +414,20 @@ def create_run():
                       stat_json, json.dumps(payhead_breakdown),
                       total_gross, total_deduct, net_pay, is_negative, dtr_filed))
 
+            # Notify all: Payroll Run done
+            NotificationService.create_notification(
+                cur,
+                title="Payroll Run done",
+                message=f"Payroll Run done for period {period_key}.",
+                category="Payroll",
+                target_role="ALL",
+                link_url="/pages/payroll.html",
+                link_label="View Payroll",
+                icon="📋",
+                priority="Normal",
+                sender_name=session.get('user', {}).get('name', 'Accounting')
+            )
+
             conn.commit()
             return jsonify({'success': True, 'key': period_key})
     except Exception as e:
@@ -427,8 +453,8 @@ def process_payroll():
     if not user:
         return jsonify({'error': 'Unauthorized: Please log in'}), 401
     role = user.get('role')
-    if request.path.endswith('/process') and role == 'Admin':
-        return jsonify({'error': 'Unauthorized: Admin does not have access to Payroll Processing'}), 403
+    if request.path.endswith('/process') and role in ['Principal', 'Admin']:
+        return jsonify({'error': 'Unauthorized: Principal/Admin does not have access to Payroll Processing'}), 403
     if role in ['HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized: HR does not have access to Payroll Processing or Reports'}), 403
 
@@ -967,7 +993,7 @@ def get_runs():
 @payroll_bp.route('/runs/<period_key>', methods=['DELETE'])
 def delete_run(period_key):
     from flask import session
-    if session.get('user', {}).get('role') not in ['Principal', 'Finance', 'Finance Officer']:
+    if session.get('user', {}).get('role') not in ['Accounting', 'Finance', 'Finance Officer']:
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         with db_cursor() as (conn, cur):
@@ -1011,7 +1037,7 @@ def update_status(period_key):
 
             curr_status = rec['status']
 
-            if role in ['Finance', 'Finance Officer']:
+            if role in ['Accounting', 'Finance', 'Finance Officer']:
                 if new_status == 'For Approval' and curr_status in ['Draft', 'Rejected']:
                     cur.execute("UPDATE tblpayroll SET status='For Approval', remarks=NULL WHERE period_key=%s", (period_key,))
                     cur.execute("""
@@ -1023,12 +1049,36 @@ def update_status(period_key):
                 elif new_status == 'Released' and curr_status == 'Approved':
                     cur.execute("UPDATE tblpayroll SET is_released=1, released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
                     AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
+                    NotificationService.create_notification(
+                        cur,
+                        title="payslip can be viewed + DTR",
+                        message=f"payslip can be viewed + DTR for period {period_key}.",
+                        category="Payroll",
+                        target_role="ALL",
+                        link_url="/pages/mypayslip.html",
+                        link_label="View Payslip & DTR",
+                        icon="💵",
+                        priority="Normal",
+                        sender_name="Accounting Office"
+                    )
                 else:
-                    return jsonify({'error': 'Invalid status transition for Finance'}), 400
+                    return jsonify({'error': 'Invalid status transition for Accounting'}), 400
             elif role in ['Administrator', 'Admin', 'Principal']:
                 if new_status == 'Released' and curr_status == 'Approved':
                     cur.execute("UPDATE tblpayroll SET is_released=1, released_by=%s, released_at=NOW() WHERE period_key=%s", (user_name, period_key))
                     AuditService.log_action(cur, 'PAYROLL_RELEASED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
+                    NotificationService.create_notification(
+                        cur,
+                        title="payslip can be viewed + DTR",
+                        message=f"payslip can be viewed + DTR for period {period_key}.",
+                        category="Payroll",
+                        target_role="ALL",
+                        link_url="/pages/mypayslip.html",
+                        link_label="View Payslip & DTR",
+                        icon="💵",
+                        priority="Normal",
+                        sender_name="Accounting Office"
+                    )
                 elif new_status in ['Approved', 'Rejected'] and curr_status == 'For Approval':
                     if new_status == 'Approved':
                         cur.execute(
@@ -1041,6 +1091,18 @@ def update_status(period_key):
                             WHERE DocType='Payroll' AND DocNumber=%s
                         """, (user_name, remarks, period_key))
                         AuditService.log_action(cur, 'PAYROLL_APPROVED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
+                        NotificationService.create_notification(
+                            cur,
+                            title="Payroll status approval: Approved",
+                            message=f"Payroll status approval: Payroll for {period_key} has been approved by {user_name}. Ready for releasing.",
+                            category="Payroll",
+                            target_role="Accounting",
+                            link_url="/pages/payroll.html",
+                            link_label="View Payroll",
+                            icon="✅",
+                            priority="High",
+                            sender_name=user_name
+                        )
                     else:
                         cur.execute(
                             "UPDATE tblpayroll SET status=%s, remarks=%s WHERE period_key=%s",
@@ -1052,6 +1114,18 @@ def update_status(period_key):
                             WHERE DocType='Payroll' AND DocNumber=%s
                         """, (user_name, remarks, period_key))
                         AuditService.log_action(cur, 'PAYROLL_REJECTED', user_name=user_name, target_table='tblpayroll', new_value=period_key)
+                        NotificationService.create_notification(
+                            cur,
+                            title="Payroll status approval: Rejected",
+                            message=f"Payroll status approval: Payroll for {period_key} was rejected by {user_name}." + (f" Reason: {remarks}" if remarks else ""),
+                            category="Payroll",
+                            target_role="Accounting",
+                            link_url="/pages/payroll.html",
+                            link_label="Adjust Payroll",
+                            icon="⚠️",
+                            priority="High",
+                            sender_name=user_name
+                        )
                 else:
                     return jsonify({'error': 'Invalid status transition for Approver'}), 400
             else:
@@ -1068,7 +1142,7 @@ def update_status(period_key):
 def releasing_list():
     from flask import session
     role = session.get('user', {}).get('role')
-    if role not in ['Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal']:
+    if role not in ['Accounting', 'Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     try:
@@ -1118,8 +1192,8 @@ def release_payroll():
     role = session.get('user', {}).get('role')
     user_name = session.get('user', {}).get('name', 'Unknown')
 
-    if role not in ['Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal']:
-        return jsonify({'error': 'Unauthorized. Only Finance or Admin can release payroll.'}), 403
+    if role not in ['Accounting', 'Finance', 'Finance Officer', 'Admin', 'Administrator', 'Principal']:
+        return jsonify({'error': 'Unauthorized. Only Accounting or Principal can release payroll.'}), 403
 
     data = request.json or {}
     period_key = data.get('period_key')
@@ -1175,7 +1249,7 @@ def get_holidays():
 @payroll_bp.route('/holidays', methods=['POST'])
 def add_holiday():
     from flask import session
-    if session.get('user', {}).get('role') not in ['Admin', 'Finance', 'HR']:
+    if session.get('user', {}).get('role') not in ['Admin', 'Principal', 'Accounting', 'Finance', 'HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
     hdate = data.get('date')
@@ -1199,7 +1273,7 @@ def add_holiday():
 @payroll_bp.route('/holidays/<int:hid>', methods=['DELETE'])
 def delete_holiday(hid):
     from flask import session
-    if session.get('user', {}).get('role') not in ['Admin']:
+    if session.get('user', {}).get('role') not in ['Admin', 'Principal']:
         return jsonify({'error': 'Unauthorized'}), 403
     try:
         with db_cursor() as (conn, cur):
@@ -1358,6 +1432,20 @@ def file_leave():
                 ON CONFLICT (DocType, DocNumber) DO UPDATE SET ApprovalStatus='Pending', RequesterID=EXCLUDED.RequesterID, Title=EXCLUDED.Title, Remarks=EXCLUDED.Remarks
             """, (str(leave_id), emp_name, f"{leave_type} Leave - {emp_name} ({leave_date})", reason))
 
+            # Notify HR: Leave management status approval
+            NotificationService.create_notification(
+                cur,
+                title="Leave management status approval",
+                message=f"Leave management status approval: {emp_name} filed a {leave_type} Leave request for {leave_date}.",
+                category="Leave",
+                target_role="HR",
+                link_url="/pages/approvals.html",
+                link_label="Review Application",
+                icon="🌴",
+                priority="High",
+                sender_name=emp_name
+            )
+
             return jsonify({
                 'success': True,
                 'id': leave_id,
@@ -1374,7 +1462,7 @@ def review_leave(lid):
     user = session.get('user', {})
     role = user.get('role')
 
-    if role not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer']:
+    if role not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     data       = request.json or {}
@@ -1456,6 +1544,21 @@ def review_leave(lid):
                 SET ApprovalStatus=%s, ApproverID=%s, ApprovedAt=NOW()
                 WHERE DocType='Leave' AND DocNumber=%s
             """, (new_status, reviewer_name, str(lid)))
+
+            # Notify to all: leave application approval status
+            NotificationService.create_notification(
+                cur,
+                title=f"leave application approval status: {new_status}",
+                message=f"leave application approval status: {leave_type} Leave request for {leave_date_str} has been {new_status.lower()} by {reviewer_name}.",
+                category="Leave",
+                target_role="ALL",
+                target_employee_id=emp_id,
+                link_url="/pages/leaves.html",
+                link_label="View Leaves",
+                icon="✅" if new_status == 'Approved' else "❌",
+                priority="Normal",
+                sender_name=reviewer_name
+            )
 
             return jsonify({'success': True, 'message': f'Leave request marked as {new_status}.'})
     except Exception as e:
@@ -1701,7 +1804,7 @@ def get_policy_configs():
 def update_policy_configs():
     from flask import session
     user = session.get('user', {})
-    if user.get('role') not in ['Admin', 'HR']:
+    if user.get('role') not in ['Admin', 'Principal', 'HR']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.json
@@ -1730,7 +1833,7 @@ def get_habitual_tardiness():
     from flask import session
     from services.policy_engine import HabitualTardinessService
     user = session.get('user', {})
-    if user.get('role') not in ['Admin', 'HR', 'Finance']:
+    if user.get('role') not in ['Admin', 'Principal', 'HR', 'Accounting', 'Finance']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     today = date.today()

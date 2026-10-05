@@ -416,7 +416,7 @@ def correct_attendance():
     and application of the corrected VL deduction without orphaned entries.
     """
     user = session.get('user', {})
-    if user.get('role') not in ['Admin', 'HR']:
+    if user.get('role') not in ['Admin', 'Principal', 'HR']:
         return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json(force=True)

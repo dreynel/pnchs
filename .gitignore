@@ -45,3 +45,11 @@ zk_env/
 # Logs
 *.log
 
+
+
+
+Local/
+PNCHS_Scanner.exe
+# Build artifacts
+Local/*.exe
+Local/build/

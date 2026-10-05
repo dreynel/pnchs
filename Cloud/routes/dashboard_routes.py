@@ -84,66 +84,152 @@ def get_dashboard_stats():
             else:
                 trends = []
 
-            # 7. Recent Activity Feed (Time Logs + Leaves + Employee Registrations)
-            cur.execute("""
-                SELECT t.work_date, t.am_time_in, t.pm_time_out, e.first_name, e.last_name, e.employee_id
-                FROM tbltime_logs t
-                JOIN tblemployee e ON t.employee_id = e.employee_id
-                ORDER BY t.work_date DESC, t.log_id DESC
-                LIMIT 8
-            """)
-            attendance_rows = cur.fetchall()
-
-            cur.execute("""
-                SELECT l.leave_date, l.leave_type, l.status, l.filed_at, e.first_name, e.last_name
-                FROM tblleaves l
-                JOIN tblemployee e ON l.employee_id = e.employee_id
-                ORDER BY l.filed_at DESC
-                LIMIT 5
-            """)
-            leave_rows = cur.fetchall()
-
-            cur.execute("""
-                SELECT created_at, first_name, last_name, employee_id
-                FROM tblemployee
-                ORDER BY created_at DESC
-                LIMIT 5
-            """)
-            reg_rows = cur.fetchall()
-
+            # 7. Recent Activity Feed (Biometric punches + DTR logs + Leaves + Staff registrations)
             activities = []
-            for a in attendance_rows:
-                act_time = a['work_date']
-                punch_str = a['pm_time_out'] or a['am_time_in'] or 'Present'
-                activities.append({
-                    'name': f"{a['first_name']} {a['last_name']}",
-                    'type': f"DTR log ({punch_str})",
-                    'tag': 'Biometric',
-                    'date_label': a['work_date'].strftime('%b %d, %Y') if hasattr(a['work_date'], 'strftime') else str(a['work_date']),
-                    'time_label': str(punch_str)[:5] if punch_str != 'Present' else 'Biometric'
-                })
 
-            for l in leave_rows:
-                f_time = l['filed_at']
-                activities.append({
-                    'name': f"{l['first_name']} {l['last_name']}",
-                    'type': f"{l['status']} {l['leave_type']} Leave",
-                    'tag': 'Leave',
-                    'date_label': f_time.strftime('%b %d') if f_time else 'Recent',
-                    'time_label': f_time.strftime('%I:%M %p') if f_time else 'Leave'
-                })
+            # 7a. Real-time biometric device punches (tblbiometric_logs)
+            try:
+                cur.execute("""
+                    SELECT b.id, b.employee_id, b.log_type, b.log_time, e.first_name, e.last_name
+                    FROM tblbiometric_logs b
+                    JOIN tblemployee e ON b.employee_id = e.employee_id
+                    ORDER BY b.log_time DESC
+                    LIMIT 10
+                """)
+                bio_rows = cur.fetchall()
+                type_map = {
+                    'am_time_in': 'AM Time In',
+                    'am_time_out': 'AM Time Out',
+                    'pm_time_in': 'PM Time In',
+                    'pm_time_out': 'PM Time Out',
+                    'IN': 'Time In',
+                    'OUT': 'Time Out'
+                }
+                for b in bio_rows:
+                    b_time = b['log_time']
+                    t_label = type_map.get(b['log_type'], b['log_type'] or 'Biometric Punch')
+                    activities.append({
+                        'name': f"{b['first_name']} {b['last_name']}",
+                        'type': f"{t_label} biometric verified",
+                        'tag': 'Biometric',
+                        'date_label': b_time.strftime('%b %d, %Y') if b_time else 'Today',
+                        'time_label': b_time.strftime('%I:%M %p') if b_time else '',
+                        'sort_time': b_time or datetime.min
+                    })
+            except Exception:
+                pass
 
-            for r in reg_rows:
-                r_time = r['created_at']
-                activities.append({
-                    'name': f"{r['first_name']} {r['last_name']}",
-                    'type': 'Registered staff profile',
-                    'tag': 'Staff',
-                    'date_label': r_time.strftime('%b %d') if r_time else 'Recent',
-                    'time_label': r_time.strftime('%I:%M %p') if r_time else 'Profile'
-                })
+            # 7b. Time logs (tbltime_logs)
+            try:
+                cur.execute("""
+                    SELECT t.work_date, t.am_time_in, t.pm_time_out, e.first_name, e.last_name, e.employee_id
+                    FROM tbltime_logs t
+                    JOIN tblemployee e ON t.employee_id = e.employee_id
+                    ORDER BY t.work_date DESC, t.log_id DESC
+                    LIMIT 10
+                """)
+                attendance_rows = cur.fetchall()
+                for a in attendance_rows:
+                    w_date = a['work_date']
+                    punch = a['pm_time_out'] or a['am_time_in']
+                    sort_dt = datetime.min
+                    if w_date:
+                        try:
+                            if punch and hasattr(punch, 'hour'):
+                                sort_dt = datetime.combine(w_date, punch)
+                            elif punch and isinstance(punch, str) and ':' in punch:
+                                parts = punch.split(':')
+                                sort_dt = datetime(w_date.year, w_date.month, w_date.day, int(parts[0]), int(parts[1]))
+                            elif hasattr(w_date, 'year'):
+                                sort_dt = datetime(w_date.year, w_date.month, w_date.day, 17 if a['pm_time_out'] else 8, 0)
+                        except Exception:
+                            sort_dt = datetime.min
 
-            display_activities = activities[:6]
+                    time_display = ''
+                    if punch:
+                        try:
+                            if hasattr(punch, 'strftime'):
+                                time_display = punch.strftime('%I:%M %p')
+                            elif isinstance(punch, str) and ':' in punch:
+                                p_obj = datetime.strptime(punch[:8], '%H:%M:%S').time() if len(punch) >= 8 else datetime.strptime(punch[:5], '%H:%M').time()
+                                time_display = p_obj.strftime('%I:%M %p')
+                            else:
+                                time_display = str(punch)[:5]
+                        except Exception:
+                            time_display = str(punch)[:5]
+
+                    action_desc = "PM Time Out" if a['pm_time_out'] else ("AM Time In" if a['am_time_in'] else "DTR Attendance Log")
+                    activities.append({
+                        'name': f"{a['first_name']} {a['last_name']}",
+                        'type': f"{action_desc} ({time_display or 'Present'})",
+                        'tag': 'Biometric',
+                        'date_label': w_date.strftime('%b %d, %Y') if hasattr(w_date, 'strftime') else str(w_date),
+                        'time_label': time_display or 'Biometric',
+                        'sort_time': sort_dt
+                    })
+            except Exception:
+                pass
+
+            # 7c. Leave Applications (tblleaves)
+            try:
+                cur.execute("""
+                    SELECT l.leave_date, l.leave_type, l.status, l.filed_at, e.first_name, e.last_name
+                    FROM tblleaves l
+                    JOIN tblemployee e ON l.employee_id = e.employee_id
+                    ORDER BY l.filed_at DESC
+                    LIMIT 6
+                """)
+                leave_rows = cur.fetchall()
+                for l in leave_rows:
+                    f_time = l['filed_at']
+                    activities.append({
+                        'name': f"{l['first_name']} {l['last_name']}",
+                        'type': f"{l['status']} {l['leave_type']} Leave application",
+                        'tag': 'Leave',
+                        'date_label': f_time.strftime('%b %d, %Y') if f_time else 'Recent',
+                        'time_label': f_time.strftime('%I:%M %p') if f_time else '',
+                        'sort_time': f_time or datetime.min
+                    })
+            except Exception:
+                pass
+
+            # 7d. Employee Registrations (tblemployee)
+            try:
+                cur.execute("""
+                    SELECT created_at, first_name, last_name, employee_id, designation
+                    FROM tblemployee
+                    ORDER BY created_at DESC
+                    LIMIT 6
+                """)
+                reg_rows = cur.fetchall()
+                for r in reg_rows:
+                    r_time = r['created_at']
+                    desig = f" ({r['designation']})" if r.get('designation') else ""
+                    activities.append({
+                        'name': f"{r['first_name']} {r['last_name']}",
+                        'type': f"New staff enrolled{desig}",
+                        'tag': 'Staff',
+                        'date_label': r_time.strftime('%b %d, %Y') if r_time else 'Recent',
+                        'time_label': r_time.strftime('%I:%M %p') if r_time else '',
+                        'sort_time': r_time or datetime.min
+                    })
+            except Exception:
+                pass
+
+            # Deduplicate by (name, tag, date_label, time_label) & sort chronologically descending
+            seen = set()
+            unique_activities = []
+            for act in activities:
+                key = (act['name'], act['tag'], act['date_label'], act['time_label'])
+                if key not in seen:
+                    seen.add(key)
+                    unique_activities.append(act)
+
+            unique_activities.sort(key=lambda x: x.get('sort_time') or datetime.min, reverse=True)
+            display_activities = unique_activities[:8]
+
+            for d in display_activities:
+                d.pop('sort_time', None)
 
             # 8. Days Left & Elapsed Percentage in Current Period
             if now.day <= 15:

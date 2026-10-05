@@ -6,16 +6,43 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import threading
 from datetime import datetime
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Native zero-dependency .env loader if python-dotenv is not installed
+    _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    if os.path.exists(_env_path):
+        try:
+            with open(_env_path, 'r', encoding='utf-8') as _f:
+                for _line in _f:
+                    _line = _line.strip()
+                    if _line and not _line.startswith('#') and '=' in _line:
+                        _k, _v = _line.split('=', 1)
+                        _k = _k.strip()
+                        _v = _v.strip().strip('"').strip("'")
+                        if _k and _k not in os.environ:
+                            os.environ[_k] = _v
+        except Exception:
+            pass
 
 _K1 = "xkeysib-ca7a93aa4f22f907d2a61aec15691b54a4d"
 _K2 = "32be1a940714a178ed2ea3bd7970f-me1q3ZAt8mccApxo"
 DEFAULT_BREVO_KEY = _K1 + _K2
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", DEFAULT_BREVO_KEY)
-BREVO_SMTP_HOST = os.getenv("BREVO_SMTP_HOST", "smtp-relay.brevo.com")
-BREVO_SMTP_PORT = int(os.getenv("BREVO_SMTP_PORT", 587))
-BREVO_SMTP_USER = os.getenv("BREVO_SMTP_LOGIN", "b8b3f7001@smtp-brevo.com")
+
+# SMTP Configuration (Brevo default or custom SMTP like Gmail/Hostinger/cPanel)
+SMTP_HOST = os.getenv("SMTP_HOST", os.getenv("BREVO_SMTP_HOST", "smtp-relay.brevo.com"))
+SMTP_PORT = int(os.getenv("SMTP_PORT", os.getenv("BREVO_SMTP_PORT", 587)))
+SMTP_USER = os.getenv("SMTP_USER", os.getenv("BREVO_SMTP_LOGIN", "b8b3f7001@smtp-brevo.com"))
+SMTP_PASS = os.getenv("SMTP_PASS", os.getenv("BREVO_SMTP_KEY", BREVO_API_KEY))
+
+BREVO_SMTP_HOST = SMTP_HOST
+BREVO_SMTP_PORT = SMTP_PORT
+BREVO_SMTP_USER = SMTP_USER
+
 SENDER_NAME = os.getenv("SENDER_NAME", "Pototan National Comprehensive High School (PNCHS)")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "jasperiansusarno9@gmail.com")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "bjohnlenard@gmail.com")
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
 
@@ -164,6 +191,7 @@ def send_welcome_email(employee_data, username, password, async_send=True):
         </html>
         """
 
+        last_api_error = ""
         # Method 1: Try Brevo REST API v3
         try:
             url = "https://api.brevo.com/v3/smtp/email"
@@ -178,18 +206,26 @@ def send_welcome_email(employee_data, username, password, async_send=True):
                 "subject": subject,
                 "htmlContent": html_content
             }
-            resp = requests.post(url, json=payload, headers=headers, timeout=10)
+            resp = requests.post(url, json=payload, headers=headers, timeout=6)
             if resp.status_code in [200, 201, 202]:
                 data = resp.json() if resp.text else {}
                 msg_id = data.get("messageId", "")
                 print(f"[Brevo API] Welcome email sent successfully to {email} ({resp.status_code}) ID: {msg_id}")
-                return {"success": True, "method": "Brevo REST API", "status_code": resp.status_code, "messageId": msg_id}
+                return {"success": True, "method": "Brevo REST API", "status_code": resp.status_code, "messageId": msg_id, "message": "Email sent successfully via Brevo API"}
             else:
-                print(f"[Brevo API] API response {resp.status_code}: {resp.text}. Falling back to SMTP...")
+                raw_err = resp.text
+                try:
+                    err_json = resp.json()
+                    raw_err = err_json.get('message', resp.text)
+                except Exception:
+                    pass
+                last_api_error = f"Brevo API ({resp.status_code}): {raw_err}"
+                print(f"[Brevo API] {last_api_error}. Trying SMTP fallback...")
         except Exception as api_err:
-            print(f"[Brevo API Error] {api_err}. Falling back to SMTP...")
+            last_api_error = f"Brevo API error: {str(api_err)}"
+            print(f"[Brevo API Error] {last_api_error}. Trying SMTP fallback...")
 
-        # Method 2: Fallback to Brevo SMTP Relay
+        # Method 2: Fallback to SMTP Relay
         try:
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
@@ -197,15 +233,22 @@ def send_welcome_email(employee_data, username, password, async_send=True):
             msg['To'] = email
             msg.attach(MIMEText(html_content, 'html'))
 
-            with smtplib.SMTP(BREVO_SMTP_HOST, BREVO_SMTP_PORT, timeout=10) as server:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=6) as server:
+                server.ehlo()
                 server.starttls()
-                server.login(BREVO_SMTP_USER, BREVO_API_KEY)
+                server.ehlo()
+                server.login(SMTP_USER, SMTP_PASS)
                 server.sendmail(SENDER_EMAIL, [email], msg.as_string())
-            print(f"[Brevo SMTP] Welcome email sent successfully to {email}")
-            return {"success": True, "method": "Brevo SMTP"}
+            print(f"[SMTP] Welcome email sent successfully to {email} via {SMTP_HOST}")
+            return {"success": True, "method": f"SMTP ({SMTP_HOST})", "message": "Email sent successfully via SMTP"}
         except Exception as smtp_err:
-            print(f"[Brevo SMTP Error] Failed to send email to {email}: {smtp_err}")
-            return {"success": False, "error": str(smtp_err)}
+            print(f"[SMTP Error] Failed to send email to {email}: {smtp_err}")
+            err_details = str(smtp_err)
+            if 'unrecognised IP' in last_api_error or 'authorised_ips' in last_api_error:
+                err_details = last_api_error
+            elif last_api_error:
+                err_details = f"{last_api_error} | SMTP Error: {smtp_err}"
+            return {"success": False, "error": err_details}
 
     if async_send:
         t = threading.Thread(target=_do_send, daemon=True)

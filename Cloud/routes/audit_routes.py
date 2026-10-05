@@ -13,7 +13,7 @@ def check_access():
 
 def check_payroll_audit_access():
     user = session.get('user', {})
-    if user.get('role') not in ['Admin', 'Administrator', 'Principal', 'Finance', 'Finance Officer']:
+    if user.get('role') not in ['Admin', 'Administrator', 'Principal', 'Accounting', 'Accounting Officer', 'Finance', 'Finance Officer']:
         return False
     return True
 
@@ -170,17 +170,19 @@ def get_summary():
         
         # recent users with actual full names
         cur.execute("""
-            SELECT COALESCE(
-                       NULLIF(TRIM(CONCAT(COALESCE(e.first_name,''), ' ', COALESCE(e.last_name,''))), ''),
-                       NULLIF(u.name, ''),
-                       a.user_name
-                   ) AS user_name, 
-                   COUNT(*) as count 
-            FROM tblaudit_logs a
-            LEFT JOIN tblusers u ON (a.user_name = u.username OR a.user_name = u.name)
-            LEFT JOIN tblemployee e ON (u.employee_id = e.employee_id OR a.employee_id = e.employee_id)
-            WHERE DATE(a.created_at) >= %s 
-            GROUP BY user_name 
+            SELECT sub.user_name, COUNT(*) as count
+            FROM (
+                SELECT COALESCE(
+                           NULLIF(TRIM(CONCAT(COALESCE(e.first_name,''), ' ', COALESCE(e.last_name,''))), ''),
+                           NULLIF(u.name, ''),
+                           a.user_name
+                       ) AS user_name
+                FROM tblaudit_logs a
+                LEFT JOIN tblusers u ON (a.user_name = u.username OR a.user_name = u.name)
+                LEFT JOIN tblemployee e ON (u.employee_id = e.employee_id OR a.employee_id = e.employee_id)
+                WHERE DATE(a.created_at) >= %s
+            ) sub
+            GROUP BY sub.user_name
             ORDER BY count DESC LIMIT 5
         """, (start_of_week,))
         recent_users = cur.fetchall()
@@ -416,7 +418,7 @@ def get_payroll_verification():
         deduction_var = round(audited_deductions - stored_deductions, 2)
 
         stored_net = float(r.get('net_pay') or 0)
-        audited_net = max(0.0, round(audited_gross - audited_deductions, 2))
+        audited_net = round(audited_gross - audited_deductions, 2)
         net_var = round(audited_net - stored_net, 2)
 
         # Audit verdict

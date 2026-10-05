@@ -682,6 +682,14 @@
           <div class="detail-topbar-sub" id="detailSub">–</div>
         </div>
         <div class="detail-topbar-actions">
+          <button class="btn-icon" style="background:#fef3c7; color:#92400e; border-color:#fde68a;" onclick="openAdminChangePasswordModal()" title="Change or set this employee's password">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+            Change Password
+          </button>
+          <button class="btn-icon" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;" onclick="resendCredentialsEmail()" title="Send / Resend account activation email with login credentials">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            Send Credentials
+          </button>
           <button class="btn-icon btn-edit" onclick="openEditModal()">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             Edit
@@ -803,41 +811,41 @@
             <option value="">-- Custom / Manual Title --</option>
             
             <optgroup label="Teaching Personnel (Faculty)">
-              <option value="11|Teacher I">Teacher I (SG 11)</option>
-              <option value="12|Teacher II">Teacher II (SG 12)</option>
-              <option value="13|Teacher III">Teacher III (SG 13)</option>
-              <option value="14|Teacher IV">Teacher IV (SG 14)</option>
-              <option value="15|Teacher V">Teacher V (SG 15)</option>
-              <option value="16|Teacher VI">Teacher VI (SG 16)</option>
-              <option value="17|Teacher VII">Teacher VII (SG 17)</option>
-              <option value="18|Master Teacher I">Master Teacher I (SG 18)</option>
-              <option value="19|Master Teacher II">Master Teacher II (SG 19)</option>
-              <option value="20|Master Teacher III">Master Teacher III (SG 20)</option>
-              <option value="21|Master Teacher IV">Master Teacher IV (SG 21)</option>
-              <option value="19|Principal I">Principal I (SG 19)</option>
-              <option value="20|Principal II">Principal II (SG 20)</option>
-              <option value="21|Principal III">Principal III (SG 21)</option>
-              <option value="22|Principal IV">Principal IV (SG 22)</option>
+              <option value="11|Teacher I">Teacher I</option>
+              <option value="12|Teacher II">Teacher II</option>
+              <option value="13|Teacher III">Teacher III</option>
+              <option value="14|Teacher IV">Teacher IV</option>
+              <option value="15|Teacher V">Teacher V</option>
+              <option value="16|Teacher VI">Teacher VI</option>
+              <option value="17|Teacher VII">Teacher VII</option>
+              <option value="18|Master Teacher I">Master Teacher I</option>
+              <option value="19|Master Teacher II">Master Teacher II</option>
+              <option value="20|Master Teacher III">Master Teacher III</option>
+              <option value="21|Master Teacher IV">Master Teacher IV</option>
+              <option value="19|Principal I">Principal I</option>
+              <option value="20|Principal II">Principal II</option>
+              <option value="21|Principal III">Principal III</option>
+              <option value="22|Principal IV">Principal IV</option>
             </optgroup>
 
             <optgroup label="Non-Teaching Personnel (Staff & Admin)">
-              <option value="1|Administrative Aide I (Utility Worker)">Administrative Aide I / Utility Worker (SG 1)</option>
-              <option value="3|Administrative Aide III (Driver I)">Administrative Aide III / Driver I (SG 3)</option>
-              <option value="4|Administrative Aide IV (Clerk I)">Administrative Aide IV / Clerk I (SG 4)</option>
-              <option value="6|Administrative Aide VI (Clerk III)">Administrative Aide VI / Clerk III (SG 6)</option>
-              <option value="7|Administrative Assistant I">Administrative Assistant I (SG 7)</option>
-              <option value="8|Administrative Assistant II (Bookkeeper)">Administrative Assistant II / Bookkeeper (SG 8)</option>
-              <option value="9|Administrative Assistant III (Sr. Bookkeeper)">Administrative Assistant III / Sr. Bookkeeper (SG 9)</option>
-              <option value="10|Nurse I">Nurse I / Guidance Coordinator (SG 10)</option>
-              <option value="11|Administrative Officer I (HR Aide)">Administrative Officer I / HR Aide (SG 11)</option>
-              <option value="11|Guidance Counselor I">Guidance Counselor I (SG 11)</option>
-              <option value="12|Guidance Counselor II">Guidance Counselor II (SG 12)</option>
-              <option value="13|Guidance Counselor III">Guidance Counselor III (SG 13)</option>
-              <option value="14|Administrative Officer IV (HRMO II)">Administrative Officer IV / HRMO II (SG 14)</option>
-              <option value="15|Accountant I">Accountant I / IT Officer I (SG 15)</option>
-              <option value="16|Administrative Officer V (Cashier III)">Administrative Officer V / Cashier III (SG 16)</option>
-              <option value="18|Accountant II">Accountant II / Budget Officer (SG 18)</option>
-              <option value="19|Accountant III">Accountant III (SG 19)</option>
+              <option value="1|Administrative Aide I (Utility Worker)">Administrative Aide I / Utility Worker</option>
+              <option value="3|Administrative Aide III (Driver I)">Administrative Aide III / Driver I</option>
+              <option value="4|Administrative Aide IV (Clerk I)">Administrative Aide IV / Clerk I</option>
+              <option value="6|Administrative Aide VI (Clerk III)">Administrative Aide VI / Clerk III</option>
+              <option value="7|Administrative Assistant I">Administrative Assistant I</option>
+              <option value="8|Administrative Assistant II (Bookkeeper)">Administrative Assistant II / Bookkeeper</option>
+              <option value="9|Administrative Assistant III (Sr. Bookkeeper)">Administrative Assistant III / Sr. Bookkeeper</option>
+              <option value="10|Nurse I">Nurse I / Guidance Coordinator</option>
+              <option value="11|Administrative Officer I (HR Aide)">Administrative Officer I / HR Aide</option>
+              <option value="11|Guidance Counselor I">Guidance Counselor I</option>
+              <option value="12|Guidance Counselor II">Guidance Counselor II</option>
+              <option value="13|Guidance Counselor III">Guidance Counselor III</option>
+              <option value="14|Administrative Officer IV (HRMO II)">Administrative Officer IV / HRMO II</option>
+              <option value="15|Accountant I">Accountant I / IT Officer I</option>
+              <option value="16|Administrative Officer V (Cashier III)">Administrative Officer V / Cashier III</option>
+              <option value="18|Accountant II">Accountant II / Budget Officer</option>
+              <option value="19|Accountant III">Accountant III</option>
             </optgroup>
           </select>
         </div>
@@ -1663,9 +1671,39 @@
       success: function (data) {
         isSaving = false;
         closeFormModal();
-        toast(editMode ? 'Employee updated!' : 'Employee added!');
         loadList($('#searchInput').val());
         selectEmployee(data.id);
+
+        if (!editMode && data.credentials) {
+          const creds = data.credentials;
+          const emailSent = creds.email_sent;
+          const statusBanner = emailSent 
+            ? `<div style="margin-top:14px; padding:12px 14px; background:#ecfdf5; border:1.5px solid #a7f3d0; border-radius:8px; color:#065f46; font-size:12.5px; text-align:left;">
+                 <strong>✓ Credentials Sent Directly to Employee:</strong> An account activation email containing their portal username and secure password was dispatched to <strong>${escapeHtml(creds.email)}</strong>.
+               </div>`
+            : `<div style="margin-top:14px; padding:12px 14px; background:#fffbeb; border:1.5px solid #fde68a; border-radius:8px; color:#92400e; font-size:12.5px; text-align:left;">
+                 <strong>⚠️ Email Delivery Notice:</strong> ${escapeHtml(creds.email_message || 'Pending gateway verification')}.
+               </div>`;
+
+          Swal.fire({
+            title: 'Employee Registered Successfully!',
+            html: `
+              <p style="font-size:13px; color:#64748b; margin-bottom:14px;">An employee profile and login account have been created:</p>
+              <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; padding:16px; text-align:left; font-size:13px; line-height:1.8;">
+                <div><span style="color:#64748b; display:inline-block; width:125px;">Employee ID:</span><strong style="color:#1e3a5f;">${data.id}</strong></div>
+                <div><span style="color:#64748b; display:inline-block; width:125px;">Portal Username:</span><strong style="color:#0f172a; font-family:monospace; font-size:14px;">${creds.username}</strong></div>
+                <div><span style="color:#64748b; display:inline-block; width:125px;">Password:</span><span style="color:#059669; font-weight:600; font-size:12px;"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:inline; vertical-align:-1px; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Emailed directly to employee (Hidden for privacy)</span></div>
+                <div><span style="color:#64748b; display:inline-block; width:125px;">Recipient Email:</span><span style="color:#2563eb; font-weight:600;">${escapeHtml(creds.email)}</span></div>
+              </div>
+              ${statusBanner}
+            `,
+            icon: 'success',
+            confirmButtonColor: '#1e3a5f',
+            confirmButtonText: 'Done'
+          });
+        } else {
+          toast(editMode ? 'Employee updated!' : 'Employee added!');
+        }
       },
       error: function (xhr) {
         isSaving = false;
@@ -1706,7 +1744,8 @@
       },
       error: function (xhr) {
         const err = xhr.responseJSON;
-        Swal.fire({ icon: 'error', title: 'Delete Failed', text: (err && err.error) || 'Something went wrong.' });
+        const msg = (err && (err.error || err.message)) || (xhr.status ? `Error ${xhr.status}: ${xhr.statusText || 'Unable to delete employee'}` : 'Something went wrong.');
+        Swal.fire({ icon: 'error', title: 'Delete Failed', text: msg });
       }
     });
   }
@@ -1779,20 +1818,177 @@
     }
   });
 
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, function(m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  function resendCredentialsEmail() {
+    if (!selectedId) {
+      toast('Please select an employee first.', 'error');
+      return;
+    }
+    Swal.fire({
+      title: 'Send Credentials Email?',
+      text: `Send account activation email with login credentials for employee ${selectedId}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#1e3a5f',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, Send Email'
+    }).then((res) => {
+      if (res.isConfirmed) {
+        Swal.fire({
+          title: 'Sending Email...',
+          text: 'Dispatching credentials notice via email service, please wait...',
+          allowOutsideClick: false,
+          didOpen: () => { Swal.showLoading(); }
+        });
+        $.post(API + '/' + selectedId + '/resend_credentials', function(data) {
+          if (data.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'Credentials Email Dispatched!',
+              html: `Account credentials have been sent directly to <strong>${escapeHtml(data.email)}</strong>.<br><br><strong>Username:</strong> <code style="background:#f1f5f9; padding:2px 6px; border-radius:4px;">${escapeHtml(data.username)}</code><br><br><span style="font-size:12px; color:#64748b;">(For employee privacy, the temporary password was sent directly to their email and is hidden from HR.)</span>`,
+              confirmButtonColor: '#1e3a5f'
+            });
+          } else {
+            Swal.fire({
+              icon: 'warning',
+              title: 'Email Notice',
+              html: `Delivery status: ${escapeHtml(data.message)}<br><br><div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; font-size:12.5px; text-align:left;"><strong>Employee Account:</strong><br>Username: <strong>${escapeHtml(data.username)}</strong><br>Email: <strong>${escapeHtml(data.email)}</strong></div>`,
+              confirmButtonColor: '#1e3a5f'
+            });
+          }
+        }).fail(function(xhr) {
+          const err = xhr.responseJSON;
+          Swal.fire({
+            icon: 'error',
+            title: 'Sending Failed',
+            text: (err && err.error) || 'Failed to dispatch email.'
+          });
+        });
+      }
+    });
+  }
+
+  function openAdminChangePasswordModal() {
+    if (!selectedId) {
+      toast('Please select an employee first.', 'error');
+      return;
+    }
+    const empName = ($('#detailName').text() || selectedId).trim();
+    Swal.fire({
+      title: 'Change Password',
+      html: `
+        <div style="text-align:left; font-size:13px; color:#475569; margin-bottom:12px;">
+          Set a new account password for <strong>${escapeHtml(empName)}</strong> (ID: <code>${escapeHtml(selectedId)}</code>).
+        </div>
+        <div style="text-align:left; margin-bottom:12px;">
+          <label style="font-size:11.5px; font-weight:700; color:#1e293b; text-transform:uppercase; display:block; margin-bottom:4px;">New Password</label>
+          <div style="position:relative; display:flex; align-items:center;">
+            <input id="swalAdminNewPassword" type="password" class="swal2-input" placeholder="Min. 6 characters" style="width:100%; margin:0; padding-right:85px; font-size:14px; box-sizing:border-box;">
+            <button type="button" id="swalToggleAdminPass" style="position:absolute; right:8px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; font-size:11px; cursor:pointer; font-weight:600; color:#475569;">Show</button>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <button type="button" id="swalGenPassBtn" style="background:#f8fafc; border:1px dashed #94a3b8; border-radius:6px; padding:6px 12px; font-size:12px; color:#1e3a5f; cursor:pointer; font-weight:600;">
+            🎲 Generate Random
+          </button>
+          <span style="font-size:11px; color:#94a3b8;">Minimum 6 characters</span>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Update Password',
+      confirmButtonColor: '#1e3a5f',
+      cancelButtonColor: '#64748b',
+      focusConfirm: false,
+      didOpen: () => {
+        const passInput = document.getElementById('swalAdminNewPassword');
+        const toggleBtn = document.getElementById('swalToggleAdminPass');
+        const genBtn = document.getElementById('swalGenPassBtn');
+
+        toggleBtn.addEventListener('click', () => {
+          if (passInput.type === 'password') {
+            passInput.type = 'text';
+            toggleBtn.textContent = 'Hide';
+          } else {
+            passInput.type = 'password';
+            toggleBtn.textContent = 'Show';
+          }
+        });
+
+        genBtn.addEventListener('click', () => {
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+          let gen = '';
+          for (let i = 0; i < 10; i++) {
+            gen += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          passInput.type = 'text';
+          toggleBtn.textContent = 'Hide';
+          passInput.value = gen;
+        });
+      },
+      preConfirm: () => {
+        const pwd = (document.getElementById('swalAdminNewPassword').value || '').trim();
+        if (!pwd || pwd.length < 6) {
+          Swal.showValidationMessage('Password must be at least 6 characters long');
+          return false;
+        }
+        return pwd;
+      }
+    }).then((result) => {
+      if (result.isConfirmed && result.value) {
+        Swal.fire({
+          title: 'Updating Password...',
+          text: 'Saving changes, please wait...',
+          allowOutsideClick: false,
+          didOpen: () => { Swal.showLoading(); }
+        });
+        $.ajax({
+          url: API + '/' + selectedId + '/change_password',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({ new_password: result.value }),
+          success: function(resp) {
+            Swal.fire({
+              icon: 'success',
+              title: 'Password Updated!',
+              text: resp.message || 'The employee password has been changed successfully.',
+              confirmButtonColor: '#1e3a5f'
+            });
+          },
+          error: function(xhr) {
+            const err = xhr.responseJSON;
+            Swal.fire({
+              icon: 'error',
+              title: 'Update Failed',
+              text: (err && err.error) || 'Failed to update password.'
+            });
+          }
+        });
+      }
+    });
+  }
+
   // ── Expose functions used by inline onclick attrs ─────────────────────────
-  window.openAddModal        = openAddModal;
-  window.openEditModal       = openEditModal;
-  window.closeFormModal      = closeFormModal;
-  window.openDeleteConfirm   = openDeleteConfirm;
-  window.confirmDelete       = confirmDelete;
-  window.saveEmployee        = saveEmployee;
-  window.addPhRow            = addPhRow;
-  window.openEnrollModal     = openEnrollModal;
-  window.cancelEnrollment    = cancelEnrollment;
-  window.onPositionTagChange = onPositionTagChange;
-  window.onSGStepChange      = onSGStepChange;
-  window.setCategoryFilter   = setCategoryFilter;
-  window.filterAndRender     = filterAndRender;
+  window.openAddModal            = openAddModal;
+  window.openEditModal           = openEditModal;
+  window.closeFormModal          = closeFormModal;
+  window.openDeleteConfirm       = openDeleteConfirm;
+  window.confirmDelete           = confirmDelete;
+  window.saveEmployee            = saveEmployee;
+  window.addPhRow                = addPhRow;
+  window.openEnrollModal         = openEnrollModal;
+  window.cancelEnrollment        = cancelEnrollment;
+  window.resendCredentialsEmail  = resendCredentialsEmail;
+  window.openAdminChangePasswordModal = openAdminChangePasswordModal;
+  window.onPositionTagChange     = onPositionTagChange;
+  window.onSGStepChange          = onSGStepChange;
+  window.setCategoryFilter       = setCategoryFilter;
+  window.filterAndRender         = filterAndRender;
 
 
   // ── Init ──────────────────────────────────────────────────────────────────

@@ -324,6 +324,32 @@ def init():
         from db import is_postgres, db_cursor
         if is_postgres():
             with db_cursor(commit=True) as (conn, cur):
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS tblnotifications (
+                        id SERIAL PRIMARY KEY,
+                        sender_name VARCHAR(150) NOT NULL DEFAULT 'System',
+                        target_role VARCHAR(50) NULL,
+                        target_user_id INT NULL,
+                        target_employee_id VARCHAR(20) NULL,
+                        category VARCHAR(50) NOT NULL DEFAULT 'System',
+                        title VARCHAR(255) NOT NULL,
+                        message TEXT NOT NULL,
+                        link_url VARCHAR(255) NULL,
+                        link_label VARCHAR(100) NULL,
+                        icon VARCHAR(20) NOT NULL DEFAULT '🔔',
+                        priority VARCHAR(20) NOT NULL DEFAULT 'Normal',
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS tblnotification_reads (
+                        id SERIAL PRIMARY KEY,
+                        notification_id INT NOT NULL REFERENCES tblnotifications(id) ON DELETE CASCADE,
+                        user_id INT NOT NULL REFERENCES tblusers(id) ON DELETE CASCADE,
+                        read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_notif_user_read UNIQUE (notification_id, user_id)
+                    );
+                """)
                 cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
                 tables = [r['tablename'] for r in cur.fetchall()]
                 print(f"[OK] PostgreSQL database ready with {len(tables)} tables.")
@@ -432,12 +458,12 @@ def init():
               AND employee_id NOT IN (SELECT employee_id FROM tblemployee)
         """)
 
-        # Seed initial admin users with hashed passwords if employee exists or employee_id is None
+        # Seed initial system users with hashed passwords if employee exists or employee_id is None
         from werkzeug.security import generate_password_hash
         users = [
-            ('admin', generate_password_hash('Password123!'), 'System Administrator', 'Admin', None),
-            ('hr', generate_password_hash('hr1234'), 'HR Officer', 'HR', None),
-            ('finance', generate_password_hash('finance123'), 'Finance Officer', 'Finance', None)
+            ('principal', generate_password_hash('Password123!'), 'School Principal', 'Principal', None),
+            ('accounting1', generate_password_hash('Password123!'), 'Accounting Officer', 'Accounting', None),
+            ('hr1', generate_password_hash('Password123!'), 'HR Officer', 'HR', None)
         ]
         for u in users:
             cur.execute("SELECT id FROM tblusers WHERE username=%s", (u[0],))

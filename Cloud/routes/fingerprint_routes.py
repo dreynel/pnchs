@@ -180,7 +180,7 @@ def verify_admin():
                 if not is_valid:
                     return jsonify({'success': False, 'error': 'Invalid admin credentials.'}), 401
 
-                if emp['role'] not in ['Admin', 'HR', 'HR Officer']:
+                if emp['role'] not in ['Admin', 'Principal', 'HR', 'HR Officer']:
                     return jsonify({'success': False, 'error': 'Access Denied: Admin or HR credentials required.'}), 403
 
                 display_name = emp['fallback_name']

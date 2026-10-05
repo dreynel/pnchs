@@ -218,7 +218,13 @@
   let activeApproval = null;
   let targetAction = '';
 
-  const fCurrency = num => '₱' + Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fCurrency = num => {
+    const val = Number(num || 0);
+    if (val < 0) {
+      return '-₱' + Math.abs(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return '₱' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   window.loadApprovals = function() {
     $('#docList').html('<div class="empty-state">Loading approvals...</div>');
@@ -341,7 +347,7 @@
         </div>
         <div class="sum-card">
           <div class="sum-lbl">Net Payroll</div>
-          <div class="sum-val text-success">${fCurrency(d.net_pay)}</div>
+          <div class="sum-val ${Number(d.net_pay || 0) < 0 ? 'text-danger' : 'text-success'}">${fCurrency(d.net_pay)}</div>
         </div>
       `;
 
@@ -354,6 +360,7 @@
           attBadge = `<span style="color:#d9534f; font-weight:600; font-size:11px;">⏱️ ${late}m late${under ? ' / ' + under + 'm under' : ''}</span><br><span style="color:#2e7d32; font-size:10px;">VL Offset: ₱0.00</span>`;
         }
 
+        const isNeg = Number(e.net_pay || 0) < 0;
         empRowsHtml += `
           <tr onclick="showEmpInApproval('${e.id}')" style="cursor:pointer;">
             <td style="padding:10px 14px;"><strong>${e.name}</strong><br><small style="color:var(--muted2);">${e.id}</small></td>
@@ -361,7 +368,7 @@
             <td style="padding:10px 14px;">${attBadge}</td>
             <td style="padding:10px 14px; text-align:right; font-weight:600; color:#059669;">${fCurrency(e.total_gross)}</td>
             <td style="padding:10px 14px; text-align:right; font-weight:600; color:#dc2626;">${fCurrency(e.total_deduct)}</td>
-            <td style="padding:10px 14px; text-align:right; font-weight:700; color:var(--navy);">${fCurrency(e.net_pay)}</td>
+            <td style="padding:10px 14px; text-align:right; font-weight:700; ${isNeg ? 'color:var(--red);' : 'color:var(--navy);'}">${fCurrency(e.net_pay)}${isNeg ? '<br><span class="badge bg-danger text-white" style="font-size:9px;">Negative Net</span>' : ''}</td>
             <td style="padding:10px 14px; text-align:center;">
               <button class="btn btn-outline" onclick="event.stopPropagation();showEmpInApproval('${e.id}')" style="padding:4px 10px; font-size:11px;">
                 Inspect Details &rarr;
@@ -704,15 +711,15 @@
   // Adjust title based on logged-in user role
   $.get('/api/auth/me', function(u) {
     if (u && u.role) {
-      if (u.role === 'Principal') {
+      if (u.role === 'Principal' || u.role === 'Admin') {
         $('#portalTitle').text('Payroll Approvals');
         $('#portalSub').text('Principal Portal — Review & Approve Submitted Payroll Runs');
       } else if (u.role === 'HR' || u.role === 'HR Officer') {
         $('#portalTitle').text('Leave Approvals');
         $('#portalSub').text('HR Portal — Review & Process Employee Leave Applications');
-      } else if (u.role === 'Finance' || u.role === 'Finance Officer') {
+      } else if (u.role === 'Accounting' || u.role === 'Finance' || u.role === 'Finance Officer') {
         $('#portalTitle').text('Payroll Approval Status');
-        $('#portalSub').text('Finance Portal — Track Submitted Payroll Approval Requests');
+        $('#portalSub').text('Accounting Portal — Track Submitted Payroll Approval Requests');
       }
     }
   });

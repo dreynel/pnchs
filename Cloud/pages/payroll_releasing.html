@@ -435,8 +435,8 @@
         : `<span class="badge-released">✓ Released to Employees</span>`;
 
       const auditText = isPending
-        ? `Approved by <strong>${r.approved_by || 'Admin'}</strong> on ${r.approved_at || 'N/A'}`
-        : `Released by <strong>${r.released_by || 'Finance'}</strong> on ${r.released_at || 'N/A'}`;
+        ? `Approved by <strong>${r.approved_by || 'Principal'}</strong> on ${r.approved_at || 'N/A'}`
+        : `Released by <strong>${r.released_by || 'Accounting'}</strong> on ${r.released_at || 'N/A'}`;
 
       html += `
         <div class="pr-run-card">
@@ -544,7 +544,11 @@
             <td>₱${(emp.half_basic || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
             <td>₱${statutory.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
             <td style="color:#c2410c;">₱${lwop.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-            <td><strong style="color:#047857;">₱${(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
+            <td>
+              ${(emp.net_pay || 0) < 0 
+                ? `<strong style="color:#dc2626;">-₱${Math.abs(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong> <span class="badge bg-danger text-white" style="font-size:8.5px;">Negative</span>` 
+                : `<strong style="color:#047857;">₱${(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong>`}
+            </td>
           </tr>
         `;
       });

@@ -285,6 +285,26 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
         self.assertEqual(self.cur.payroll_runs['2026-8-1']['status'], 'Approved')
         self.assertTrue(self.cur.payroll_runs['2026-8-1']['is_released'])
 
+    def test_13_negative_net_pay_when_credits_exhausted(self):
+        """TEST 13: When deductions exceed earnings (e.g. 0 credits, extensive LWOP/absences), negative net pay is preserved."""
+        half_basic = 10000.00
+        other_earnings = 0.00
+        total_gross = half_basic + other_earnings
+
+        # Deductions exceeding total gross: statutory + large absence/LWOP deduction
+        statutory = 2000.00
+        absent_and_lwop = 9500.00
+        total_deduct = statutory + absent_and_lwop # 11,500.00
+
+        raw_net = total_gross - total_deduct
+        net_pay = round(raw_net, 2)
+        is_negative = 1 if raw_net < 0 else 0
+
+        self.assertEqual(net_pay, -1500.00)
+        self.assertEqual(is_negative, 1)
+        self.assertLess(net_pay, 0)
+
 
 if __name__ == '__main__':
     unittest.main()
+

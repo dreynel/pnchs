@@ -23,15 +23,11 @@
 
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 
-    html, body { height:100%; overflow:hidden; }
-
     body {
       font-family:'Plus Jakarta Sans', sans-serif;
       background: var(--bg);
       color: var(--text);
-      height: 100vh;
-      overflow-y: auto;
-      overflow-x: hidden;
+      min-height: 100%;
     }
 
     * {
@@ -118,8 +114,6 @@
     }
     .wb-right { position:relative; z-index:1; display:flex; gap:14px; }
     .wb-stat {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
       background: rgba(14, 28, 49, 0.6);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
@@ -127,13 +121,23 @@
       border-radius: 12px; padding: 14px 18px; text-align: center;
       min-width: 90px;
       box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s ease;
     }
+    .wb-stat:hover {
+      background: rgba(14, 28, 49, 0.88);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    }
+    .wb-stat:active { transform: translateY(0); }
     .wb-stat-val {
       font-family: 'Playfair Display', serif;
       font-size: 1.5rem; color: #fff; line-height:1;
     }
-    .wb-stat-lbl { font-size: 10px; color: rgba(255,255,255,0.38); margin-top: 4px; text-transform: uppercase; letter-spacing:.08em; }
-    .wb-stat-lbl { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 4px; text-transform: uppercase; letter-spacing:.08em; }
+    .wb-stat-lbl { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 4px; text-transform: uppercase; letter-spacing:.08em; display:flex; align-items:center; justify-content:center; gap:3px; }
 
     /* ── KPI Cards Row ── */
     .kpi-grid {
@@ -149,9 +153,20 @@
       padding: 18px 20px;
       display: flex; flex-direction: column; gap: 12px;
       position: relative; overflow: hidden;
-      transition: box-shadow 0.2s, transform 0.2s;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
     }
-    .kpi-card:hover { box-shadow: 0 6px 24px rgba(30,58,95,0.1); transform: translateY(-2px); }
+    .kpi-card:hover {
+      box-shadow: 0 8px 24px rgba(30,58,95,0.12);
+      transform: translateY(-2px);
+      border-color: var(--navy-mid);
+    }
+    .kpi-card:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(30,58,95,0.08);
+    }
     .kpi-card::after {
       content:''; position:absolute; bottom:0; left:0; right:0; height:3px;
       border-radius: 0 0 14px 14px;
@@ -185,6 +200,22 @@
     }
     .kpi-label { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
     .kpi-sub   { font-size: 10.5px; color: var(--muted2); margin-top: 2px; }
+    .kpi-action-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--navy-mid);
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: all 0.2s ease;
+      margin-top: 4px;
+    }
+    .kpi-card:hover .kpi-action-hint {
+      opacity: 1;
+      transform: translateX(0);
+    }
 
     /* ── Middle Row ── */
     .mid-row {
@@ -215,9 +246,12 @@
       font-size: 11.5px; color: var(--navy-mid); font-weight: 500;
       text-decoration: none; display: flex; align-items: center; gap: 4px;
       padding: 5px 10px; border-radius: 7px;
-      transition: background 0.15s;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s;
     }
-    .s-card-link:hover { background: var(--navy-light); }
+    .s-card-link:hover { background: var(--navy-light); color: var(--navy); }
     .s-card-body { padding: 18px 20px; }
 
     /* ── Payroll chart bars (CSS only) ── */
@@ -225,13 +259,18 @@
       display: flex; align-items: flex-end; gap: 10px;
       height: 130px; padding: 0 4px;
     }
-    .bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .bar-group {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      cursor: pointer; border-radius: 6px; padding: 2px;
+      transition: background 0.15s ease;
+    }
+    .bar-group:hover { background: var(--navy-light); }
     .bars { display: flex; gap: 4px; align-items: flex-end; height: 110px; }
     .bar {
       width: 14px; border-radius: 4px 4px 0 0;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s, transform 0.2s;
     }
-    .bar:hover { opacity: 0.75; }
+    .bar:hover { opacity: 0.85; transform: scaleY(1.02); }
     .bar.b-navy  { background: var(--navy); }
     .bar.b-amber { background: var(--accent); }
     .bar-lbl { font-size: 9.5px; color: var(--muted2); }
@@ -277,20 +316,387 @@
       font-size: 11px; color: var(--accent); font-weight: 600;
     }
 
-    .payroll-details { padding: 0 20px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .payroll-details { padding: 0 20px 14px; display: flex; flex-direction: column; gap: 8px; }
     .pd-row {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 8px 12px; background: var(--surface2); border-radius: 9px;
+      padding: 9px 12px; background: var(--surface2); border-radius: 9px;
       border: 1px solid var(--border);
+      cursor: pointer;
+      text-decoration: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.15s ease;
     }
-    .pd-lbl { font-size: 11.5px; color: var(--muted); }
+    .pd-row:hover {
+      background: var(--navy-light);
+      border-color: #bfd6f6;
+      transform: translateX(2px);
+    }
+    .pd-lbl { font-size: 11.5px; color: var(--muted); display:flex; align-items:center; gap:5px; }
     .pd-val { font-size: 12.5px; font-weight: 600; color: var(--navy); }
+
+    .btn-cutoff-action {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 4px 12px rgba(30,58,95,0.15);
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-cutoff-action:hover {
+      background: linear-gradient(135deg, var(--navy-mid) 0%, #355f97 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(30,58,95,0.22);
+      color: #fff;
+    }
+    .btn-cutoff-action:active {
+      transform: translateY(0);
+    }
 
     /* ── Bottom Row ── */
     .bot-row {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 340px;
       gap: 14px;
+      margin-bottom: 24px;
+      align-items: stretch;
+    }
+
+    /* ── Recent Activity Section ── */
+    .activity-card {
+      display: flex;
+      flex-direction: column;
+    }
+    .activity-card .s-card-body {
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      flex: 1;
+    }
+
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2.5px 8px;
+      background: rgba(22, 163, 74, 0.08);
+      border: 1px solid rgba(22, 163, 74, 0.22);
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: var(--green);
+      text-transform: uppercase;
+    }
+    .live-pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+      animation: pulseGreen 2s infinite;
+    }
+    @keyframes pulseGreen {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(22, 163, 74, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+    }
+
+    .activity-feed-container {
+      padding: 8px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 8px;
+      border-radius: 10px;
+      position: relative;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .activity-item:hover {
+      background: var(--surface2);
+      transform: translateX(2px);
+    }
+    .activity-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 24px;
+      top: 42px;
+      bottom: -6px;
+      width: 2px;
+      background: #e2e8f0;
+    }
+
+    .act-icon-box {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+    .act-icon-box svg {
+      width: 16px;
+      height: 16px;
+    }
+    .act-icon-box.biometric {
+      background: linear-gradient(135deg, #e8f0fb 0%, #dbe8fa 100%);
+      color: var(--navy);
+      border: 1px solid #bfd6f6;
+    }
+    .act-icon-box.leave {
+      background: linear-gradient(135deg, #fef7ec 0%, #fdeece 100%);
+      color: #b45309;
+      border: 1px solid #fed7aa;
+    }
+    .act-icon-box.staff {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      color: var(--green);
+      border: 1px solid #a7f3d0;
+    }
+
+    .act-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .act-text {
+      font-size: 12.5px;
+      color: var(--text);
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .act-text strong {
+      font-weight: 600;
+      color: var(--navy);
+    }
+    .act-desc {
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .act-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .act-time {
+      font-size: 11px;
+      color: var(--muted2);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .act-time svg {
+      width: 12px;
+      height: 12px;
+      color: var(--muted2);
+    }
+    .act-tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1.5px 7.5px;
+      border-radius: 12px;
+      letter-spacing: .02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .act-tag.biometric {
+      background: rgba(30,58,95,0.08);
+      color: var(--navy);
+      border: 1px solid rgba(30,58,95,0.14);
+    }
+    .act-tag.leave {
+      background: rgba(200,151,58,0.12);
+      color: #9a6c18;
+      border: 1px solid rgba(200,151,58,0.22);
+    }
+    .act-tag.staff {
+      background: rgba(22,163,74,0.10);
+      color: var(--green);
+      border: 1px solid rgba(22,163,74,0.20);
+    }
+    .act-tag-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+    .act-tag.biometric .act-tag-dot { background: var(--navy); }
+    .act-tag.leave .act-tag-dot { background: var(--accent); }
+    .act-tag.staff .act-tag-dot { background: var(--green); }
+
+    .feed-footer-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: auto;
+    }
+    .feed-footer-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .feed-status-dot {
+      width: 6.5px;
+      height: 6.5px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .feed-empty-state {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--muted2);
+    }
+    .empty-icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+    .empty-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    .empty-sub {
+      font-size: 11.5px;
+      color: var(--muted2);
+    }
+
+    .campus-stat-box {
+      text-align: center;
+      flex: 1;
+      cursor: pointer;
+      padding: 6px 4px;
+      border-radius: 8px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .campus-stat-box:hover {
+      background: rgba(30, 58, 95, 0.08);
+      transform: translateY(-1px);
+    }
+    .campus-stat-box:active { transform: translateY(0); }
+
+    .quick-shortcut-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-decoration: none;
+      color: var(--navy);
+      font-size: 11.5px;
+      font-weight: 600;
+      min-height: 44px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.18s ease;
+    }
+    .quick-shortcut-item:hover {
+      border-color: var(--navy-mid);
+      background: var(--navy-light);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(30,58,95,0.08);
+      color: var(--navy);
+    }
+    .quick-shortcut-item:active { transform: translateY(0); }
+
+    .act-arrow {
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: all 0.18s ease;
+      font-size: 13px;
+      color: var(--navy-mid);
+      margin-left: auto;
+      padding-right: 4px;
+    }
+    .activity-item:hover .act-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* Accessibility focus rings */
+    .kpi-card:focus-visible,
+    .s-card-link:focus-visible,
+    .btn-cutoff-action:focus-visible,
+    .quick-shortcut-item:focus-visible,
+    .campus-stat-box:focus-visible,
+    .wb-stat:focus-visible,
+    .pd-row:focus-visible,
+    .activity-item:focus-visible,
+    .chart-wrap:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Role-Restricted & Non-Clickable States ── */
+    .non-clickable {
+      cursor: default !important;
+      pointer-events: auto !important;
+    }
+    .non-clickable:hover {
+      transform: none !important;
+      box-shadow: none !important;
+      background: inherit !important;
+      border-color: inherit !important;
+    }
+    .wb-stat.non-clickable:hover {
+      background: rgba(14, 28, 49, 0.6) !important;
+      border-color: rgba(255,255,255,0.18) !important;
+      transform: none !important;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25) !important;
+    }
+    .campus-stat-box.non-clickable:hover {
+      background: transparent !important;
+      transform: none !important;
+    }
+    .pd-row.non-clickable:hover {
+      background: transparent !important;
+      transform: none !important;
+    }
+    .kpi-card.non-clickable {
+      cursor: default !important;
+    }
+    .kpi-card.non-clickable:hover {
+      transform: none !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04) !important;
+      border-color: var(--border) !important;
+    }
+    .chart-wrap.non-clickable {
+      cursor: default !important;
     }
 
     /* Animations */
@@ -302,29 +708,81 @@
     .d5{animation:fadeUp .4s .32s ease both;}
     .d6{animation:fadeUp .4s .38s ease both;}
 
+    /* ── Mobile Responsive Breakpoints ── */
     @media (max-width: 1024px) {
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-      .mid-row { grid-template-columns: 1fr; }
-      .bot-row { grid-template-columns: 1fr; }
+      .page { padding: 18px; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .mid-row { grid-template-columns: 1fr; gap: 14px; }
+      .bot-row { grid-template-columns: 1fr; gap: 14px; }
     }
+
     @media (max-width: 768px) {
-      .page { padding: 12px; }
-      .welcome-banner { flex-direction: column; align-items: stretch; padding: 18px 16px; gap: 14px; }
+      .page { padding: 12px 10px 32px; }
+      .welcome-banner {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 18px 16px;
+        gap: 14px;
+        border-radius: 14px;
+      }
       .wb-left { width: 100%; }
-      .wb-campus-tag { flex-wrap: wrap; font-size: 11px; padding: 5px 10px; }
+      .wb-campus-tag { flex-wrap: wrap; font-size: 10.5px; padding: 4px 10px; max-width: 100%; }
       .wb-title { font-size: 1.35rem; }
-      .wb-right { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 6px; gap: 8px; width: 100%; }
-      .wb-stat { padding: 10px 6px; text-align: center; }
+      .wb-right {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        margin-top: 6px;
+        gap: 8px;
+        width: 100%;
+      }
+      .wb-stat { padding: 10px 6px; min-width: 0; }
       .wb-stat-val { font-size: 1.15rem; }
+      .wb-stat-lbl { font-size: 8.5px; }
       .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-      .chart-wrap { height: 220px; }
-      .countdown-center { padding: 16px; }
+      .kpi-card { padding: 14px 16px; gap: 10px; }
+      .kpi-val { font-size: 1.35rem; }
+      .kpi-action-hint { display: none; }
+      .chart-wrap { height: 140px; padding: 0; }
+      .payroll-countdown { padding: 16px 12px; }
+      .payroll-details { padding: 0 14px 14px; }
+      .activity-feed-container { max-height: 360px; padding: 6px 10px; }
+      .activity-item { padding: 9px 6px; gap: 10px; }
+      .act-icon-box { width: 32px; height: 32px; min-width: 32px; }
+      .act-text { font-size: 12px; }
+      .feed-footer-status { padding: 8px 12px; font-size: 10px; flex-wrap: wrap; gap: 6px; }
     }
+
     @media (max-width: 480px) {
-      .page { padding: 10px; }
-      .kpi-grid { grid-template-columns: 1fr; }
+      .page { padding: 8px 6px 28px; }
+      .wb-title { font-size: 1.25rem; }
+      .wb-sub { font-size: 11.5px; }
+      .wb-right {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      .wb-stat { padding: 8px 4px; }
+      .wb-stat-val { font-size: 1.05rem; }
+      .wb-stat-lbl { font-size: 8px; letter-spacing: 0; }
+      .kpi-grid { grid-template-columns: 1fr; gap: 8px; }
+      .kpi-card { padding: 12px 14px; }
+      .s-card-header { padding: 12px 14px; }
+      .s-card-title { font-size: 0.95rem; }
+      .s-card-body { padding: 12px 14px; }
+      .quick-shortcuts-grid { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+      .quick-shortcut-item { padding: 8px 10px; font-size: 11px; min-height: 40px; }
+      .campus-stat-box { padding: 4px 2px; }
+      .campus-stat-box div[id^="ps-"] { font-size: 0.95rem !important; }
+      .campus-stat-box div:last-child { font-size: 8.5px !important; }
+    }
+
+    @media (max-width: 360px) {
       .wb-right { grid-template-columns: 1fr; }
-      .wb-stat { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; }
+      .wb-stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; }
+      .wb-stat-val { font-size: 1.2rem; }
+      .quick-shortcuts-grid { grid-template-columns: 1fr !important; }
+      .campus-stat-box { padding: 4px 1px; }
+      .campus-stat-box div[id^="ps-"] { font-size: 0.88rem !important; }
+      .campus-stat-box div:last-child { font-size: 8px !important; }
     }
   </style>
 
@@ -346,17 +804,17 @@
       </div>
     </div>
     <div class="wb-right">
-      <div class="wb-stat">
+      <div class="wb-stat" id="wbStatEmployees" onclick="navigateDashboard(event, 'Employees', '/pages/employee.html', '/employees')" title="Click to view Active Staff Directory" tabindex="0" role="button">
         <div class="wb-stat-val" id="wb-total-employees">...</div>
-        <div class="wb-stat-lbl">Employees</div>
+        <div class="wb-stat-lbl"><span>Employees</span> <span class="wb-arrow">↗</span></div>
       </div>
-      <div class="wb-stat">
+      <div class="wb-stat" id="wbStatCutoff" onclick="navigateDashboard(event, 'Payroll Processing', '/pages/payroll.html', '/payroll')" title="Click to view Current Payroll Processing Cycle" tabindex="0" role="button">
         <div class="wb-stat-val" id="wb-days-left">...</div>
-        <div class="wb-stat-lbl">Days Left</div>
+        <div class="wb-stat-lbl"><span>Days Left</span> <span class="wb-arrow">↗</span></div>
       </div>
-      <div class="wb-stat">
+      <div class="wb-stat" id="wbStatGross" onclick="navigateDashboard(event, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report')" title="Click to view Period Payroll Report" tabindex="0" role="button">
         <div class="wb-stat-val" id="wb-period-gross">...</div>
-        <div class="wb-stat-lbl">This Period</div>
+        <div class="wb-stat-lbl"><span>This Period</span> <span class="wb-arrow">↗</span></div>
       </div>
     </div>
   </div>
@@ -364,7 +822,7 @@
   <!-- ── KPI Cards ── -->
   <div class="kpi-grid d2">
     <!-- Total Payroll -->
-    <div class="kpi-card c-navy">
+    <div class="kpi-card c-navy" id="kpiCardPayroll" onclick="navigateDashboard(event, 'Payroll Processing', '/pages/payroll.html', '/payroll')" title="Click to view Payroll Processing" tabindex="0" role="button">
       <div class="kpi-top">
         <div class="kpi-icon in">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -375,11 +833,12 @@
         <div class="kpi-val" id="kpi-total-payroll">...</div>
         <div class="kpi-label">Total Payroll This Period</div>
         <div class="kpi-sub" id="kpi-payroll-sub">...</div>
+        <div class="kpi-action-hint">Open Payroll Processing →</div>
       </div>
     </div>
 
     <!-- Active Employees -->
-    <div class="kpi-card c-green">
+    <div class="kpi-card c-green" id="kpiCardEmployees" onclick="navigateDashboard(event, 'Employees', '/pages/employee.html', '/employees')" title="Click to view Staff Directory" tabindex="0" role="button">
       <div class="kpi-top">
         <div class="kpi-icon ig">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -390,11 +849,12 @@
         <div class="kpi-val" id="kpi-active-employees">...</div>
         <div class="kpi-label">Active Employees</div>
         <div class="kpi-sub" id="kpi-active-sub">...</div>
+        <div class="kpi-action-hint">View Staff Directory →</div>
       </div>
     </div>
 
     <!-- Total Deductions -->
-    <div class="kpi-card c-amber">
+    <div class="kpi-card c-amber" id="kpiCardDeductions" onclick="navigateDashboard(event, 'Payroll & Statutory Registry', '/pages/registry.html', '/registry')" title="Click to view Statutory Deductions Registry" tabindex="0" role="button">
       <div class="kpi-top">
         <div class="kpi-icon ia">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
@@ -405,11 +865,12 @@
         <div class="kpi-val" id="kpi-total-deductions">...</div>
         <div class="kpi-label">Total Deductions</div>
         <div class="kpi-sub">SSS, PhilHealth, Pag-IBIG, Tax</div>
+        <div class="kpi-action-hint">Manage Statutory Deductions →</div>
       </div>
     </div>
 
     <!-- Net Disbursement -->
-    <div class="kpi-card c-blue">
+    <div class="kpi-card c-blue" id="kpiCardDisbursement" onclick="navigateDashboard(event, 'Payroll Releasing', '/pages/payroll_releasing.html', '/payroll_releasing')" title="Click to view Payroll Disbursement & Slips" tabindex="0" role="button">
       <div class="kpi-top">
         <div class="kpi-icon ib">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
@@ -419,7 +880,8 @@
       <div>
         <div class="kpi-val" id="kpi-net-disbursement">...</div>
         <div class="kpi-label">Net Disbursement</div>
-        <div class="kpi-sub">Direct deposit</div>
+        <div class="kpi-sub">Direct deposit & releasing</div>
+        <div class="kpi-action-hint">Review Disbursement Slips →</div>
       </div>
     </div>
   </div>
@@ -434,13 +896,13 @@
           <div class="s-card-title">Payroll Trend</div>
           <div class="s-card-sub">Gross vs. Net — Last 6 Periods</div>
         </div>
-        <a href="#" class="s-card-link">
+        <a href="#" class="s-card-link" id="trendReportLink" onclick="navigateDashboard(event, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report');">
           View Report
           <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
       </div>
       <div class="s-card-body">
-        <div class="chart-wrap" id="trend-chart-wrap">
+        <div class="chart-wrap" id="trend-chart-wrap" onclick="navigateDashboard(event, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report');" title="Click to open Payroll Report" tabindex="0" role="button">
           <!-- Trends will be injected here -->
         </div>
         <div class="chart-legend">
@@ -457,13 +919,16 @@
     </div>
 
     <!-- Upcoming Payroll -->
-    <!-- Upcoming Payroll -->
     <div class="s-card">
       <div class="s-card-header">
         <div>
           <div class="s-card-title">Next Payroll Cutoff</div>
           <div class="s-card-sub" id="countdown-period-sub">Loading period…</div>
         </div>
+        <a href="#" class="s-card-link" id="cutoffOpenCycleLink" onclick="navigateDashboard(event, 'Payroll Processing', '/pages/payroll.html', '/payroll');">
+          Open Cycle
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </a>
       </div>
       <div class="payroll-countdown">
         <div class="countdown-ring" id="countdown-ring">
@@ -477,20 +942,26 @@
         <div class="countdown-label" id="countdown-elapsed">...</div>
       </div>
       <div class="payroll-details">
-        <div class="pd-row">
-          <span class="pd-lbl">Employees Active</span>
+        <div class="pd-row" id="pdRowEmployees" onclick="navigateDashboard(event, 'Employees', '/pages/employee.html', '/employees');" title="Click to view Active Employees" tabindex="0" role="button">
+          <span class="pd-lbl">Employees Active <span class="pd-arrow">↗</span></span>
           <span class="pd-val" id="processed-count">...</span>
         </div>
-        <div class="pd-row">
-          <span class="pd-lbl">Payroll Cycle</span>
+        <div class="pd-row" id="pdRowCycle" onclick="navigateDashboard(event, 'Payroll Processing', '/pages/payroll.html', '/payroll');" title="Click to view Payroll Processing Cycle" tabindex="0" role="button">
+          <span class="pd-lbl">Payroll Cycle <span class="pd-arrow">↗</span></span>
           <span class="pd-val" id="payroll-cycle-label">...</span>
         </div>
-        <div class="pd-row">
-          <span class="pd-lbl">System Status</span>
+        <div class="pd-row" id="pdRowStatus" onclick="navigateDashboard(event, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail');" title="Click to view Audit Trail & System Logs" tabindex="0" role="button">
+          <span class="pd-lbl">System Status <span class="pd-arrow">↗</span></span>
           <span class="pd-val" style="color:var(--green); font-size:11px;">
             ● Operational
           </span>
         </div>
+      </div>
+      <div style="padding: 0 20px 18px;">
+        <button class="btn-cutoff-action" id="btnCutoffAction" onclick="navigateDashboard(event, 'Payroll Processing', '/pages/payroll.html', '/payroll');">
+          <span>Process Payroll Run</span>
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
       </div>
     </div>
 
@@ -500,56 +971,96 @@
   <div class="bot-row d4">
 
     <!-- Recent Activity -->
-    <div class="s-card">
+    <div class="s-card activity-card">
       <div class="s-card-header">
         <div>
-          <div class="s-card-title">Recent Activity</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="s-card-title">Recent Activity</div>
+            <span class="live-pill"><span class="live-pulse"></span>LIVE FEED</span>
+          </div>
           <div class="s-card-sub">Live biometric attendance & registration feed</div>
         </div>
-        <a href="#" class="s-card-link" onclick="if(window.navigate) window.navigate(event, null, 'Biometric Logs', '/pages/logs.html');">View logs</a>
+        <a href="#" class="s-card-link" onclick="navigateDashboard(event, 'Biometric Logs', '/pages/logs.html', '/logs');">
+          View full logs
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </a>
       </div>
-      <div class="s-card-body" style="padding-top:8px; padding-bottom:14px;">
-        <div id="recent-activity-list">
-          <div style="padding:24px; text-align:center; color:var(--muted2); font-size:12px;">Loading live activity feed…</div>
+      <div class="s-card-body">
+        <div id="recent-activity-list" class="activity-feed-container">
+          <div style="padding:32px 16px; text-align:center; color:var(--muted2); font-size:12px; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <span class="live-pulse" style="background:var(--navy-mid);"></span>
+            Connecting to biometric feed…
+          </div>
         </div>
 
-        <!-- School Campus & Workforce Overview Card -->
-        <div style="margin-top:16px; border-radius:14px; overflow:hidden; border:1px solid #c5d8f5; background:#fff; box-shadow:0 4px 16px rgba(30,58,95,0.06);">
-          <div style="position:relative; height:125px; background:linear-gradient(180deg, rgba(14,28,49,0.15) 0%, rgba(11,19,41,0.85) 100%), url('/static/PNCHS.jpg') center 42%/cover no-repeat;">
-            <div style="position:absolute; top:10px; right:12px;">
-              <span style="background:rgba(200,151,58,0.92); color:#fff; font-size:9.5px; font-weight:700; padding:3px 9px; border-radius:12px; text-transform:uppercase; letter-spacing:.06em; box-shadow:0 2px 6px rgba(0,0,0,0.25);">Official Campus</span>
-            </div>
-            <div style="position:absolute; bottom:10px; left:14px; right:14px; display:flex; align-items:center; gap:10px;">
-              <img src="/static/logo.png" alt="Seal" style="width:36px; height:36px; border-radius:50%; background:#fff; padding:2px; box-shadow:0 2px 8px rgba(0,0,0,0.35);">
-              <div>
-                <div style="color:#fff; font-family:'Playfair Display',serif; font-size:13.5px; font-weight:700; line-height:1.2; text-shadow:0 1px 4px rgba(0,0,0,0.6);">Pototan National Comprehensive High School</div>
-                <div style="color:rgba(255,255,255,0.85); font-size:10.5px; margin-top:2px;">Cau-ayan, Pototan, Iloilo · School ID: 302556</div>
-              </div>
-            </div>
+        <div class="feed-footer-status">
+          <div class="feed-footer-left">
+            <span class="feed-status-dot"></span>
+            <span>Biometric terminal synced & active</span>
           </div>
-          <div style="padding:12px 14px; background:var(--navy-light);">
-            <div style="display:flex; justify-content:space-between; gap:8px;">
-              <div style="text-align:center; flex:1;">
-                <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy);" id="ps-total-emps">—</div>
-                <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Staff</div>
-              </div>
-              <div style="width:1px; background:var(--border);"></div>
-              <div style="text-align:center; flex:1;">
-                <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy);" id="ps-teaching-emps">—</div>
-                <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Teachers</div>
-              </div>
-              <div style="width:1px; background:var(--border);"></div>
-              <div style="text-align:center; flex:1;">
-                <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--green);" id="ps-net-pay">—</div>
-                <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Est. Net</div>
-              </div>
-              <div style="width:1px; background:var(--border);"></div>
-              <div style="text-align:center; flex:1;">
-                <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--accent);" id="ps-pending-leaves">—</div>
-                <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Leaves</div>
-              </div>
-            </div>
+          <div class="feed-footer-right" id="feed-last-updated" style="font-size:10.5px; color:var(--muted2);">Real-time stream</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- School Campus & Workforce Overview Card -->
+    <div class="s-card campus-card" style="display:flex; flex-direction:column; overflow:hidden;">
+      <div style="position:relative; height:130px; background:linear-gradient(180deg, rgba(14,28,49,0.15) 0%, rgba(11,19,41,0.88) 100%), url('/static/PNCHS.jpg') center 42%/cover no-repeat;">
+        <div style="position:absolute; top:10px; right:12px;">
+          <span style="background:rgba(200,151,58,0.92); color:#fff; font-size:9.5px; font-weight:700; padding:3px 9px; border-radius:12px; text-transform:uppercase; letter-spacing:.06em; box-shadow:0 2px 6px rgba(0,0,0,0.25);">Official Campus</span>
+        </div>
+        <div style="position:absolute; bottom:10px; left:14px; right:14px; display:flex; align-items:center; gap:10px;">
+          <img src="/static/logo.png" alt="Seal" style="width:36px; height:36px; border-radius:50%; background:#fff; padding:2px; box-shadow:0 2px 8px rgba(0,0,0,0.35);">
+          <div>
+            <div style="color:#fff; font-family:'Playfair Display',serif; font-size:13.5px; font-weight:700; line-height:1.2; text-shadow:0 1px 4px rgba(0,0,0,0.6);">Pototan National Comprehensive High School</div>
+            <div style="color:rgba(255,255,255,0.85); font-size:10.5px; margin-top:2px;">Cau-ayan, Pototan, Iloilo · School ID: 302556</div>
           </div>
+        </div>
+      </div>
+      <div style="padding:12px 14px; background:var(--navy-light); border-bottom:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; gap:8px;">
+          <div class="campus-stat-box" id="psBoxTotalEmps" onclick="navigateDashboard(event, 'Employees', '/pages/employee.html', '/employees')" title="Click to view Staff Directory" tabindex="0" role="button">
+            <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy); font-weight:700;" id="ps-total-emps">—</div>
+            <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Staff <span class="ps-arrow">↗</span></div>
+          </div>
+          <div style="width:1px; background:var(--border);"></div>
+          <div class="campus-stat-box" id="psBoxTeachingEmps" onclick="navigateDashboard(event, 'Employees', '/pages/employee.html', '/employees')" title="Click to view Teaching Staff" tabindex="0" role="button">
+            <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--navy); font-weight:700;" id="ps-teaching-emps">—</div>
+            <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Teachers <span class="ps-arrow">↗</span></div>
+          </div>
+          <div style="width:1px; background:var(--border);"></div>
+          <div class="campus-stat-box" id="psBoxNetPay" onclick="navigateDashboard(event, 'Payroll Releasing', '/pages/payroll_releasing.html', '/payroll_releasing')" title="Click to view Payroll Disbursement" tabindex="0" role="button">
+            <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--green); font-weight:700;" id="ps-net-pay">—</div>
+            <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Est. Net <span class="ps-arrow">↗</span></div>
+          </div>
+          <div style="width:1px; background:var(--border);"></div>
+          <div class="campus-stat-box" id="psBoxPendingLeaves" onclick="navigateDashboard(event, 'Leave Management', '/pages/leaves.html', '/leaves')" title="Click to view Leave Applications" tabindex="0" role="button">
+            <div style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--accent); font-weight:700;" id="ps-pending-leaves">—</div>
+            <div style="font-size:9.5px; color:var(--muted2); margin-top:2px;">Leaves <span class="ps-arrow">↗</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Shortcuts -->
+      <div style="padding:14px; flex:1; display:flex; flex-direction:column; justify-content:space-between; gap:10px; background:#fff;">
+        <div style="font-size:10.5px; font-weight:700; color:var(--muted2); text-transform:uppercase; letter-spacing:.08em;">Quick Shortcuts</div>
+        <div class="quick-shortcuts-grid" id="quickShortcutsGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <a href="#" class="quick-shortcut-item" onclick="navigateDashboard(event, 'Biometric Logs', '/pages/logs.html', '/logs');" title="Open Biometric Attendance Logs">
+            <span style="font-size:14px;">⏱️</span>
+            <span>DTR Logs</span>
+          </a>
+          <a href="#" class="quick-shortcut-item" onclick="navigateDashboard(event, 'Employees', '/pages/employee.html', '/employees');" title="Open Employee Directory">
+            <span style="font-size:14px;">👥</span>
+            <span>Staff List</span>
+          </a>
+          <a href="#" class="quick-shortcut-item" onclick="navigateDashboard(event, 'Leave Management', '/pages/leaves.html', '/leaves');" title="Open Leave Management Tracker">
+            <span style="font-size:14px;">🌴</span>
+            <span>Leaves</span>
+          </a>
+          <a href="#" class="quick-shortcut-item" onclick="navigateDashboard(event, 'Payroll Processing', '/pages/payroll.html', '/payroll');" title="Open Payroll Run Processing">
+            <span style="font-size:14px;">💰</span>
+            <span>Payroll</span>
+          </a>
         </div>
       </div>
     </div>
@@ -559,6 +1070,423 @@
 </div><!-- /page -->
 
 <script>
+// Universal dashboard navigation helper for iframe, SPA load(), or direct window
+function normalizeRole(role) {
+  const r = (role || '').trim();
+  if (r === 'Admin' || r === 'Administrator') return 'Principal';
+  if (r === 'HR Officer') return 'HR';
+  if (r === 'Finance' || r === 'Finance Officer' || r === 'Accountant' || r === 'Accounting Officer') return 'Accounting';
+  return r;
+}
+
+function canRoleAccess(role, pageUrl) {
+  const r = normalizeRole(role);
+  const cleanUrl = (pageUrl || '').split('?')[0].replace('/pages/', '');
+
+  if (r === 'Principal' || r === 'Admin') {
+    // Restricted from: employee.html, payroll.html, payroll_releasing.html, salary_grades.html, registry.html
+    const restricted = ['employee.html', 'payroll.html', 'payroll_releasing.html', 'salary_grades.html', 'registry.html'];
+    return !restricted.includes(cleanUrl);
+  }
+
+  if (r === 'HR') {
+    // Restricted from: payroll.html, payroll_releasing.html, salary_grades.html, registry.html, payroll_report.html, payroll_audit.html, audit_trail.html
+    const restricted = ['payroll.html', 'payroll_releasing.html', 'salary_grades.html', 'registry.html', 'payroll_report.html', 'payroll_audit.html', 'audit_trail.html'];
+    return !restricted.includes(cleanUrl);
+  }
+
+  if (r === 'Accounting') {
+    // Restricted from: employee.html, audit_trail.html
+    const restricted = ['employee.html', 'audit_trail.html'];
+    return !restricted.includes(cleanUrl);
+  }
+
+  if (r === 'Employee' || r === 'Teacher' || r === 'Staff') {
+    // Only allowed: dtr.html, mypayslip.html, leaves.html, holidays.html, dtr_content.html, dashboard.html
+    const allowed = ['dtr.html', 'mypayslip.html', 'leaves.html', 'holidays.html', 'dtr_content.html', 'dashboard.html'];
+    return allowed.includes(cleanUrl);
+  }
+
+  return false;
+}
+
+function navigateDashboard(event, title, url, browserUrl) {
+  if (event && event.preventDefault) event.preventDefault();
+  const currentRole = window.__currentUserRole || (window.parent && window.parent.$('#userRole').text()) || $('#userRole').text() || '';
+  if (currentRole && !canRoleAccess(currentRole, url)) {
+    console.warn(`[Access Guard] Role "${currentRole}" is not permitted to access ${url}`);
+    return false;
+  }
+  if (window.parent && typeof window.parent.navigate === 'function') {
+    window.parent.navigate(event, null, title, url, browserUrl);
+  } else if (typeof window.navigate === 'function') {
+    window.navigate(event, null, title, url, browserUrl);
+  } else {
+    window.location.href = browserUrl || url;
+  }
+}
+window.navigateDashboard = navigateDashboard;
+window.canRoleAccess = canRoleAccess;
+window.normalizeRole = normalizeRole;
+
+// Keyboard accessibility handler for custom interactive elements
+$(document).off('keydown.dashNav').on('keydown.dashNav', '[role="button"][tabindex="0"]', function(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    $(this).click();
+  }
+});
+
+function applyRolePermissions(rawRole) {
+  const r = normalizeRole(rawRole);
+  window.__currentUserRole = r;
+
+  // 1. Welcome Banner stats
+  if (canRoleAccess(r, '/pages/employee.html')) {
+    $('#wbStatEmployees').attr({
+      title: 'Click to view Active Staff Directory',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.wb-arrow').show();
+    $('#wbStatEmployees').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Employees', '/pages/employee.html', '/employees');
+    });
+  } else {
+    $('#wbStatEmployees').attr({
+      title: 'Active Employees Count',
+      tabindex: '-1',
+      role: 'region'
+    }).addClass('non-clickable').off('click').find('.wb-arrow').hide();
+  }
+
+  if (canRoleAccess(r, '/pages/payroll.html')) {
+    $('#wbStatCutoff').attr({
+      title: 'Click to view Current Payroll Processing Cycle',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.wb-arrow').show();
+    $('#wbStatCutoff').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Processing', '/pages/payroll.html', '/payroll');
+    });
+  } else {
+    $('#wbStatCutoff').attr({
+      title: 'Days Left in Current Cutoff Cycle',
+      tabindex: '-1',
+      role: 'region'
+    }).addClass('non-clickable').off('click').find('.wb-arrow').hide();
+  }
+
+  if (canRoleAccess(r, '/pages/payroll_report.html')) {
+    $('#wbStatGross').attr({
+      title: 'Click to view Period Payroll Report',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.wb-arrow').show();
+    $('#wbStatGross').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report');
+    });
+  } else {
+    $('#wbStatGross').attr({
+      title: 'Gross Payroll This Cycle',
+      tabindex: '-1',
+      role: 'region'
+    }).addClass('non-clickable').off('click').find('.wb-arrow').hide();
+  }
+
+  // 2. KPI Cards
+  // Total Payroll
+  if (canRoleAccess(r, '/pages/payroll.html')) {
+    $('#kpiCardPayroll').attr({
+      title: 'Click to view Payroll Processing',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.kpi-action-hint').text('Open Payroll Processing →').show();
+    $('#kpiCardPayroll').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Processing', '/pages/payroll.html', '/payroll');
+    });
+  } else if (canRoleAccess(r, '/pages/payroll_report.html')) {
+    $('#kpiCardPayroll').attr({
+      title: 'Click to view Payroll Report',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.kpi-action-hint').text('View Payroll Report →').show();
+    $('#kpiCardPayroll').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report');
+    });
+  } else {
+    $('#kpiCardPayroll').attr({
+      title: 'Total Gross Payroll for Current Period',
+      tabindex: '-1',
+      role: 'region'
+    }).addClass('non-clickable').off('click').find('.kpi-action-hint').hide();
+  }
+
+  // Active Employees
+  if (canRoleAccess(r, '/pages/employee.html')) {
+    $('#kpiCardEmployees').attr({
+      title: 'Click to view Staff Directory',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.kpi-action-hint').text('View Staff Directory →').show();
+    $('#kpiCardEmployees').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Employees', '/pages/employee.html', '/employees');
+    });
+  } else if (canRoleAccess(r, '/pages/logs.html') && r === 'Admin') {
+    $('#kpiCardEmployees').attr({
+      title: 'Click to view Biometric Attendance Logs',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.kpi-action-hint').text('View Attendance Logs →').show();
+    $('#kpiCardEmployees').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Biometric Logs', '/pages/logs.html', '/logs');
+    });
+  } else {
+    $('#kpiCardEmployees').attr({
+      title: 'Total Active Employees Count',
+      tabindex: '-1',
+      role: 'region'
+    }).addClass('non-clickable').off('click').find('.kpi-action-hint').hide();
+  }
+
+  // Total Deductions
+  if (canRoleAccess(r, '/pages/registry.html')) {
+    $('#kpiCardDeductions').attr({
+      title: 'Click to view Statutory Deductions Registry',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.kpi-action-hint').text('Manage Statutory Deductions →').show();
+    $('#kpiCardDeductions').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll & Statutory Registry', '/pages/registry.html', '/registry');
+    });
+  } else {
+    $('#kpiCardDeductions').attr({
+      title: 'Total Statutory Deductions (SSS, PhilHealth, Pag-IBIG, Tax)',
+      tabindex: '-1',
+      role: 'region'
+    }).addClass('non-clickable').off('click').find('.kpi-action-hint').hide();
+  }
+
+  // Net Disbursement
+  if (canRoleAccess(r, '/pages/payroll_releasing.html')) {
+    $('#kpiCardDisbursement').attr({
+      title: 'Click to view Payroll Disbursement & Slips',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.kpi-action-hint').text('Review Disbursement Slips →').show();
+    $('#kpiCardDisbursement').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Releasing', '/pages/payroll_releasing.html', '/payroll_releasing');
+    });
+  } else if (canRoleAccess(r, '/pages/payroll_audit.html') && r === 'Admin') {
+    $('#kpiCardDisbursement').attr({
+      title: 'Click to view Payroll Audit',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.kpi-action-hint').text('Review Payroll Audit →').show();
+    $('#kpiCardDisbursement').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Audit', '/pages/payroll_audit.html', '/payroll_audit');
+    });
+  } else {
+    $('#kpiCardDisbursement').attr({
+      title: 'Net Disbursement for Current Period',
+      tabindex: '-1',
+      role: 'region'
+    }).addClass('non-clickable').off('click').find('.kpi-action-hint').hide();
+  }
+
+  // 3. Middle Row
+  // Payroll Trend
+  if (canRoleAccess(r, '/pages/payroll_report.html')) {
+    $('#trendReportLink').show().off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report');
+    });
+    $('#trend-chart-wrap').attr({
+      title: 'Click to open Payroll Report',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report');
+    });
+  } else {
+    $('#trendReportLink').hide();
+    $('#trend-chart-wrap').attr({
+      title: 'Payroll trends across previous cycles',
+      tabindex: '-1',
+      role: 'img'
+    }).addClass('non-clickable').off('click');
+  }
+
+  // Next Payroll Cutoff
+  if (canRoleAccess(r, '/pages/payroll.html')) {
+    $('#cutoffOpenCycleLink').show().off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Processing', '/pages/payroll.html', '/payroll');
+    });
+  } else {
+    $('#cutoffOpenCycleLink').hide();
+  }
+
+  if (canRoleAccess(r, '/pages/employee.html')) {
+    $('#pdRowEmployees').attr({
+      title: 'Click to view Active Staff Directory',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.pd-arrow').show();
+    $('#pdRowEmployees').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Employees', '/pages/employee.html', '/employees');
+    });
+  } else {
+    $('#pdRowEmployees').attr({
+      title: 'Total Active Staff in Period',
+      tabindex: '-1',
+      role: 'text'
+    }).addClass('non-clickable').off('click').find('.pd-arrow').hide();
+  }
+
+  if (canRoleAccess(r, '/pages/payroll.html')) {
+    $('#pdRowCycle').attr({
+      title: 'Click to view Current Payroll Processing Cycle',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.pd-arrow').show();
+    $('#pdRowCycle').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Processing', '/pages/payroll.html', '/payroll');
+    });
+  } else {
+    $('#pdRowCycle').attr({
+      title: 'Active Payroll Cycle Label',
+      tabindex: '-1',
+      role: 'text'
+    }).addClass('non-clickable').off('click').find('.pd-arrow').hide();
+  }
+
+  if (canRoleAccess(r, '/pages/audit_trail.html')) {
+    $('#pdRowStatus').attr({
+      title: 'Click to view Audit Trail & System Logs',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.pd-arrow').show();
+    $('#pdRowStatus').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail');
+    });
+  } else {
+    $('#pdRowStatus').attr({
+      title: 'System Operational Status',
+      tabindex: '-1',
+      role: 'text'
+    }).addClass('non-clickable').off('click').find('.pd-arrow').hide();
+  }
+
+  // CTA button
+  if (canRoleAccess(r, '/pages/payroll.html')) {
+    $('#btnCutoffAction').show().html(`
+      <span>Process Payroll Run</span>
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+    `).off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Processing', '/pages/payroll.html', '/payroll');
+    });
+  } else if (canRoleAccess(r, '/pages/approvals.html') && r === 'HR') {
+    $('#btnCutoffAction').show().html(`
+      <span>Review Leave Approvals</span>
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    `).off('click').on('click', function(e) {
+      navigateDashboard(e, 'Approvals', '/pages/approvals.html', '/approvals');
+    });
+  } else if (canRoleAccess(r, '/pages/audit_trail.html') && (r === 'Admin' || r === 'Principal')) {
+    $('#btnCutoffAction').show().html(`
+      <span>View System Audit Trail</span>
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    `).off('click').on('click', function(e) {
+      navigateDashboard(e, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail');
+    });
+  } else {
+    $('#btnCutoffAction').hide();
+  }
+
+  // 4. Campus card top stats
+  if (canRoleAccess(r, '/pages/employee.html')) {
+    $('#psBoxTotalEmps, #psBoxTeachingEmps').attr({
+      title: 'Click to view Staff Directory',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.ps-arrow').show();
+    $('#psBoxTotalEmps, #psBoxTeachingEmps').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Employees', '/pages/employee.html', '/employees');
+    });
+  } else {
+    $('#psBoxTotalEmps, #psBoxTeachingEmps').attr({
+      title: 'School Employee Count',
+      tabindex: '-1',
+      role: 'text'
+    }).addClass('non-clickable').off('click').find('.ps-arrow').hide();
+  }
+
+  if (canRoleAccess(r, '/pages/payroll_releasing.html')) {
+    $('#psBoxNetPay').attr({
+      title: 'Click to view Payroll Disbursement',
+      tabindex: '0',
+      role: 'button'
+    }).removeClass('non-clickable').find('.ps-arrow').show();
+    $('#psBoxNetPay').off('click').on('click', function(e) {
+      navigateDashboard(e, 'Payroll Releasing', '/pages/payroll_releasing.html', '/payroll_releasing');
+    });
+  } else {
+    $('#psBoxNetPay').attr({
+      title: 'Estimated Net Payroll for Period',
+      tabindex: '-1',
+      role: 'text'
+    }).addClass('non-clickable').off('click').find('.ps-arrow').hide();
+  }
+
+  $('#psBoxPendingLeaves').attr({
+    title: 'Click to view Leave Applications',
+    tabindex: '0',
+    role: 'button'
+  }).removeClass('non-clickable').off('click').on('click', function(e) {
+    navigateDashboard(e, 'Leave Management', '/pages/leaves.html', '/leaves');
+  });
+
+  // 5. Quick Shortcuts Grid
+  let shortcuts = [];
+  if (r === 'Principal' || r === 'Admin') {
+    shortcuts = [
+      { icon: '⏱️', label: 'DTR Logs', title: 'Biometric Logs', url: '/pages/logs.html', browser: '/logs' },
+      { icon: '📊', label: 'Payroll Report', title: 'Payroll Report', url: '/pages/payroll_report.html', browser: '/payroll_report' },
+      { icon: '🌴', label: 'Leaves', title: 'Leave Management', url: '/pages/leaves.html', browser: '/leaves' },
+      { icon: '📋', label: 'Approvals', title: 'Approvals', url: '/pages/approvals.html', browser: '/approvals' }
+    ];
+  } else if (r === 'HR') {
+    shortcuts = [
+      { icon: '⏱️', label: 'DTR Logs', title: 'Biometric Logs', url: '/pages/logs.html', browser: '/logs' },
+      { icon: '👥', label: 'Staff List', title: 'Employees', url: '/pages/employee.html', browser: '/employees' },
+      { icon: '🌴', label: 'Leaves', title: 'Leave Management', url: '/pages/leaves.html', browser: '/leaves' },
+      { icon: '📋', label: 'Approvals', title: 'Approvals', url: '/pages/approvals.html', browser: '/approvals' }
+    ];
+  } else if (r === 'Accounting') {
+    shortcuts = [
+      { icon: '⏱️', label: 'DTR Logs', title: 'Biometric Logs', url: '/pages/logs.html', browser: '/logs' },
+      { icon: '💰', label: 'Payroll', title: 'Payroll Processing', url: '/pages/payroll.html', browser: '/payroll' },
+      { icon: '📊', label: 'Salary Grades', title: 'Salary Grades', url: '/pages/salary_grades.html', browser: '/salary_grades' },
+      { icon: '📋', label: 'Approvals', title: 'Approvals', url: '/pages/approvals.html', browser: '/approvals' }
+    ];
+  } else {
+    // Employee / Teacher
+    shortcuts = [
+      { icon: '⏱️', label: 'My DTR', title: 'DTR', url: '/pages/dtr.html', browser: '/dtr' },
+      { icon: '💵', label: 'My Payslip', title: 'My Payslip', url: '/pages/mypayslip.html', browser: '/mypayslip' },
+      { icon: '🌴', label: 'File Leave', title: 'Leave Management', url: '/pages/leaves.html', browser: '/leaves' },
+      { icon: '📅', label: 'Holidays', title: 'Holiday Calendar', url: '/pages/holidays.html', browser: '/holidays' }
+    ];
+  }
+
+  const shortcutsHtml = shortcuts.map(s => `
+    <a href="#" class="quick-shortcut-item" onclick="navigateDashboard(event, '${s.title}', '${s.url}', '${s.browser}');" title="Open ${s.title}">
+      <span style="font-size:14px;">${s.icon}</span>
+      <span>${s.label}</span>
+    </a>
+  `).join('');
+  $('#quickShortcutsGrid').html(shortcutsHtml);
+}
+window.applyRolePermissions = applyRolePermissions;
+
 (function () {
   const fCurrency = num => '₱' + Number(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fShort    = num => '₱' + (num >= 1e6 ? (num/1e6).toFixed(1)+'M' : (num >= 1e3 ? (num/1e3).toFixed(1)+'k' : Number(num).toLocaleString()));
@@ -606,6 +1534,12 @@
     window.requestAnimationFrame(step);
   }
 
+  // ── Initial role check from DOM ───────────────────────────────────────
+  const immediateRole = (window.parent && window.parent.$('#userRole').text()) || $('#userRole').text() || '';
+  if (immediateRole) {
+    applyRolePermissions(immediateRole);
+  }
+
   // ── Greeting & Date ───────────────────────────────────────────────────
   const now  = new Date();
   const hour = now.getHours();
@@ -618,9 +1552,12 @@
     ${now.toLocaleDateString('en-US', opt)}
   `);
 
-  // Fetch User Info for greeting
+  // Fetch User Info for greeting & role synchronization
   $.get('/api/auth/me', user => {
-    if (user && user.name) $('.wb-title em').text(user.name);
+    if (user) {
+      if (user.name) $('.wb-title em').text(user.name);
+      if (user.role) applyRolePermissions(user.role);
+    }
   });
 
   // ── Fetch Dashboard Stats ─────────────────────────────────────────────
@@ -683,27 +1620,74 @@
         $('#trend-chart-wrap').html('<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--muted2);font-size:12px;text-align:center;">No payroll runs processed yet. Run payroll to view trends.</div>');
       }
 
-      // Render Activity
+      // Render Activity Feed
       const $actList = $('#recent-activity-list');
       if (data.activity && data.activity.length) {
-        const actHtml = data.activity.map(a => `
-          <div class="activity-item">
-            <div class="act-dot-wrap">
-              <div class="act-dot ${a.tag === 'Biometric' ? 'navy' : a.tag === 'Leave' ? 'amber' : 'green'}"></div>
-              <div class="act-line"></div>
-            </div>
-            <div class="act-content">
-              <div class="act-text"><strong>${a.name}</strong> — ${a.type}.</div>
-              <div class="act-meta">
-                <span class="act-time">${a.date_label} ${a.time_label ? '· ' + a.time_label : ''}</span>
-                <span class="act-tag ${a.tag === 'Biometric' ? 'navy' : a.tag === 'Leave' ? 'amber' : 'green'}">${a.tag}</span>
+        const actHtml = data.activity.map(a => {
+          const tagClass = (a.tag || 'biometric').toLowerCase();
+          let iconSvg = '';
+          let targetTitle = 'Biometric Logs';
+          let targetUrl = '/pages/logs.html';
+          let targetBrowser = '/logs';
+
+          if (tagClass === 'biometric') {
+            iconSvg = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg>`;
+            targetTitle = 'Biometric Logs';
+            targetUrl = '/pages/logs.html';
+            targetBrowser = '/logs';
+          } else if (tagClass === 'leave') {
+            iconSvg = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+            targetTitle = 'Leave Management';
+            targetUrl = '/pages/leaves.html';
+            targetBrowser = '/leaves';
+          } else {
+            iconSvg = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m13-10a4 4 0 11-8 0 4 4 0 018 0zM20 8v6M23 11h-6"/></svg>`;
+            const currentR = window.__currentUserRole || (window.parent && window.parent.$('#userRole').text()) || $('#userRole').text() || '';
+            if (canRoleAccess(currentR, '/pages/employee.html')) {
+              targetTitle = 'Employees';
+              targetUrl = '/pages/employee.html';
+              targetBrowser = '/employees';
+            } else {
+              targetTitle = 'Biometric Logs';
+              targetUrl = '/pages/logs.html';
+              targetBrowser = '/logs';
+            }
+          }
+          const timeText = a.time_label ? `${a.date_label} · ${a.time_label}` : a.date_label;
+          return `
+            <div class="activity-item" onclick="navigateDashboard(event, '${targetTitle}', '${targetUrl}', '${targetBrowser}')" role="button" tabindex="0" title="Click to view details in ${targetTitle}">
+              <div class="act-icon-box ${tagClass}">
+                ${iconSvg}
               </div>
+              <div class="act-content">
+                <div class="act-text">
+                  <strong>${a.name}</strong> <span class="act-desc">— ${a.type}</span>
+                </div>
+                <div class="act-meta">
+                  <span class="act-time">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 15 15"/></svg>
+                    ${timeText}
+                  </span>
+                  <span class="act-tag ${tagClass}">
+                    <span class="act-tag-dot"></span>
+                    ${a.tag}
+                  </span>
+                </div>
+              </div>
+              <div class="act-arrow">→</div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
         $actList.html(actHtml);
+        $('#feed-last-updated').text('Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } else {
-        $actList.html('<div style="padding:20px; text-align:center; color:var(--muted2); font-size:12px;">No recent activity recorded.</div>');
+        $actList.html(`
+          <div class="feed-empty-state">
+            <div class="empty-icon">⏱️</div>
+            <div class="empty-title">No Recent Activity Recorded</div>
+            <div class="empty-sub">Biometric punches and registrations will appear here in real-time.</div>
+          </div>
+        `);
       }
     }).fail(function() {
       isFetching = false;

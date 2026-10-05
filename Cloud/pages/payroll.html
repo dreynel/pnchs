@@ -618,7 +618,13 @@
 
     const uRole = $('#userRole').text().trim();
 
-    function fmt(n) { return '₱' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function fmt(n) {
+      const val = parseFloat(n) || 0;
+      if (val < 0) {
+        return '-₱' + Math.abs(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      return '₱' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
     function pad(str, len) { str = String(str); while (str.length < len) str = '&nbsp;' + str; return str; }
     function padRight(str, len) { str = String(str); while (str.length < len) str = str + '&nbsp;'; return str; }
 
@@ -696,7 +702,8 @@
 
       $('#sumGross').text(fmt(data.summary.grand_total_gross));
       $('#sumDeduct').text(fmt(data.summary.grand_total_deduct));
-      $('#sumNet').text(fmt(data.summary.grand_total_net));
+      const gNetVal = parseFloat(data.summary.grand_total_net) || 0;
+      $('#sumNet').text(fmt(gNetVal)).css('color', gNetVal < 0 ? 'var(--red)' : 'var(--green)');
       $('#sumCreatedAt').text(data.created_at || '—');
 
       const uRole = $('#userRole').text().trim();
@@ -716,7 +723,7 @@
         <td class="num">${e.dtr_filed ? '<span class="dtr-pill full">OK</span>' : '<span class="dtr-pill absent">NO LOGS</span>'}</td>
         <td class="num amt-earn">${fmt(e.total_gross)}</td>
         <td class="num amt-deduct">${fmt(e.total_deduct)}</td>
-        <td class="num amt-net">${fmt(e.net_pay)}${e.below_net_floor ? '<br><span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:9px;" title="Net Pay below DepEd ₱5,000 monthly threshold (₱2,500 semi-monthly)">Below ₱2.5k Floor</span>' : ''}</td>
+        <td class="num amt-net" style="${parseFloat(e.net_pay) < 0 ? 'color:var(--red); font-weight:800;' : ''}">${fmt(e.net_pay)}${parseFloat(e.net_pay) < 0 ? '<br><span class="badge bg-danger text-white" style="font-size:9px;" title="Negative Net Pay: Total deductions exceed semi-monthly earnings">Negative Net</span>' : (e.below_net_floor ? '<br><span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:9px;" title="Net Pay below DepEd ₱5,000 monthly threshold (₱2,500 semi-monthly)">Below ₱2.5k Floor</span>' : '')}</td>
 
         <td style="text-align:center;">
           <button onclick="event.stopPropagation();showPayslip('${e.id}')" title="View Payslip"
@@ -1063,8 +1070,16 @@
     $('#newPayrollModal').on('click', function (e) { if (e.target === this) $(this).removeClass('open'); });
 
     $('#confirmNewPayroll').on('click', async function () {
+      const $btn = $(this);
+      if ($btn.prop('disabled')) return;
+      $btn.prop('disabled', true);
+
       const y = $('#npYear').val(), m = $('#npMonth').val(), h = $('input[name="npHalf"]:checked').val(), key = `${y}-${m}-${h}`;
-      if (records.find(r => r.key === key)) { $('#npError').text('A payroll record for this period already exists.').show(); return; }
+      if (records.find(r => r.key === key && (r.status === 'Approved' || r.status === 'Released'))) { 
+        $('#npError').text('A finalised payroll record for this period already exists.').show(); 
+        $btn.prop('disabled', false);
+        return; 
+      }
 
       const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       const halfText = h === '1' ? '1st Half (1–15)' : '2nd Half (16–end)';

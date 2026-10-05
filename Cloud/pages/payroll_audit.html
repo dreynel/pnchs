@@ -1,78 +1,402 @@
 <style>
-  .audit-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); padding: 24px; gap: 16px; }
-  
+  :root {
+    --navy:       #1e3a5f;
+    --navy-mid:   #2a4f80;
+    --navy-light: #e8f0fb;
+    --accent:     #c8973a;
+    --accent-dim: rgba(200,151,58,0.12);
+    --bg:         #f0ede8;
+    --surface:    #ffffff;
+    --surface2:   #fafaf8;
+    --border:     #e2ddd6;
+    --border2:    #cbd5e1;
+    --text:       #1a1a2e;
+    --muted:      #5a6272;
+    --muted2:     #9fa5b4;
+    --green:      #16a34a;
+    --green-dim:  rgba(22,163,74,0.10);
+    --red:        #c0392b;
+    --red-dim:    rgba(192,57,43,0.08);
+    --blue:       #2563eb;
+    --blue-dim:   rgba(37,99,235,0.08);
+  }
+
+  .audit-page-wrap {
+    min-height: 100%;
+    background: var(--bg);
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-sizing: border-box;
+  }
+
+  /* ── Header & Tabs ── */
+  .audit-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .audit-title-block h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0 0 4px 0;
+    line-height: 1.2;
+  }
+  .audit-title-block p {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0;
+  }
+  .audit-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   /* Segmented Tab Header */
-  .audit-tabs { display: flex; gap: 8px; background: var(--surface2); padding: 4px; border-radius: 12px; border: 1px solid var(--border); width: fit-content; flex-shrink: 0; }
-  .tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 9px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all 0.2s; border: none; background: transparent; }
-  .tab-btn:hover { color: var(--navy); background: rgba(255,255,255,0.5); }
-  .tab-btn.active { background: #fff; color: var(--navy); font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .audit-tabs {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--surface2);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  }
+  .tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    border: none;
+    background: transparent;
+    user-select: none;
+    text-decoration: none;
+  }
+  .tab-btn:hover {
+    color: var(--navy);
+    background: rgba(255,255,255,0.6);
+  }
+  .tab-btn.active {
+    background: #fff;
+    color: var(--navy);
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
 
-  .audit-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0; }
-  .sum-card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 14px; }
-  .sum-card-icon { width: 44px; height: 44px; border-radius: 11px; background: var(--navy-light); color: var(--navy-mid); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .sum-card-info { flex: 1; }
-  .sum-lbl { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-  .sum-val { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--navy); }
-  
-  .audit-toolbar { display: flex; align-items: center; gap: 12px; background: var(--surface); padding: 14px 18px; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.02); flex-wrap: wrap; flex-shrink: 0; }
-  .audit-filter { display: flex; flex-direction: column; gap: 4px; }
-  .audit-filter label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; }
-  .audit-filter input, .audit-filter select { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 12px; outline: none; transition: all 0.2s; }
-  .audit-filter input:focus, .audit-filter select:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 3px rgba(42,79,128,0.1); background: #fff; }
-  
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 15px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; }
-  .btn-primary { background: var(--navy); color: #fff; box-shadow: 0 4px 10px rgba(30, 58, 95, 0.2); }
-  .btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); }
-  .btn-outline { background: var(--surface); border: 1.5px solid var(--border); color: var(--muted); }
-  .btn-outline:hover { background: var(--surface2); color: var(--navy); border-color: var(--border2); }
-  
-  .audit-content { flex: 1; display: flex; flex-direction: column; background: var(--surface); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-  .audit-table-wrap { flex: 1; overflow-y: auto; }
-  
-  table.audit-table { width: 100%; border-collapse: collapse; text-align: left; }
-  .audit-table th { position: sticky; top: 0; background: var(--surface2); z-index: 5; padding: 12px 14px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--muted2); border-bottom: 1.5px solid var(--border); letter-spacing: 0.5px; }
-  .audit-table td { padding: 12px 14px; border-bottom: 1px solid rgba(226,221,214,0.3); font-size: 12px; color: var(--text); }
-  .audit-row { cursor: pointer; transition: background 0.2s; }
-  .audit-row:hover { background: var(--surface2); }
-  
-  .badge { display: inline-flex; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
-  .badge.green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
-  .badge.blue { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
-  .badge.amber { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
-  .badge.red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(220,38,38,0.2); }
-  
-  .detail-row { display: none; background: #fafaf8; border-bottom: 1.5px solid var(--border); }
-  .detail-row.open { display: table-row; }
-  .detail-box { padding: 14px; margin: 0 14px 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: flex; flex-direction: column; gap: 12px; font-size: 11.5px; }
+  /* ── Summary KPI Cards ── */
+  .audit-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .sum-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .sum-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+  }
+  .sum-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .sum-card-info { flex: 1; min-width: 0; }
+  .sum-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+  .sum-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.1;
+  }
 
-  /* Formula Breakdown Grid */
-  .formula-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .formula-card { background: var(--surface2); border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; }
-  .formula-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  /* ── Toolbar & Filters ── */
+  .audit-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    background: var(--surface);
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    flex-wrap: wrap;
+  }
+  .audit-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .audit-filter label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .audit-filter input,
+  .audit-filter select {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 7px 11px;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: all 0.2s ease;
+    height: 38px;
+    box-sizing: border-box;
+  }
+  .audit-filter input:focus,
+  .audit-filter select:focus {
+    border-color: var(--navy-mid);
+    box-shadow: 0 0 0 3px rgba(42,79,128,0.1);
+    background: #fff;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 16px;
+    height: 38px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    user-select: none;
+    white-space: nowrap;
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(30,58,95,0.18);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, var(--navy-mid) 0%, #355f97 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(30,58,95,0.25);
+    color: #fff;
+  }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-outline {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    color: var(--navy);
+  }
+  .btn-outline:hover {
+    background: var(--surface2);
+    border-color: var(--border2);
+  }
+
+  /* ── Content Card & Table ── */
+  .audit-content-card {
+    background: var(--surface);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.03);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .audit-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table.audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    min-width: 900px;
+  }
+  .audit-table th {
+    position: sticky;
+    top: 0;
+    background: var(--surface2);
+    z-index: 2;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1.5px solid var(--border);
+    letter-spacing: 0.05em;
+  }
+  .audit-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(226,221,214,0.4);
+    font-size: 12.5px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .audit-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .audit-row:hover {
+    background: #f8fafc;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .badge.green  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(22,163,74,0.25); }
+  .badge.red    { background: var(--red-dim); color: var(--red); border: 1px solid rgba(192,57,43,0.25); }
+  .badge.blue   { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+
+  /* Expanded Mathematical Formula Drawer */
+  .detail-row {
+    display: none;
+    background: #fafaf8;
+    border-bottom: 1.5px solid var(--border);
+  }
+  .detail-row.open {
+    display: table-row;
+  }
+  .detail-box {
+    padding: 16px 18px;
+    margin: 0 16px 16px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .formula-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .formula-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 11px;
+  }
+  .formula-title {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1024px) {
+    .audit-summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .formula-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    .audit-page-wrap { padding: 14px 10px 32px; gap: 14px; }
+    .audit-header-row { flex-direction: column; align-items: stretch; gap: 12px; }
+    .audit-header-actions { flex-direction: column; align-items: stretch; }
+    .audit-tabs { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+    .tab-btn { justify-content: center; }
+    .audit-summary-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .audit-toolbar { flex-direction: column; align-items: stretch; }
+    .audit-filter { width: 100%; }
+    .audit-filter input, .audit-filter select { width: 100% !important; }
+    .formula-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .audit-summary-grid { grid-template-columns: 1fr; }
+    .sum-val { font-size: 1.3rem; }
+  }
 </style>
 
-<div class="audit-page">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-shrink: 0;">
-    <div>
-      <h2 style="font-family:'Playfair Display',serif; font-size:1.5rem; color:var(--navy); margin-bottom:2px;">Payroll Computation Audit</h2>
-      <p style="font-size:11.5px; color:var(--muted2);">State Auditor mathematical verification engine & salary computation breakdown</p>
+<div class="audit-page-wrap">
+
+  <!-- ── Header Section ── -->
+  <div class="audit-header-row">
+    <div class="audit-title-block">
+      <div style="display:inline-flex; align-items:center; gap:6px; background:var(--green-dim); border:1px solid rgba(22,163,74,0.2); border-radius:20px; padding:3px 10px; font-size:10.5px; font-weight:700; color:var(--green); margin-bottom:6px;">
+        <span>⚖️ COA & DepEd Computation Verification</span>
+      </div>
+      <h2>Payroll Computation Audit</h2>
+      <p>State Auditor mathematical verification engine, salary computation breakdown, and discrepancy checker</p>
     </div>
-    
-    <!-- Tab Switcher -->
-    <div class="audit-tabs">
-      <button class="tab-btn" onclick="if(window.navigate) window.navigate(event, null, 'Audit Trail', '/pages/audit_trail.html');">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-        System Event Logs
-      </button>
-      <button class="tab-btn active">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-        Payroll Computation Audit
+
+    <div class="audit-header-actions">
+      <!-- Segmented Tab Switcher -->
+      <div class="audit-tabs">
+        <button class="tab-btn" onclick="if(window.navigate) window.navigate(event, null, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail'); else window.location.href='/audit_trail';">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          System Event Logs
+        </button>
+        <button class="tab-btn active">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Payroll Computation Audit
+        </button>
+      </div>
+
+      <!-- Export Button -->
+      <button class="btn btn-primary" onclick="exportPayrollVerificationSheet()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export Verification Sheet
       </button>
     </div>
   </div>
 
-  <!-- Period Auditor Summary Banner -->
-  <div class="audit-summary">
+  <!-- ── Summary KPI Cards ── -->
+  <div class="audit-summary-grid">
     <div class="sum-card">
       <div class="sum-card-icon" style="background:#e0f2fe; color:#0284c7;">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -82,6 +406,7 @@
         <div class="sum-val" id="pSumGross">₱0.00</div>
       </div>
     </div>
+
     <div class="sum-card">
       <div class="sum-card-icon" style="background:#fef3c7; color:#d97706;">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
@@ -91,6 +416,7 @@
         <div class="sum-val" id="pSumDeductions">₱0.00</div>
       </div>
     </div>
+
     <div class="sum-card">
       <div class="sum-card-icon" style="background:var(--green-dim); color:var(--green);">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -100,6 +426,7 @@
         <div class="sum-val" id="pSumNet">₱0.00</div>
       </div>
     </div>
+
     <div class="sum-card">
       <div class="sum-card-icon" id="pComplianceIcon" style="background:var(--green-dim); color:var(--green);">
         <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -111,53 +438,54 @@
     </div>
   </div>
 
-  <!-- Toolbar -->
+  <!-- ── Filter & Search Toolbar ── -->
   <div class="audit-toolbar">
     <div class="audit-filter">
       <label>Payroll Period</label>
-      <select id="pPeriodSelect" style="width: 220px;" onchange="loadPayrollVerification()"></select>
+      <select id="pPeriodSelect" style="width: 260px;" onchange="loadPayrollVerification()"></select>
     </div>
+
     <div class="audit-filter">
       <label>Audit Verdict</label>
-      <select id="pStatusFilter" style="width: 140px;" onchange="renderPayrollAuditTable()">
+      <select id="pStatusFilter" style="width: 160px;" onchange="renderPayrollAuditTable()">
         <option value="">All Verification</option>
         <option value="ACCURATE">Accurate Only</option>
         <option value="DISCREPANCY">Discrepancies Only</option>
       </select>
     </div>
-    <div class="audit-filter" style="flex:1; min-width: 180px;">
-      <label>Search Staff Name / ID</label>
+
+    <div class="audit-filter" style="flex:1; min-width: 200px;">
+      <label>Search Staff Member / ID / Designation</label>
       <input type="text" id="pSearch" placeholder="Search employee..." onkeyup="renderPayrollAuditTable()">
-    </div>
-    <div style="display:flex; align-items:flex-end; gap:8px; align-self:stretch; padding-bottom:1.5px;">
-      <button class="btn btn-primary" onclick="exportPayrollVerificationSheet()">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        Export Verification Sheet
-      </button>
     </div>
   </div>
 
-  <!-- Verification Table -->
-  <div class="audit-content" style="flex:1;">
+  <!-- ── Verification Table Card ── -->
+  <div class="audit-content-card">
     <div class="audit-table-wrap">
       <table class="audit-table">
         <thead>
           <tr>
-            <th style="width: 16%;">Staff Member</th>
-            <th style="width: 12%;">Monthly / Basic</th>
-            <th style="width: 14%;">Gross Pay (Stored vs Audited)</th>
-            <th style="width: 16%;">Total Deductions</th>
+            <th style="width: 17%;">Staff Member</th>
+            <th style="width: 13%;">Monthly / Basic</th>
+            <th style="width: 15%;">Gross Pay (Stored vs Audited)</th>
+            <th style="width: 15%;">Total Deductions</th>
             <th style="width: 14%;">Net Pay</th>
             <th style="width: 14%;">Audit Verdict</th>
-            <th style="width: 14%;">Math Verification</th>
+            <th style="width: 12%; text-align:center;">Math Detail</th>
           </tr>
         </thead>
         <tbody id="payrollAuditTableBody">
-          <tr><td colspan="7" style="text-align:center; padding:30px; color:var(--muted2);">Select a payroll period to run mathematical verification...</td></tr>
+          <tr>
+            <td colspan="7" style="text-align:center; padding:36px; color:var(--muted2);">
+              Select a payroll period to run mathematical verification…
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
   </div>
+
 </div>
 
 <script>
@@ -165,8 +493,6 @@
   let payrollAuditData = [];
   const fmtCurr = num => '₱' + Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  function toggleRow(id) {
-    $(`#${id}`).toggleClass('open');
   function togglePayrollAuditRow(id) {
     $('#' + id).toggleClass('open');
   }
@@ -184,12 +510,12 @@
         loadPayrollVerification();
       } else {
         $sel.append('<option value="">No payroll periods found</option>');
-        $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--muted2);">No payroll periods available to audit.</td></tr>');
+        $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--muted2);">No payroll periods available to audit.</td></tr>');
       }
     } catch(e) {
       console.error('Failed to load payroll periods', e);
       $('#pPeriodSelect').empty().append('<option value="">Failed to load periods</option>');
-      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--red);">Unable to fetch payroll audit periods. Please check permissions.</td></tr>');
+      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--red);">Unable to fetch payroll audit periods. Please check permissions.</td></tr>');
     }
   }
 
@@ -197,14 +523,14 @@
     const period_key = $('#pPeriodSelect').val();
     if (!period_key) return;
     try {
-      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--muted2);">Executing State Auditor mathematical computation checks…</td></tr>');
+      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--muted2);">Executing State Auditor mathematical computation checks…</td></tr>');
       const res = await $.get('/api/audit/payroll-verification', { period_key: period_key });
-      
+
       const s = res.summary || {};
       $('#pSumGross').text(fmtCurr(s.total_gross));
       $('#pSumDeductions').text(fmtCurr(s.total_deductions));
       $('#pSumNet').text(fmtCurr(s.total_net));
-      
+
       const rate = s.compliance_rate || 100.0;
       $('#pComplianceRate').text(rate + '%');
       if (rate === 100) {
@@ -218,7 +544,7 @@
 
     } catch(e) {
       console.error(e);
-      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--red);">Failed to run payroll verification audit.</td></tr>');
+      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--red);">Failed to run payroll verification audit.</td></tr>');
     }
   }
 
@@ -227,13 +553,13 @@
     const statusFilter = $('#pStatusFilter').val();
 
     const filtered = payrollAuditData.filter(d => {
-      const matchSearch = d.employee_name.toLowerCase().includes(search) || d.employee_id.toLowerCase().includes(search) || d.designation.toLowerCase().includes(search);
+      const matchSearch = d.employee_name.toLowerCase().includes(search) || d.employee_id.toLowerCase().includes(search) || (d.designation || '').toLowerCase().includes(search);
       const matchStatus = !statusFilter || d.status === statusFilter;
       return matchSearch && matchStatus;
     });
 
     if (filtered.length === 0) {
-      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--muted2);">No staff salary records matching audit criteria.</td></tr>');
+      $('#payrollAuditTableBody').html('<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--muted2);">No staff salary records matching audit criteria.</td></tr>');
       return;
     }
 
@@ -248,36 +574,33 @@
       const netVarStr   = d.net_variance !== 0 ? ` <span style="color:var(--red); font-size:10px;">(${d.net_variance > 0 ? '+' : ''}${d.net_variance})</span>` : '';
 
       html += `
-        <tr class="audit-row" onclick="toggleRow('pdet-${idx}')">
         <tr class="audit-row" onclick="togglePayrollAuditRow('pdet-${idx}')">
           <td>
-            <strong>${d.employee_name}</strong>
-            <div style="font-size:10px; color:var(--muted2);">${d.employee_id} · ${d.employment_status}</div>
+            <strong style="color:var(--navy);">${d.employee_name}</strong>
+            <div style="font-size:10.5px; color:var(--muted);">${d.employee_id} · ${d.employment_status || ''}</div>
           </td>
           <td>
             <strong>${fmtCurr(d.monthly_salary)}</strong>
-            <div style="font-size:10px; color:var(--muted2);">Basic: ${fmtCurr(d.basic_pay)}</div>
+            <div style="font-size:10.5px; color:var(--muted);">Basic: ${fmtCurr(d.basic_pay)}</div>
           </td>
           <td>
             <strong>${fmtCurr(d.stored_gross)}</strong>${grossVarStr}
-            <div style="font-size:10px; color:var(--muted2);">Audited: ${fmtCurr(d.audited_gross)}</div>
+            <div style="font-size:10.5px; color:var(--muted);">Audited: ${fmtCurr(d.audited_gross)}</div>
           </td>
           <td>
             <strong>${fmtCurr(d.stored_deductions)}</strong>${dedVarStr}
-            <div style="font-size:10px; color:var(--muted2);">Audited: ${fmtCurr(d.audited_deductions)}</div>
+            <div style="font-size:10.5px; color:var(--muted);">Audited: ${fmtCurr(d.audited_deductions)}</div>
           </td>
           <td>
             <strong style="color:var(--green);">${fmtCurr(d.stored_net)}</strong>${netVarStr}
-            <div style="font-size:10px; color:var(--muted2);">Audited: ${fmtCurr(d.audited_net)}</div>
+            <div style="font-size:10.5px; color:var(--muted);">Audited: ${fmtCurr(d.audited_net)}</div>
           </td>
           <td>
             <span class="${badgeClass}">${badgeText}</span>
-            ${d.warnings.length ? `<div style="font-size:9.5px; color:var(--red); margin-top:2px;">${d.warnings[0]}</div>` : ''}
             ${d.warnings && d.warnings.length ? `<div style="font-size:9.5px; color:var(--red); margin-top:2px;">${d.warnings[0]}</div>` : ''}
           </td>
-          <td>
-            <button class="btn btn-outline" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); toggleRow('pdet-${idx}')">
-            <button class="btn btn-outline" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); togglePayrollAuditRow('pdet-${idx}')">
+          <td style="text-align:center;">
+            <button class="btn btn-outline" style="height:30px; padding:0 10px; font-size:11px;" onclick="event.stopPropagation(); togglePayrollAuditRow('pdet-${idx}')">
               Inspect Math
             </button>
           </td>
@@ -287,19 +610,19 @@
         <tr class="detail-row" id="pdet-${idx}">
           <td colspan="7" style="padding:0;">
             <div class="detail-box">
-              <div style="font-weight:700; font-family:'Plus Jakarta Sans',sans-serif; color:var(--navy); display:flex; justify-content:space-between; align-items:center;">
-                <span>Detailed Auditor Calculation Breakdown — ${d.employee_name} (${d.designation})</span>
-                <span class="badge green">0.00 Variance Check</span>
+              <div style="font-weight:700; color:var(--navy); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                <span>Detailed Auditor Calculation Breakdown — ${d.employee_name} (${d.designation || 'Staff'})</span>
+                <span class="badge ${isAcc ? 'green' : 'red'}">${isAcc ? '✓ Zero Variance' : '⚠ Variance Detected'}</span>
               </div>
               <div class="formula-grid">
                 <div class="formula-card">
-                  <div class="formula-title">1. Base & Daily Rate</div>
+                  <div class="formula-title">1. Base &amp; Daily Rate</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.daily_rate}</div>
-                  <div style="margin-top:4px; color:var(--muted2);">${d.formulas.basic_pay}</div>
+                  <div style="margin-top:4px; color:var(--muted);">${d.formulas.basic_pay}</div>
                 </div>
 
                 <div class="formula-card">
-                  <div class="formula-title">2. Attendance & Absences</div>
+                  <div class="formula-title">2. Attendance &amp; Absences</div>
                   <div>Tardiness: ${d.formulas.tardiness}</div>
                   <div>Undertime: ${d.formulas.undertime}</div>
                   <div>Absences: ${d.formulas.absence}</div>
@@ -308,7 +631,7 @@
                 <div class="formula-card">
                   <div class="formula-title">3. Gross Salary Sum</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.gross_sum}</div>
-                  <div style="margin-top:4px; color:var(--muted2);">Match Check: ${d.gross_variance === 0 ? '✓ 100% Match' : '⚠ ' + d.gross_variance + ' Variance'}</div>
+                  <div style="margin-top:4px; color:var(--muted);">Match Check: ${d.gross_variance === 0 ? '✓ 100% Match' : '⚠ ' + d.gross_variance + ' Variance'}</div>
                 </div>
 
                 <div class="formula-card">
@@ -322,7 +645,7 @@
                 <div class="formula-card">
                   <div class="formula-title">5. Total Deductions Sum</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.ded_sum}</div>
-                  <div style="margin-top:4px; color:var(--muted2);">Match Check: ${d.deduction_variance === 0 ? '✓ 100% Match' : '⚠ ' + d.deduction_variance + ' Variance'}</div>
+                  <div style="margin-top:4px; color:var(--muted);">Match Check: ${d.deduction_variance === 0 ? '✓ 100% Match' : '⚠ ' + d.deduction_variance + ' Variance'}</div>
                 </div>
 
                 <div class="formula-card" style="background:#f0fdf4; border-color:#bbf7d0;">

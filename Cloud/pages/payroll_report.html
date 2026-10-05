@@ -186,7 +186,13 @@
 
 <script>
 (function() {
-  const fCurrency = num => '₱' + Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fCurrency = num => {
+    const val = Number(num || 0);
+    if (val < 0) {
+      return '-₱' + Math.abs(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return '₱' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
   
   let currentRuns = [];
   let currentReportData = null;
@@ -290,7 +296,7 @@
           <td style="font-weight:600;">${e.name}</td>
           <td>${e.designation}</td>
           <td class="num amt-earn">${fCurrency(e.total_gross)}</td>
-          <td class="num amt-net">${fCurrency(e.net_pay)}</td>
+          <td class="num amt-net" style="${Number(e.net_pay || 0) < 0 ? 'color:var(--red); font-weight:800;' : ''}">${fCurrency(e.net_pay)}</td>
           <td class="num">${fCurrency(e.half_basic || 0)}</td>
           <td class="num">${fCurrency(e.other_earnings || 0)}</td>
           <td class="num" style="color:var(--red)">${e.absent_deduction > 0 ? '-' + fCurrency(e.absent_deduction) : '—'}</td>

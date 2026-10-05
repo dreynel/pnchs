@@ -7,7 +7,7 @@ registry_bp = Blueprint('registry', __name__, url_prefix='/api/registry')
 @registry_bp.before_request
 def check_role_access():
     role = session.get('user', {}).get('role')
-    if role in ['Admin', 'HR', 'HR Officer']:
+    if role in ['Principal', 'Admin', 'HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized: Access to Statutory Registry is restricted'}), 403
 
 # ── Global Payheads ──────────────────────────────────────────────────────────

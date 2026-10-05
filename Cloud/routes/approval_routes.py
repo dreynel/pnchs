@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, session
 from db import db_cursor
 from services.policy_engine import AuditService, LeavePolicyService
+from services.notification_service import NotificationService
 from datetime import datetime
 
 approval_bp = Blueprint('approval_bp', __name__)
@@ -32,12 +33,12 @@ def get_approvals():
             if role in ['HR', 'HR Officer']:
                 query += " AND a.DocType='Leave'"
             elif role in ['Admin', 'Administrator', 'Principal']:
-                # Admin/Principal can view and manage both Leave and Payroll approvals
+                # Principal can view and manage both Leave and Payroll approvals
                 pass
-            elif role in ['Finance', 'Finance Officer']:
+            elif role in ['Accounting', 'Finance', 'Finance Officer']:
                 query += " AND a.DocType='Payroll'"
             else:
-                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR, Admin, Principal, and Finance.'}), 403
+                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR, Principal, and Accounting.'}), 403
 
             if status_filter and status_filter.lower() != 'all':
                 query += " AND a.ApprovalStatus = %s"
@@ -280,6 +281,19 @@ def approval_action(approval_id):
                 audit_tag = 'PAYROLL_APPROVED' if action == 'Approved' else 'PAYROLL_REJECTED'
                 AuditService.log_action(cur, audit_tag, user_name=user_name, target_table='tblpayroll', new_value=doc_number)
 
+                NotificationService.create_notification(
+                    cur,
+                    title=f"Payroll status approval: {action}",
+                    message=f"Payroll status approval: Payroll for {doc_number} was {action.lower()} by {user_name}." + (f" Remarks: {remarks}" if remarks else ""),
+                    category="Payroll",
+                    target_role="Accounting",
+                    link_url="/pages/payroll.html",
+                    link_label="View Payroll",
+                    icon="✅" if action == 'Approved' else "⚠️",
+                    priority="High",
+                    sender_name=user_name
+                )
+
             elif doc_type == 'Leave':
                 leave = None
                 leave_id = int(doc_number) if (doc_number and str(doc_number).isdigit()) else 0
@@ -353,6 +367,21 @@ def approval_action(approval_id):
                                 old_value=f"Status: {old_status}", new_value="Status: Rejected",
                                 reason=remarks or 'Leave Rejected'
                             )
+
+                    # Notify to all: leave application approval status
+                    NotificationService.create_notification(
+                        cur,
+                        title=f"leave application approval status: {action}",
+                        message=f"leave application approval status: {leave_type} Leave request for {leave_date_str} has been {action.lower()} by {user_name}." + (f" Remarks: {remarks}" if remarks else ""),
+                        category="Leave",
+                        target_role="ALL",
+                        target_employee_id=emp_id,
+                        link_url="/pages/leaves.html",
+                        link_label="View Leaves",
+                        icon="✅" if action == 'Approved' else "❌",
+                        priority="Normal",
+                        sender_name=user_name
+                    )
                 else:
                     AuditService.log_action(
                         cur, action=f'APPROVAL_{action.upper()}', user_name=user_name,

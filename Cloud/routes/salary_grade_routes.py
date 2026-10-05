@@ -7,7 +7,7 @@ salary_grade_bp = Blueprint('salary_grade', __name__, url_prefix='/api/salary_gr
 
 def _check_salary_grade_access():
     role = session.get('user', {}).get('role')
-    if role in ['Admin', 'HR', 'HR Officer']:
+    if role in ['Principal', 'Admin', 'HR', 'HR Officer']:
         return jsonify({'error': 'Unauthorized: Access to Salary Grades is restricted'}), 403
     return None
 

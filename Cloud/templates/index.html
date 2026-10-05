@@ -304,7 +304,150 @@
       display: flex; align-items: center; justify-content: center;
       font-family: 'Playfair Display', serif; font-size: 13px; cursor: pointer;
       border: 1.5px solid var(--navy-mid);
+      transition: transform 0.15s, box-shadow 0.15s;
     }
+    .tb-avatar:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(30,58,95,0.25); }
+
+    /* Topbar Profile Dropdown */
+    .profile-dropdown {
+      position: absolute;
+      top: 48px; right: 0;
+      width: 240px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.14);
+      z-index: 1060;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      animation: notifPop 0.2s cubic-bezier(.175,.885,.32,1.275);
+    }
+    .profile-dropdown.show { display: flex; }
+    .profile-dropdown-hdr {
+      padding: 12px 14px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .profile-dropdown-name { font-size: 13px; font-weight: 700; color: var(--navy); }
+    .profile-dropdown-role { font-size: 11px; color: var(--muted); }
+    .profile-dropdown-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; font-size: 12.5px; font-weight: 500;
+      color: var(--navy); text-decoration: none; cursor: pointer;
+      border: none; background: none; width: 100%; text-align: left;
+      transition: background 0.15s, color 0.15s;
+    }
+    .profile-dropdown-item:hover { background: var(--navy-light); color: var(--navy-mid); }
+    .profile-dropdown-item svg { width: 16px; height: 16px; color: var(--muted2); }
+    .profile-dropdown-divider { height: 1px; background: var(--border); margin: 2px 0; }
+    .profile-dropdown-item.text-danger { color: #dc2626; }
+    .profile-dropdown-item.text-danger:hover { background: #fee2e2; }
+
+    /* Sidebar Footer Key Button */
+    .s-key-btn {
+      width: 28px; height: 28px; min-width: 28px;
+      border-radius: 7px; display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.45); cursor: pointer; background: none; border: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .s-key-btn:hover { background: rgba(200,151,58,0.25); color: #fde68a; }
+    .sidebar.collapsed .s-key-btn { display: none; }
+
+    /* Global Change Password Modal */
+    .app-modal-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+      padding: 16px;
+      animation: fadeInModal 0.2s ease;
+    }
+    .app-modal-overlay.open { display: flex; }
+    @keyframes fadeInModal {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .app-modal-card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(15,23,42,0.25);
+      width: 100%; max-width: 440px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      animation: modalSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalSlide {
+      from { transform: translateY(16px) scale(0.97); }
+      to { transform: translateY(0) scale(1); }
+    }
+    .app-modal-header {
+      padding: 18px 22px;
+      background: #1e3a5f;
+      color: #ffffff;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .app-modal-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.15rem; font-weight: 700; margin: 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .app-modal-close {
+      background: none; border: none; color: rgba(255,255,255,0.7);
+      cursor: pointer; font-size: 18px; padding: 4px; display: flex;
+      border-radius: 6px; transition: color 0.15s;
+    }
+    .app-modal-close:hover { color: #ffffff; background: rgba(255,255,255,0.1); }
+    .app-modal-body {
+      padding: 22px;
+    }
+    .app-form-group {
+      margin-bottom: 16px;
+    }
+    .app-form-group label {
+      display: block; font-size: 11.5px; font-weight: 700;
+      color: #334155; margin-bottom: 5px; text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .app-pass-wrap {
+      position: relative; display: flex; align-items: center;
+    }
+    .app-pass-input {
+      width: 100%; height: 38px; border-radius: 8px;
+      border: 1.5px solid #cbd5e1; padding: 0 40px 0 12px;
+      font-size: 13.5px; color: #1e293b; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .app-pass-input:focus {
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 3px rgba(30,58,95,0.12);
+    }
+    .app-pass-eye {
+      position: absolute; right: 8px; background: none; border: none;
+      color: #64748b; cursor: pointer; padding: 4px; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .app-pass-eye:hover { color: #1e3a5f; }
+    .app-modal-footer {
+      padding: 14px 22px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+    .app-btn-sec {
+      padding: 8px 16px; border-radius: 8px; border: 1.5px solid #cbd5e1;
+      background: #ffffff; color: #475569; font-size: 12.5px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .app-btn-sec:hover { background: #f1f5f9; }
+    .app-btn-prim {
+      padding: 8px 18px; border-radius: 8px; border: none;
+      background: #1e3a5f; color: #ffffff; font-size: 12.5px; font-weight: 600;
+      cursor: pointer; box-shadow: 0 2px 6px rgba(30,58,95,0.25);
+      transition: background 0.15s, transform 0.15s;
+    }
+    .app-btn-prim:hover { background: #162c46; transform: translateY(-1px); }
+
 
     /* Live Feed Pill */
     .live-pill {
@@ -473,7 +616,7 @@
     </div>
 
     <nav>
-      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer'] %}
       <div class="nav-section-label">Overview</div>
       <a href="#" class="nav-item active" onclick="navigate(event, this, 'Dashboard', '/pages/dashboard.html', '/dashboard')">
         <div class="nav-icon">
@@ -487,7 +630,7 @@
       {% endif %}
 
       <div class="nav-section-label">Workforce &amp; Leaves</div>
-      {% if user.role in ['Principal', 'HR', 'HR Officer'] %}
+      {% if user.role in ['HR', 'HR Officer'] %}
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Employees', '/pages/employee.html', '/employees')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -507,9 +650,9 @@
         <span class="label">Leave Management</span>
       </a>
 
-      {% if user.role in ['Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Accounting', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
-      <div class="nav-section-label">Payroll &amp; Finance</div>
+      <div class="nav-section-label">Payroll &amp; Accounting</div>
 
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Processing', '/pages/payroll.html', '/payroll')">
         <div class="nav-icon">
@@ -548,7 +691,7 @@
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'HR', 'HR Officer', 'Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'HR', 'HR Officer', 'Principal', 'Accounting', 'Finance', 'Finance Officer'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Governance</div>
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html', '/approvals')">
@@ -569,14 +712,14 @@
         <span class="label">Daily Time Record (DTR)</span>
       </a>
 
-      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Biometric Logs', '/pages/logs.html', '/logs')">
         <span class="nav-sub-dot"></span>
         <span class="label">Biometric Logs</span>
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'Accounting', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report')">
         <span class="nav-sub-dot"></span>
         <span class="label">Payroll Report</span>
@@ -590,7 +733,7 @@
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'Principal', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'Principal', 'Accounting', 'Finance', 'Finance Officer'] %}
       <a href="#" class="nav-sub-item" onclick="navigate(event, this, 'Payroll Audit', '/pages/payroll_audit.html', '/payroll_audit')">
         <span class="nav-sub-dot"></span>
         <span class="label">Payroll Audit</span>
@@ -606,11 +749,16 @@
     </nav>
 
     <div class="sidebar-footer">
-      <div class="s-avatar" id="userAvatar">{{ user.name.split()[0][0] }}{{ user.name.split()[-1][0] }}</div>
-      <div class="s-user-info">
+      <div class="s-avatar" id="userAvatar" onclick="openChangePasswordModal()" title="Change Password" style="cursor:pointer;">{{ user.name.split()[0][0] }}{{ user.name.split()[-1][0] }}</div>
+      <div class="s-user-info" onclick="openChangePasswordModal()" title="Change Password" style="cursor:pointer;">
         <div class="s-user-name" id="userName">{{ user.name }}</div>
         <div class="s-user-role" id="userRole">{{ user.role }}</div>
       </div>
+      <button class="s-key-btn" onclick="openChangePasswordModal()" title="Change Password">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
+      </button>
       <a href="/logout" class="s-logout" title="Sign out">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -667,12 +815,33 @@
           <div class="notif-body" id="notifList">
             <div style="padding:24px;text-align:center;color:var(--muted2);font-size:12px;">Loading notifications…</div>
           </div>
-          <div class="notif-ftr">
+          <div class="notif-ftr" id="notifFooter">
             <a href="#" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html'); $('#notifDropdown').removeClass('show');">Open Approvals &rarr;</a>
           </div>
         </div>
 
-        <div class="tb-avatar" id="topAvatar">{{ user.name.split()[0][0] }}{{ user.name.split()[-1][0] }}</div>
+        <!-- Profile Avatar & Dropdown -->
+        <div class="tb-avatar" id="topAvatar" onclick="toggleProfileDropdown(event)" title="{{ user.name }} ({{ user.role }})">{{ user.name.split()[0][0] }}{{ user.name.split()[-1][0] }}</div>
+        
+        <div class="profile-dropdown" id="profileDropdown">
+          <div class="profile-dropdown-hdr">
+            <div class="profile-dropdown-name">{{ user.name }}</div>
+            <div class="profile-dropdown-role">{{ user.role }} • {{ user.email }}</div>
+          </div>
+          <button type="button" class="profile-dropdown-item" onclick="openChangePasswordModal(); $('#profileDropdown').removeClass('show');">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+            </svg>
+            <span>Change Password</span>
+          </button>
+          <div class="profile-dropdown-divider"></div>
+          <a href="/logout" class="profile-dropdown-item text-danger">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            <span>Sign Out</span>
+          </a>
+        </div>
       </div>
     </div>
 
@@ -685,6 +854,62 @@
 
   </div>
 
+  <!-- ════ GLOBAL CHANGE PASSWORD MODAL ════ -->
+  <div class="app-modal-overlay" id="changePasswordModal">
+    <div class="app-modal-card">
+      <div class="app-modal-header">
+        <div class="app-modal-title">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+          </svg>
+          <span>Change Account Password</span>
+        </div>
+        <button type="button" class="app-modal-close" onclick="closeChangePasswordModal()" title="Close">&times;</button>
+      </div>
+      <form id="changePasswordForm" onsubmit="submitChangePassword(event)">
+        <div class="app-modal-body">
+          <div style="font-size:12.5px; color:#64748b; margin-bottom:16px;">
+            Update your login credentials. Make sure your new password is at least 6 characters.
+          </div>
+          
+          <div class="app-form-group">
+            <label for="currentPassword">Current Password</label>
+            <div class="app-pass-wrap">
+              <input type="password" id="currentPassword" class="app-pass-input" required placeholder="Enter current password">
+              <button type="button" class="app-pass-eye" onclick="togglePassVisibility('currentPassword', this)" title="Toggle visibility">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="app-form-group">
+            <label for="newPassword">New Password</label>
+            <div class="app-pass-wrap">
+              <input type="password" id="newPassword" class="app-pass-input" required minlength="6" placeholder="Enter new password (min. 6 chars)">
+              <button type="button" class="app-pass-eye" onclick="togglePassVisibility('newPassword', this)" title="Toggle visibility">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="app-form-group" style="margin-bottom:6px;">
+            <label for="confirmPassword">Confirm New Password</label>
+            <div class="app-pass-wrap">
+              <input type="password" id="confirmPassword" class="app-pass-input" required minlength="6" placeholder="Confirm new password">
+              <button type="button" class="app-pass-eye" onclick="togglePassVisibility('confirmPassword', this)" title="Toggle visibility">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="app-modal-footer">
+          <button type="button" class="app-btn-sec" onclick="closeChangePasswordModal()">Cancel</button>
+          <button type="submit" id="savePasswordBtn" class="app-btn-prim">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     $(function () {
 
@@ -692,13 +917,12 @@
       $.ajaxSetup({ cache: false });
 
       // ── Real-time Notification Toast & Dropdown Helper ─────────────────────
+      // ── Real-time Notification Toast & Dropdown Helper ─────────────────────
       let unreadCount = 0;
+      let lastSeenNotifIds = new Set();
+      let notifInitialLoadDone = false;
 
-      function showLiveToast(msg, icon = '⚡') {
-        unreadCount++;
-        $('#notifBadgeCount').text(unreadCount);
-        $('#liveNotifDot').show();
-
+      function showLiveToast(msg, icon = '🔔') {
         const toast = $(`
           <div class="live-toast">
             <span style="font-size:16px;">${icon}</span>
@@ -709,7 +933,7 @@
         setTimeout(() => {
           toast.addClass('fade-out');
           setTimeout(() => toast.remove(), 300);
-        }, 4000);
+        }, 4500);
       }
       window.showLiveToast = showLiveToast;
 
@@ -722,125 +946,234 @@
         }
       };
 
-      window.markAllNotificationsRead = function(e) {
-        if (e) e.stopPropagation();
-        unreadCount = 0;
-        $('#notifBadgeCount').text(0);
-        $('#liveNotifDot').hide();
-        $('.notif-item').removeClass('unread');
+      window.handleNotificationClick = function(notifId, targetUrl, targetTitle) {
+        $.post('/api/notifications/' + notifId + '/read');
+        $('#notifDropdown').removeClass('show');
+        if (targetUrl) {
+          navigate(event, null, targetTitle || 'Page', targetUrl);
+        }
+        loadNotificationsList();
       };
 
-      // Close dropdown when clicking outside
+      window.markAllNotificationsRead = function(e) {
+        if (e) e.stopPropagation();
+        $.post('/api/notifications/read-all', function() {
+          unreadCount = 0;
+          $('#notifBadgeCount').text(0);
+          $('#liveNotifDot').hide();
+          $('.notif-item').removeClass('unread');
+          loadNotificationsList();
+        });
+      };
+
+      // Close dropdowns when clicking outside
       $(document).on('click', function(e) {
         if (!$(e.target).closest('#notifDropdown, #notifBtn').length) {
           $('#notifDropdown').removeClass('show');
         }
+        if (!$(e.target).closest('#profileDropdown, #topAvatar').length) {
+          $('#profileDropdown').removeClass('show');
+        }
       });
 
-      function loadNotificationsList() {
-        $.get('/api/dashboard/stats', function(data) {
-          if (!data || data.error) return;
-          const acts = data.activity || [];
-          const pendingLeaves = data.summary?.pending_leaves || 0;
-          
-          let listHtml = '';
-          let totalCount = 0;
+      // ── Topbar Profile Dropdown ──────────────────────────────────────────
+      window.toggleProfileDropdown = function(e) {
+        if (e) e.stopPropagation();
+        $('#profileDropdown').toggleClass('show');
+      };
 
-          if (pendingLeaves > 0) {
-            totalCount += pendingLeaves;
-            listHtml += `
-              <div class="notif-item unread" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html'); $('#notifDropdown').removeClass('show');">
-                <div class="notif-icon-box" style="background:#fff7ed;color:#c2410c;">📝</div>
-                <div>
-                  <div class="notif-item-title">Pending Leave Requests</div>
-                  <div class="notif-item-sub">There are <strong>${pendingLeaves}</strong> leave application(s) awaiting approval review.</div>
-                  <div class="notif-item-time">Requires Approval Action &rarr;</div>
-                </div>
-              </div>
-            `;
+      // ── Global Change Password Modal Handlers ────────────────────────────
+      window.openChangePasswordModal = function() {
+        $('#changePasswordForm')[0].reset();
+        $('#changePasswordModal').addClass('open');
+        setTimeout(() => $('#currentPassword').focus(), 100);
+      };
+
+      window.closeChangePasswordModal = function() {
+        $('#changePasswordModal').removeClass('open');
+        $('#changePasswordForm')[0].reset();
+      };
+
+      window.togglePassVisibility = function(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        if (input.type === 'password') {
+          input.type = 'text';
+          $(btn).html(`
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
+            </svg>
+          `);
+        } else {
+          input.type = 'password';
+          $(btn).html(`
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+          `);
+        }
+      };
+
+      window.submitChangePassword = function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        const curPass = ($('#currentPassword').val() || '').trim();
+        const newPass = ($('#newPassword').val() || '').trim();
+        const confPass = ($('#confirmPassword').val() || '').trim();
+
+        if (!curPass) {
+          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Validation Error', text: 'Current password is required.' });
+          else alert('Current password is required.');
+          return;
+        }
+        if (newPass.length < 6) {
+          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Validation Error', text: 'New password must be at least 6 characters long.' });
+          else alert('New password must be at least 6 characters long.');
+          return;
+        }
+        if (newPass !== confPass) {
+          if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Validation Error', text: 'New password and confirmation do not match.' });
+          else alert('New password and confirmation do not match.');
+          return;
+        }
+
+        const btn = $('#savePasswordBtn');
+        btn.prop('disabled', true).text('Updating...');
+
+        $.ajax({
+          url: '/api/auth/change_password',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            current_password: curPass,
+            new_password: newPass,
+            confirm_password: confPass
+          }),
+          success: function(resp) {
+            btn.prop('disabled', false).text('Update Password');
+            closeChangePasswordModal();
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'success',
+                title: 'Password Updated!',
+                text: resp.message || 'Your account password has been updated successfully.',
+                confirmButtonColor: '#1e3a5f'
+              });
+            } else {
+              alert(resp.message || 'Password updated successfully!');
+            }
+          },
+          error: function(xhr) {
+            btn.prop('disabled', false).text('Update Password');
+            const err = xhr.responseJSON;
+            const errMsg = (err && err.error) || 'Failed to update password.';
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: 'Password Change Failed',
+                text: errMsg,
+                confirmButtonColor: '#1e3a5f'
+              });
+            } else {
+              alert(errMsg);
+            }
+          }
+        });
+      };
+
+
+      function loadNotificationsList() {
+        $.get('/api/notifications', function(res) {
+          if (!res || !res.success) return;
+          const notifs = res.notifications || [];
+          unreadCount = res.unread_count || 0;
+          $('#notifBadgeCount').text(unreadCount);
+          if (unreadCount > 0) {
+            $('#liveNotifDot').show();
+          } else {
+            $('#liveNotifDot').hide();
           }
 
-          if (acts.length > 0) {
-            acts.forEach(a => {
-              totalCount++;
-              const icon = a.tag === 'Biometric' ? '⏱️' : a.tag === 'Leave' ? '🌴' : '👤';
-              let targetPage = '/pages/logs.html';
-              let targetTitle = 'Biometric Logs';
-              if (a.tag === 'Leave') { targetPage = '/pages/leaves.html'; targetTitle = 'Leave Management'; }
-              else if (a.tag === 'Staff') { targetPage = '/pages/employee.html'; targetTitle = 'Employees'; }
-              
+          // Check for newly arrived unread notifications to display targeted live toast
+          if (notifInitialLoadDone) {
+            notifs.forEach(n => {
+              if (!n.is_read && !lastSeenNotifIds.has(n.id)) {
+                showLiveToast(`<strong>${n.title}</strong>: ${n.message}`, n.icon || '🔔');
+              }
+            });
+          }
+          notifs.forEach(n => lastSeenNotifIds.add(n.id));
+          notifInitialLoadDone = true;
+
+          let listHtml = '';
+          if (notifs.length > 0) {
+            notifs.forEach(n => {
+              const unreadCls = !n.is_read ? 'unread' : '';
+              const icon = n.icon || '🔔';
+              const targetUrl = n.link_url || '';
+              const targetTitle = n.link_label || 'View';
               listHtml += `
-                <div class="notif-item" onclick="navigate(event, this, '${targetTitle}', '${targetPage}'); $('#notifDropdown').removeClass('show');">
+                <div class="notif-item ${unreadCls}" onclick="handleNotificationClick(${n.id}, '${targetUrl}', '${targetTitle}')">
                   <div class="notif-icon-box">${icon}</div>
-                  <div>
-                    <div class="notif-item-title">${a.name}</div>
-                    <div class="notif-item-sub">${a.type}</div>
-                    <div class="notif-item-time">${a.date_label || ''} • ${a.time_label || ''}</div>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+                      <div class="notif-item-title">${n.title}</div>
+                      <span style="font-size:9.5px; color:var(--muted2); white-space:nowrap;">${n.time_ago || ''}</span>
+                    </div>
+                    <div class="notif-item-sub">${n.message}</div>
+                    ${n.link_label ? `<div class="notif-item-time" style="color:var(--navy); font-weight:600;">${n.link_label} &rarr;</div>` : ''}
                   </div>
                 </div>
               `;
             });
-          }
-
-          if (!listHtml) {
-            listHtml = `<div style="padding:24px;text-align:center;color:var(--muted2);font-size:12px;">No new notifications.</div>`;
+          } else {
+            listHtml = `<div style="padding:24px;text-align:center;color:var(--muted2);font-size:12px;">No new notifications for your role.</div>`;
           }
 
           $('#notifList').html(listHtml);
-          $('#notifBadgeCount').text(totalCount);
-          if (totalCount > 0 && unreadCount > 0) {
-            $('#liveNotifDot').show();
+
+          // Configure footer link dynamically based on authenticated role
+          const role = res.role || '';
+          let ftrHtml = '';
+          if (role === 'Principal' || role === 'Admin') {
+            ftrHtml = `<a href="#" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html'); $('#notifDropdown').removeClass('show');">Executive Approvals &rarr;</a>`;
+          } else if (role === 'Accounting' || role === 'Finance' || role === 'Finance Officer') {
+            ftrHtml = `<a href="#" onclick="navigate(event, this, 'Payroll', '/pages/payroll.html'); $('#notifDropdown').removeClass('show');">Payroll Processing &rarr;</a>`;
+          } else if (role === 'HR' || role === 'HR Officer') {
+            ftrHtml = `<a href="#" onclick="navigate(event, this, 'Leave Management', '/pages/leaves.html'); $('#notifDropdown').removeClass('show');">Leave Management &rarr;</a>`;
+          } else {
+            ftrHtml = `<a href="#" onclick="navigate(event, this, 'My Payslip', '/pages/mypayslip.html'); $('#notifDropdown').removeClass('show');">View My Payslips &rarr;</a>`;
           }
+          $('#notifFooter').html(ftrHtml);
         });
       }
 
-      // ── Real-time Database Synchronizer (Global Feed) ─────────────────────
-      let lastActivitySig = null;
+      // ── Real-time Database Synchronizer (Global Data Feed) ─────────────────────
       let lastEmpCount = null;
       let lastPayrollGross = null;
       let isFirstPoll = true;
 
       function pollDatabaseFeed() {
+        // Poll targeted notifications
+        loadNotificationsList();
+
+        // Background data sync for open tabs/charts
         $.get('/api/dashboard/stats', function(data) {
           if (!data || data.error) return;
 
           const totalEmps = data.summary?.total_employees || 0;
           const payrollGross = data.kpis?.total_gross || 0;
-          const acts = data.activity || [];
-          const currentSig = acts.length > 0 ? (acts[0].name + acts[0].type + acts[0].time_label) : '';
-
-          if (data.summary?.pending_leaves > 0) {
-            $('#liveNotifDot').show();
-          }
 
           if (!isFirstPoll) {
             let changeDetected = false;
-
-            if (currentSig && currentSig !== lastActivitySig) {
-              changeDetected = true;
-              const latest = acts[0];
-              if (latest.tag === 'Biometric') {
-                showLiveToast(`<strong>${latest.name}</strong> punched <strong>${latest.type}</strong> (${latest.time_label})`, '⏱️');
-              } else {
-                showLiveToast(`<strong>${latest.name}</strong> was registered into system`, '👤');
-              }
-            }
-
-            if (lastEmpCount !== null && totalEmps !== lastEmpCount) {
-              changeDetected = true;
-            }
-
-            if (lastPayrollGross !== null && payrollGross !== lastPayrollGross) {
-              changeDetected = true;
-              showLiveToast(`Payroll summary records updated`, '💰');
-            }
+            if (lastEmpCount !== null && totalEmps !== lastEmpCount) changeDetected = true;
+            if (lastPayrollGross !== null && payrollGross !== lastPayrollGross) changeDetected = true;
 
             if (changeDetected) {
               window.dispatchEvent(new CustomEvent('pnchs:data-change', { detail: data }));
             }
           }
 
-          lastActivitySig = currentSig;
           lastEmpCount = totalEmps;
           lastPayrollGross = payrollGross;
           isFirstPoll = false;

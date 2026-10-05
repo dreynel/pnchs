@@ -8,3 +8,4 @@ from .salary_grade_routes import salary_grade_bp
 from .dashboard_routes import dashboard_bp
 from .audit_routes import audit_bp
 from .approval_routes import approval_bp
+from .notification_routes import notification_bp
