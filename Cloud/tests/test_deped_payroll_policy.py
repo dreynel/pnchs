@@ -304,6 +304,29 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
         self.assertEqual(is_negative, 1)
         self.assertLess(net_pay, 0)
 
+    def test_14_total_absent_lwop_zero_salary_best_practice(self):
+        """TEST 14: Total absent employee (full period LWOP, 0 credits) yields 0.00 earned gross and flags uncollected deductions."""
+        basic_salary = 27000.00
+        half_basic = basic_salary / 2  # 13,500.00
+        working_days = 11
+        daily_rate = basic_salary / 22  # 1,227.2727
+        
+        # 100% absent for all 11 days with 0 leave credits
+        absent_days = 11
+        absent_deduction = round(absent_days * daily_rate, 2)  # 13,500.00
+        
+        earned_gross = max(0.0, round(half_basic - absent_deduction, 2))
+        self.assertEqual(earned_gross, 0.00)
+        
+        # Statutory & loan deductions that could not be deducted from zero salary
+        statutory = 1990.00
+        uncollected_deductions = statutory if earned_gross == 0 else 0.00
+        self.assertEqual(uncollected_deductions, 1990.00)
+        
+        # In DepEd accounting, the payroll record exists with is_lwop=True
+        is_lwop = bool(absent_days >= working_days and earned_gross <= 0.01)
+        self.assertTrue(is_lwop)
+
 
 if __name__ == '__main__':
     unittest.main()

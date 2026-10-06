@@ -636,10 +636,12 @@
 
                 <div class="formula-card">
                   <div class="formula-title">4. Deductions Breakdown</div>
-                  <div>PhilHealth: ${fmtCurr(d.philhealth_ee)}</div>
+                  <div>GSIS (EE 9%): ${fmtCurr(d.sss_ee)}</div>
+                  <div>PhilHealth (EE): ${fmtCurr(d.philhealth_ee)}</div>
+                  <div>Pag-IBIG (EE): ${fmtCurr(d.pagibig_ee)}</div>
                   <div>Withholding Tax: ${fmtCurr(d.withholding_tax)}</div>
-                  <div>Pag-IBIG / SSS: ${fmtCurr(d.pagibig_ee + d.sss_ee)}</div>
-                  <div>Loans / Custom: ${fmtCurr(d.other_deductions)}</div>
+                  <div>Absences &amp; LWOP: ${fmtCurr((d.absent_deduction || 0) + (d.tardiness_deduction || 0) + (d.undertime_deduction || 0))}</div>
+                  <div>Loans / APDS: ${fmtCurr(d.other_deductions)}</div>
                 </div>
 
                 <div class="formula-card">

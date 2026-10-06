@@ -6,15 +6,27 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import threading
 from datetime import datetime
+_cloud_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_root_dir = os.path.dirname(_cloud_dir)
+_candidate_envs = [
+    os.path.join(_cloud_dir, '.env'),
+    os.path.join(_root_dir, '.env')
+]
+
 try:
     from dotenv import load_dotenv
+    for _p in _candidate_envs:
+        if os.path.exists(_p):
+            load_dotenv(_p)
     load_dotenv()
 except ImportError:
-    # Native zero-dependency .env loader if python-dotenv is not installed
-    _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
-    if os.path.exists(_env_path):
+    pass
+
+# Fallback parser for .env if python-dotenv is not installed
+for _p in _candidate_envs:
+    if os.path.exists(_p):
         try:
-            with open(_env_path, 'r', encoding='utf-8') as _f:
+            with open(_p, 'r', encoding='utf-8') as _f:
                 for _line in _f:
                     _line = _line.strip()
                     if _line and not _line.startswith('#') and '=' in _line:
@@ -26,23 +38,22 @@ except ImportError:
         except Exception:
             pass
 
-_K1 = "xkeysib-ca7a93aa4f22f907d2a61aec15691b54a4d"
-_K2 = "32be1a940714a178ed2ea3bd7970f-me1q3ZAt8mccApxo"
-DEFAULT_BREVO_KEY = _K1 + _K2
-BREVO_API_KEY = os.getenv("BREVO_API_KEY", DEFAULT_BREVO_KEY)
+# All credentials must come strictly from .env / environment variables
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 
 # SMTP Configuration (Brevo default or custom SMTP like Gmail/Hostinger/cPanel)
 SMTP_HOST = os.getenv("SMTP_HOST", os.getenv("BREVO_SMTP_HOST", "smtp-relay.brevo.com"))
 SMTP_PORT = int(os.getenv("SMTP_PORT", os.getenv("BREVO_SMTP_PORT", 587)))
-SMTP_USER = os.getenv("SMTP_USER", os.getenv("BREVO_SMTP_LOGIN", "b8b3f7001@smtp-brevo.com"))
-SMTP_PASS = os.getenv("SMTP_PASS", os.getenv("BREVO_SMTP_KEY", BREVO_API_KEY))
+SMTP_USER = os.getenv("SMTP_USER", os.getenv("BREVO_SMTP_LOGIN", ""))
+SMTP_PASS = os.getenv("SMTP_PASS", os.getenv("BREVO_SMTP_KEY", ""))
 
 BREVO_SMTP_HOST = SMTP_HOST
 BREVO_SMTP_PORT = SMTP_PORT
 BREVO_SMTP_USER = SMTP_USER
+BREVO_SMTP_PASS = SMTP_PASS
 
 SENDER_NAME = os.getenv("SENDER_NAME", "Pototan National Comprehensive High School (PNCHS)")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL", "bjohnlenard@gmail.com")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "")
 
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
 
@@ -103,7 +114,7 @@ def validate_email_service():
             server.ehlo()
             server.starttls()
             server.ehlo()
-            server.login(BREVO_SMTP_USER, BREVO_API_KEY)
+            server.login(BREVO_SMTP_USER, BREVO_SMTP_PASS)
             report["smtp_valid"] = True
             report["smtp_message"] = f"Brevo SMTP relay ({BREVO_SMTP_HOST}:{BREVO_SMTP_PORT}) authenticated successfully."
     except Exception as smtp_err:

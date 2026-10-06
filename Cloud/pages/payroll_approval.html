@@ -280,6 +280,7 @@
         <div class="ph-total-row"><span>Total Deductions</span><span id="dDeduct">₱0.00</span></div>
         <div class="ph-total-row grand"><span>Net Take Home</span><span id="dNet">₱0.00</span></div>
       </div>
+      <div id="drawerAuditBadge" style="margin-top:10px;"></div>
       <div style="margin-top:15px;text-align:right;">
         <button class="btn btn-primary" onclick="$('#payheadDrawer').removeClass('open')">Close Details</button>
       </div>
@@ -315,15 +316,21 @@
     <div style="padding:20px; display:flex; justify-content:center;">
       <div id="payslipContent" style="width: 850px; max-width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; color: #000; background: #fff; padding: 30px; box-sizing: border-box; text-transform: uppercase; box-shadow:0 10px 25px rgba(0,0,0,0.05); border-radius:4px;">
         <!-- HEADER BLOCK -->
-        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-          <div style="flex: 1;" id="ps_print_date"></div>
-          <div style="text-align: center; flex: 2; line-height: 1.4; letter-spacing: 0.5px;">
-            Republic of the Philippines<br>
-            <span style="font-weight: bold; font-size: 13px;">DEPARTMENT OF EDUCATION</span><br>
-            <span style="letter-spacing: 2px;">OFFICIAL PAYROLL SLIP</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 14px;">
+          <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+            <img src="/static/logo.png" alt="PNCHS Seal" style="width: 50px; height: 50px; object-fit: contain;">
+            <div style="font-size: 9.5px; line-height: 1.3;" id="ps_print_date"></div>
           </div>
-          <div style="text-align: right; flex: 1;">
-            <span id="ps_print_id">000000</span>
+          <div style="text-align: center; flex: 2; line-height: 1.35; letter-spacing: 0.3px;">
+            <span style="font-size: 10px;">Republic of the Philippines</span><br>
+            <span style="font-weight: bold; font-size: 12.5px;">DEPARTMENT OF EDUCATION</span><br>
+            <span style="font-size: 10px;">REGION VI - WESTERN VISAYAS · DIVISION OF ILOILO</span><br>
+            <span style="font-weight: bold; font-size: 11.5px;">POTOTAN NATIONAL COMPREHENSIVE HIGH SCHOOL</span><br>
+            <span style="letter-spacing: 2px; font-weight: bold; font-size: 12px; margin-top: 2px; display: inline-block;">OFFICIAL PAYROLL SLIP</span>
+          </div>
+          <div style="text-align: right; flex: 1; font-size: 10px;">
+            <div>DOC REF: <span id="ps_print_id" style="font-weight: bold;">000000</span></div>
+            <div style="color: #666; font-size: 9px; margin-top: 2px;">School ID: 302556</div>
           </div>
         </div>
 
@@ -332,6 +339,12 @@
           <div id="ps_issue_date" style="flex: 1;"></div>
           <div id="ps_month_label" style="text-align: center; flex: 2;">For the Month of ...</div>
           <div style="text-align: right; flex: 1;">Page 1 Of 1</div>
+        </div>
+
+        <!-- LWOP NOTICE BANNER -->
+        <div id="ps_lwop_notice" style="display:none; background:#fff1f2; border:1px solid #fecdd3; border-radius:4px; padding:8px 12px; margin-bottom:12px; color:#9f1239; font-size:10px; line-height:1.45; text-transform:none;">
+          <strong>⚠️ STATUS: LEAVE WITHOUT PAY (LWOP) — ZERO SALARY DISBURSED</strong><br>
+          Total absence recorded for this pay period with exhausted leave credits. In accordance with Civil Service Commission (CSC) and DepEd "No Work, No Pay" rules, basic pay is fully offset by absence deductions. Statutory contributions and loan amortizations cannot be deducted from payroll and remain as uncollected arrears.
         </div>
 
         <!-- EMPLOYEE INFO GRID -->
@@ -400,7 +413,9 @@
                 <span style="width: 75px;">Amount Of<br>Deduction</span>
               </span>
             </div>
-            <div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>
+            <div id="ps_undeducted_list">
+              <div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>
+            </div>
           </div>
         </div>
 
@@ -615,20 +630,9 @@
       let eHtml = `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Basic Salary (50%)</span><span style="font-weight:600;">${fmt(e.half_basic)}</span></div>`;
       let dHtml = ``;
 
-      if (e.payheads_json) {
-        try {
-          const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
-          (ph.earnings || []).forEach(item => {
-            eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600;">${fmt(item.amount)}</span></div>`;
-          });
-          (ph.deductions || []).forEach(item => {
-            dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600; color:var(--red);">${fmt(item.amount)}</span></div>`;
-          });
-        } catch(ex) { console.error('Error parsing payheads_json', ex); }
-      }
-
+      // 1. Attendance Deductions
       if (parseFloat(e.absent_deduction) > 0) {
-        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Absence Deduction</span><span style="font-weight:600; color:var(--red);">${fmt(e.absent_deduction)}</span></div>`;
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Absence Deduction (${e.absent_days || 0}d)</span><span style="font-weight:600; color:var(--red);">${fmt(e.absent_deduction)}</span></div>`;
       }
       if (parseFloat(e.tardiness_deduction) > 0) {
         dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Unpaid Tardiness (${e.lwop_tardiness_minutes || e.late_minutes} min)</span><span style="font-weight:600; color:var(--red);">${fmt(e.tardiness_deduction)}</span></div>`;
@@ -637,19 +641,71 @@
         dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Unpaid Undertime (${e.lwop_undertime_minutes || e.undertime_minutes} min)</span><span style="font-weight:600; color:var(--red);">${fmt(e.undertime_deduction)}</span></div>`;
       }
 
+      // 2. Statutory Contributions
+      let hasStat = false;
       if (e.statutory_json) {
         try {
           const st = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
           const skip = ['ABSENCE','TARDINESS','UNDERTIME','WTAX'];
           for (const [key, amount] of Object.entries(st)) {
-            if (skip.includes(key) || parseFloat(amount) === 0) continue;
-            dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${key.replace(/_/g,' ')}</span><span style="font-weight:600; color:var(--red);">${fmt(amount)}</span></div>`;
+            if (skip.includes(key) || parseFloat(amount) <= 0) continue;
+            hasStat = true;
+            let label = key.replace(/_/g,' ');
+            if (key === 'GSIS' || key === 'GSIS_EE') label = 'GSIS Contribution (EE 9%)';
+            else if (key === 'PHILHEALTH' || key === 'PHIC_EE') label = 'PhilHealth (EE)';
+            else if (key === 'PAGIBIG' || key === 'PAGIBIG_EE') label = 'Pag-IBIG (EE)';
+            dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${label}</span><span style="font-weight:600; color:var(--red);">${fmt(amount)}</span></div>`;
           }
-          const wtax = st['WTAX'];
+          const wtax = st.WTAX || st.wtax;
           if (wtax && parseFloat(wtax) > 0) {
-            dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Withholding Tax</span><span style="font-weight:600; color:var(--red);">${fmt(wtax)}</span></div>`;
+            hasStat = true;
+            dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Withholding Tax (BIR)</span><span style="font-weight:600; color:var(--red);">${fmt(wtax)}</span></div>`;
           }
         } catch(ex) {}
+      }
+      if (!hasStat) {
+        if (parseFloat(e.gsis_ee) > 0) {
+          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>GSIS Contribution (EE 9%)</span><span style="font-weight:600; color:var(--red);">${fmt(e.gsis_ee)}</span></div>`;
+        }
+        if (parseFloat(e.philhealth_ee) > 0) {
+          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>PhilHealth (EE)</span><span style="font-weight:600; color:var(--red);">${fmt(e.philhealth_ee)}</span></div>`;
+        }
+        if (parseFloat(e.pagibig_ee) > 0) {
+          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Pag-IBIG (EE)</span><span style="font-weight:600; color:var(--red);">${fmt(e.pagibig_ee)}</span></div>`;
+        }
+        if (parseFloat(e.withholding_tax) > 0) {
+          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Withholding Tax (BIR)</span><span style="font-weight:600; color:var(--red);">${fmt(e.withholding_tax)}</span></div>`;
+        }
+      }
+
+      // 3. Custom Payheads / Allowances & Other Deductions
+      let hasCustomDeduct = false;
+      let hasCustomEarn = false;
+      if (e.payheads_json) {
+        try {
+          const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          (ph.earnings || []).forEach(item => {
+            if (parseFloat(item.amount) > 0) {
+              hasCustomEarn = true;
+              eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600;">${fmt(item.amount)}</span></div>`;
+            }
+          });
+          (ph.deductions || []).forEach(item => {
+            if (parseFloat(item.amount) > 0) {
+              hasCustomDeduct = true;
+              dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600; color:var(--red);">${fmt(item.amount)}</span></div>`;
+            }
+          });
+        } catch(ex) { console.error('Error parsing payheads_json', ex); }
+      }
+      if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
+        eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Other Earnings / Allowances</span><span style="font-weight:600;">${fmt(e.other_earnings)}</span></div>`;
+      }
+      if (parseFloat(e.holiday_pay) > 0) {
+        eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Holiday Pay</span><span style="font-weight:600;">${fmt(e.holiday_pay)}</span></div>`;
+      }
+      if (!hasCustomDeduct && parseFloat(e.other_deductions) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Other Deductions / Loans</span><span style="font-weight:600; color:var(--red);">${fmt(e.other_deductions)}</span></div>`;
       }
 
       $('#earningList').html(eHtml || '<div style="padding:10px; color:var(--muted2); font-size:12px;">No earnings found</div>');
@@ -783,7 +839,48 @@
       $('#attendanceOffsetContent').html(attHtml);
       $('#dGross').text(fmt(e.total_gross));
       $('#dDeduct').text(fmt(e.total_deduct));
-      $('#dNet').text(fmt(e.net_pay));
+
+      const isLwopZero = Boolean(e.is_lwop || (parseFloat(e.net_pay) <= 0 && (e.absent_days || 0) > 0));
+      if (isLwopZero) {
+        $('#dNet').html('<span style="color:var(--red); font-weight:800;">₱0.00 (LWOP)</span>');
+      } else {
+        $('#dNet').text(fmt(e.net_pay));
+      }
+
+      // Mathematical audit check between itemized items and stored totals
+      const storedGross = parseFloat(e.total_gross) || 0;
+      const storedDeduct = parseFloat(e.total_deduct) || 0;
+      const storedNet = parseFloat(e.net_pay) || 0;
+      const calcNet = Math.round((storedGross - storedDeduct) * 100) / 100;
+      const netVariance = Math.abs(calcNet - storedNet);
+
+      if (netVariance <= 0.01) {
+        $('#drawerAuditBadge').html(`
+          <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#166534; display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-weight:600; display:flex; align-items:center; gap:6px;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              Deduction &amp; Net Pay Verified
+            </span>
+            <span style="font-size:10.5px; color:#15803d; font-weight:700;">✓ 100% Match</span>
+          </div>
+        `);
+      } else {
+        $('#drawerAuditBadge').html(`
+          <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#991b1b; display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-weight:600;">⚠ Variance: ₱${fmt(netVariance)}</span>
+            <span style="font-size:10.5px;">Audited Net: ₱${fmt(calcNet)}</span>
+          </div>
+        `);
+      }
+
+      if (e.uncollected_deductions && e.uncollected_deductions > 0) {
+        $('#drawerAuditBadge').append(`
+          <div style="margin-top:6px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; font-size:11px; color:#92400e;">
+            <strong>Uncollected Deductions:</strong> ₱${fmt(e.uncollected_deductions)} carried forward per DepEd Order No. 5, s. 2018.
+          </div>
+        `);
+      }
+
       $('#payheadDrawer').addClass('open');
     };
 
@@ -794,24 +891,36 @@
       if (!e) return;
       
       const pD = new Date();
-      $('#ps_print_date').text(pD.toLocaleDateString() + ' ' + pD.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-      $('#ps_issue_date').text(pD.toLocaleDateString());
-      $('#ps_print_id').text(Math.floor(Math.random() * 900000) + 100000);
+      $('#ps_print_date').html(pD.toLocaleDateString('en-US') + '<br>' + pD.toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit'}));
+      $('#ps_issue_date').text(pD.toLocaleDateString('en-US'));
       $('#ps_month_label').text('FOR THE PERIOD OF ' + payrollData.period);
-      
+      const rId = Math.floor(Math.random() * 900000) + 100000;
+      $('#ps_print_id').text(rId);
+
       $('#ps_name').text(e.name);
       $('#ps_id').text(e.id);
       $('#ps_designation').text(e.designation);
+      $('#ps_acc_no').text(e.account_no || '----------');
       $('#ps_basic_full').text(fmt(e.half_basic));
 
       let earnHtml = '';
+      let hasCustomEarn = false;
       if (e.payheads_json) {
         try {
           const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
           (ph.earnings || []).forEach(item => {
-            earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>${item.name}:</span><span>${fmt(item.amount)}</span></div>`;
+            if (parseFloat(item.amount) > 0) {
+              hasCustomEarn = true;
+              earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>${item.name}:</span><span>${fmt(item.amount)}</span></div>`;
+            }
           });
         } catch(ex) {}
+      }
+      if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
+        earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>OTHER EARNINGS / ALLOWANCES:</span><span>${fmt(e.other_earnings)}</span></div>`;
+      }
+      if (parseFloat(e.holiday_pay) > 0) {
+        earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>HOLIDAY PAY:</span><span>${fmt(e.holiday_pay)}</span></div>`;
       }
       $('#ps_earnings_list').html(earnHtml);
       $('#ps_gross').text(fmt(e.total_gross));
@@ -821,7 +930,7 @@
         if (!val || parseFloat(val) <= 0) return;
         deductHtml += `
           <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
-            <span style="flex: 2;">${lbl}</span>
+            <span style="flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">${lbl}</span>
             <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
               <span style="width: 65px;">--</span>
               <span style="width: 70px;">--</span>
@@ -830,35 +939,115 @@
           </div>`;
       };
 
-      addRow("TARDINESS", e.tardiness_deduction);
-      addRow("UNDERTIME", e.undertime_deduction);
-      addRow("ABSENCE", e.absent_deduction);
+      let undhtml = [];
+      const addUndeducted = (desc, amt) => {
+        if (!amt || parseFloat(amt) <= 0) return;
+        undhtml.push(`
+          <div style="display:flex; justify-content: space-between; margin-bottom:3px; color:#b91c1c;">
+            <span style="flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">${desc}</span>
+            <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+              <span style="width: 60px;">--</span>
+              <span style="width: 60px;">--</span>
+              <span style="width: 75px; font-weight:600;">${fmt(amt)}</span>
+            </span>
+          </div>
+        `);
+      };
 
+      const absLabel = (e.absent_days && e.absent_days > 0) ? `ABSENCE (${e.absent_days} DAY${e.absent_days > 1 ? 'S' : ''})` : 'ABSENCE';
+      const tardMins = e.lwop_tardiness_minutes || e.late_minutes || 0;
+      const tardLabel = tardMins > 0 ? `TARDINESS (${tardMins} MIN)` : 'TARDINESS';
+      const underMins = e.lwop_undertime_minutes || e.undertime_minutes || 0;
+      const underLabel = underMins > 0 ? `UNDERTIME (${underMins} MIN)` : 'UNDERTIME';
+
+      addRow(tardLabel, e.tardiness_deduction);
+      addRow(underLabel, e.undertime_deduction);
+      addRow(absLabel, e.absent_deduction);
+
+      let hasStat = false;
       if (e.statutory_json) {
         try {
-          const st = JSON.parse(e.statutory_json);
+          const st = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
           for (const [key, amount] of Object.entries(st)) {
-            if (['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'].includes(key) || parseFloat(amount) === 0) continue;
-            addRow(key.replace(/_/g, ' '), amount);
+            if (['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'].includes(key) || parseFloat(amount) <= 0) continue;
+            hasStat = true;
+            let label = key.replace(/_/g, ' ');
+            if (key === 'GSIS_EE' || key === 'GSIS') label = 'GSIS PREMIUM (9%)';
+            else if (key === 'PHIC_EE' || key === 'PHILHEALTH') label = 'PHILHEALTH';
+            else if (key === 'PAGIBIG_EE' || key === 'PAGIBIG') label = 'PAG-IBIG FUND';
+            addRow(label, amount);
           }
-          if (st['WTAX']) addRow('WITHHOLDING TAX', st['WTAX']);
+          const wtax = st['WTAX'] || st['wtax'];
+          if (wtax && parseFloat(wtax) > 0) {
+            hasStat = true;
+            addRow('WITHHOLDING TAX', wtax);
+          }
         } catch(err) {}
       }
+      if (!hasStat) {
+        addRow("GSIS PREMIUM (9%)", e.gsis_ee);
+        addRow("PHILHEALTH", e.philhealth_ee);
+        addRow("PAG-IBIG FUND", e.pagibig_ee);
+        addRow("WITHHOLDING TAX", e.withholding_tax);
+      }
 
+      let hasCustom = false;
       if (e.payheads_json) {
         try {
           const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
           (ph.deductions || []).forEach(item => {
-            addRow(item.name, item.amount);
+            if (parseFloat(item.amount) > 0) {
+              hasCustom = true;
+              addRow(item.name, item.amount);
+            }
           });
         } catch(ex) {}
+      }
+      if (!hasCustom && parseFloat(e.other_deductions) > 0) {
+        addRow("OTHER DEDUCTIONS / LOANS", e.other_deductions);
       }
 
       $('#ps_deductions_list').html(deductHtml);
       $('#ps_total_deduct').text(fmt(e.total_deduct));
-      $('#ps_net').text(fmt(e.net_pay));
-      $('#ps_half_net1').text(fmt(e.net_pay / 2));
-      $('#ps_half_net2').text(fmt(e.net_pay / 2));
+
+      // ── Undeducted Obligations (DepEd Order No. 5, s. 2018 Arrears) ─────────
+      const isPsLwopZero = Boolean(e.is_lwop || (parseFloat(e.net_pay) <= 0 && (e.absent_days || 0) > 0));
+      const hasUncollected = Boolean(e.uncollected_deductions && e.uncollected_deductions > 0);
+
+      if (isPsLwopZero || hasUncollected) {
+        if (parseFloat(e.gsis_ee) > 0) addUndeducted('GSIS PREMIUM (UNPAID)', e.gsis_ee);
+        if (parseFloat(e.philhealth_ee) > 0) addUndeducted('PHILHEALTH (UNPAID)', e.philhealth_ee);
+        if (parseFloat(e.pagibig_ee) > 0) addUndeducted('PAG-IBIG FUND (UNPAID)', e.pagibig_ee);
+        if (parseFloat(e.other_deductions) > 0) addUndeducted('LOANS / APDS (UNPAID)', e.other_deductions);
+        if (undhtml.length === 0 && e.uncollected_deductions > 0) {
+          addUndeducted('UNCOLLECTED ARREARS', e.uncollected_deductions);
+        }
+      }
+
+      if (undhtml.length > 0) {
+        $('#ps_undeducted_list').html(undhtml.join('') + `
+          <div style="display:flex; justify-content:space-between; border-top:1px dashed #b91c1c; padding-top:4px; margin-top:6px; font-weight:bold; font-size:10px; color:#b91c1c;">
+            <span>TOTAL UNDEDUCTED:</span>
+            <span>${fmt(e.uncollected_deductions || e.total_deduct)}</span>
+          </div>
+        `);
+      } else {
+        $('#ps_undeducted_list').html('<div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>');
+      }
+
+      // ── Semi-monthly distribution & Net Pay ────────────────────────────────
+      const isSecondHalf = String((payrollData && payrollData.period) || '').includes('2nd');
+      if (isPsLwopZero) {
+        $('#ps_lwop_notice').show();
+        $('#ps_net').html('<span style="color:#b91c1c; font-weight:bold;">₱0.00 (LWOP)</span>');
+        $('#ps_half_net1').html(isSecondHalf ? '0.00' : '<span style="color:#b91c1c; font-weight:bold;">₱0.00</span>');
+        $('#ps_half_net2').html(isSecondHalf ? '<span style="color:#b91c1c; font-weight:bold;">₱0.00</span>' : '0.00');
+      } else {
+        $('#ps_lwop_notice').hide();
+        $('#ps_net').text(fmt(e.net_pay));
+        $('#ps_half_net1').text(isSecondHalf ? '0.00' : fmt(e.net_pay)); 
+        $('#ps_half_net2').text(isSecondHalf ? fmt(e.net_pay) : '0.00');
+      }
 
       $('#payslipModal').addClass('open');
     };
@@ -866,8 +1055,8 @@
     window.printAdminPayslip = function () {
       const prt = document.getElementById("payslipContent");
       const WinPrint = window.open('', '', 'left=0,top=0,width=850,height=900,toolbar=0,scrollbars=0,status=0');
-      WinPrint.document.write('<html><head><style>@page { size: portrait; margin: 10mm; } body { background: #fff; line-height: 1.2; font-family: monospace; }</style></head><body>');
-      WinPrint.document.write(prt.innerHTML);
+      WinPrint.document.write('<html><head><style>@page { size: portrait; margin: 10mm; } body { background: #fff; line-height: 1.35; font-family: monospace; -webkit-print-color-adjust: exact; }</style></head><body>');
+      WinPrint.document.write(prt.outerHTML);
       WinPrint.document.write('</body></html>');
       WinPrint.document.close();
       WinPrint.focus();

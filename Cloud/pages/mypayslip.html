@@ -152,6 +152,12 @@
       <div style="text-align: right; flex: 1;">Page 1 Of 1</div>
     </div>
 
+    <!-- LWOP NOTICE BANNER -->
+    <div id="ps_lwop_notice" style="display:none; background:#fff1f2; border:1px solid #fecdd3; border-radius:4px; padding:8px 12px; margin-bottom:12px; color:#9f1239; font-size:10px; line-height:1.45; text-transform:none;">
+      <strong>⚠️ STATUS: LEAVE WITHOUT PAY (LWOP) — ZERO SALARY DISBURSED</strong><br>
+      Total absence recorded for this pay period with exhausted leave credits. In accordance with Civil Service Commission (CSC) and DepEd "No Work, No Pay" rules, basic pay is fully offset by absence deductions. Statutory contributions and loan amortizations cannot be deducted from payroll and remain as uncollected arrears.
+    </div>
+
     <!-- EMPLOYEE INFO GRID -->
     <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; border-bottom: 1px solid #000; padding-bottom: 12px; margin-bottom: 12px;">
       <div style="border-right: 1px dashed #ccc; padding-right: 15px;">
@@ -220,7 +226,9 @@
             <span style="width: 75px;">Amount Of<br>Deduction</span>
           </span>
         </div>
-        <div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>
+        <div id="ps_undeducted_list" style="margin-bottom: 10px;">
+          <div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>
+        </div>
       </div>
     </div>
 
@@ -393,58 +401,132 @@
           `);
       }
 
+      let undhtml = [];
+      function addUndeducted(code, desc, amt) {
+          if(!amt || parseFloat(amt) === 0) return;
+          undhtml.push(`
+            <div style="display:flex; justify-content: space-between; margin-bottom:3px; color:#b91c1c;">
+              <span style="flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">${desc}</span>
+              <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+                <span style="width: 60px;">--</span>
+                <span style="width: 60px;">--</span>
+                <span style="width: 75px; font-weight:600;">${fmt(amt)}</span>
+              </span>
+            </div>
+          `);
+      }
+
+      let hasCustomEarn = false;
+      let hasCustomDeduct = false;
       if (e.payheads_json) {
           try {
               const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
               (ph.earnings || []).forEach(item => {
-                  addEarning(item.name, item.amount);
+                  if (parseFloat(item.amount) > 0) {
+                      hasCustomEarn = true;
+                      addEarning(item.name, item.amount);
+                  }
               });
               (ph.deductions || []).forEach(item => {
-                  addDeduct(item.name.substring(0, 4), item.name, item.amount);
+                  if (parseFloat(item.amount) > 0) {
+                      hasCustomDeduct = true;
+                      addDeduct(item.name.substring(0, 4), item.name, item.amount);
+                  }
               });
           } catch(ex) { console.error(ex); }
+      }
+      if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
+          addEarning('OTHER EARNINGS / ALLOWANCES', e.other_earnings);
+      }
+      if (parseFloat(e.holiday_pay) > 0) {
+          addEarning('HOLIDAY PAY', e.holiday_pay);
+      }
+      if (!hasCustomDeduct && parseFloat(e.other_deductions) > 0) {
+          addDeduct('OTH', 'OTHER DEDUCTIONS / LOANS', e.other_deductions);
       }
 
       $('#ps_earnings_list').html(ehtml.join(''));
 
-      addDeduct('ABS', 'ABSENCE', e.absent_deduction);
-      addDeduct('TRD', 'TARDINESS', e.tardiness_deduction);
-      addDeduct('UND', 'UNDERTIME', e.undertime_deduction);
+      // Attendance deductions with units
+      const absLabel = (e.absent_days && e.absent_days > 0) ? `ABSENCE (${e.absent_days} DAY${e.absent_days > 1 ? 'S' : ''})` : 'ABSENCE';
+      const tardMins = e.lwop_tardiness_minutes || e.late_minutes || 0;
+      const tardLabel = tardMins > 0 ? `TARDINESS (${tardMins} MIN)` : 'TARDINESS';
+      const underMins = e.lwop_undertime_minutes || e.undertime_minutes || 0;
+      const underLabel = underMins > 0 ? `UNDERTIME (${underMins} MIN)` : 'UNDERTIME';
+
+      addDeduct('ABS', absLabel, e.absent_deduction);
+      addDeduct('TRD', tardLabel, e.tardiness_deduction);
+      addDeduct('UND', underLabel, e.undertime_deduction);
       
+      let hasStat = false;
       if (e.statutory_json) {
           try {
-              const breakdown = JSON.parse(e.statutory_json);
+              const breakdown = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
               const skip = ['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'];
               for (const [key, amount] of Object.entries(breakdown)) {
-                  if (skip.includes(key)) continue;
+                  if (skip.includes(key) || parseFloat(amount) <= 0) continue;
+                  hasStat = true;
                   let label = key.replace(/_/g, ' ');
-                  if (key === 'GSIS_EE' || key === 'GSIS') label = 'GSIS PREMIUM';
-                  if (key === 'PHIC_EE' || key === 'PHILHEALTH') label = 'PHILHEALTH';
-                  if (key === 'PAGIBIG_EE' || key === 'PAGIBIG') label = 'PAG-IBIG FUND';
+                  if (key === 'GSIS_EE' || key === 'GSIS') label = 'GSIS PREMIUM (9%)';
+                  else if (key === 'PHIC_EE' || key === 'PHILHEALTH') label = 'PHILHEALTH';
+                  else if (key === 'PAGIBIG_EE' || key === 'PAGIBIG') label = 'PAG-IBIG FUND';
                   addDeduct(key.substring(0, 4), label, amount);
               }
-              if (breakdown['WTAX']) addDeduct('BIR', 'WITHHOLDING TAX', breakdown['WTAX']);
-          } catch(err) {
-              addDeduct('SSS', 'GSIS PREMIUM', e.gsis_ee);
-              addDeduct('PHIC', 'PHILHEALTH', e.philhealth_ee);
-              addDeduct('HDMF', 'PAG-IBIG FUND', e.pagibig_ee);
-              addDeduct('BIR', 'WITHHOLDING TAX', e.withholding_tax);
-              addDeduct('OTH', 'OTHER DEDUCTIONS', e.other_deductions);
-          }
-      } else {
-          addDeduct('SSS', 'GSIS PREMIUM', e.gsis_ee);
+              const wtax = breakdown['WTAX'] || breakdown['wtax'];
+              if (wtax && parseFloat(wtax) > 0) {
+                  hasStat = true;
+                  addDeduct('BIR', 'WITHHOLDING TAX', wtax);
+              }
+          } catch(err) {}
+      }
+      if (!hasStat) {
+          addDeduct('SSS', 'GSIS PREMIUM (9%)', e.gsis_ee);
           addDeduct('PHIC', 'PHILHEALTH', e.philhealth_ee);
           addDeduct('HDMF', 'PAG-IBIG FUND', e.pagibig_ee);
           addDeduct('BIR', 'WITHHOLDING TAX', e.withholding_tax);
-          addDeduct('OTH', 'OTHER DEDUCTIONS', e.other_deductions);
       }
       
       $('#ps_deductions_list').html(dhtml.join(''));
-
       $('#ps_total_deduct').text(fmt(e.total_deduct));
-      $('#ps_net').text(fmt(e.net_pay));
-      $('#ps_half_net1').text(fmt(e.net_pay)); 
-      $('#ps_half_net2').text('0.00');
+
+      // ── Undeducted Obligations (DepEd Order No. 5, s. 2018 Arrears) ─────────
+      const isLwopZero = Boolean(e.is_lwop || (parseFloat(e.net_pay) <= 0 && (e.absent_days || 0) > 0));
+      const hasUncollected = Boolean(e.uncollected_deductions && e.uncollected_deductions > 0);
+      
+      if (isLwopZero || hasUncollected) {
+        if (parseFloat(e.gsis_ee) > 0) addUndeducted('SSS', 'GSIS PREMIUM (UNPAID)', e.gsis_ee);
+        if (parseFloat(e.philhealth_ee) > 0) addUndeducted('PHIC', 'PHILHEALTH (UNPAID)', e.philhealth_ee);
+        if (parseFloat(e.pagibig_ee) > 0) addUndeducted('HDMF', 'PAG-IBIG FUND (UNPAID)', e.pagibig_ee);
+        if (parseFloat(e.other_deductions) > 0) addUndeducted('OTH', 'LOANS / APDS (UNPAID)', e.other_deductions);
+        if (undhtml.length === 0 && e.uncollected_deductions > 0) {
+          addUndeducted('ARR', 'UNCOLLECTED ARREARS', e.uncollected_deductions);
+        }
+      }
+
+      if (undhtml.length > 0) {
+        $('#ps_undeducted_list').html(undhtml.join('') + `
+          <div style="display:flex; justify-content:space-between; border-top:1px dashed #b91c1c; padding-top:4px; margin-top:6px; font-weight:bold; font-size:10px; color:#b91c1c;">
+            <span>TOTAL UNDEDUCTED:</span>
+            <span>${fmt(e.uncollected_deductions || e.total_deduct)}</span>
+          </div>
+        `);
+      } else {
+        $('#ps_undeducted_list').html('<div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>');
+      }
+
+      // ── Semi-monthly distribution & Net Pay ────────────────────────────────
+      const isSecondHalf = String(half) === '2';
+      if (isLwopZero) {
+        $('#ps_lwop_notice').show();
+        $('#ps_net').html('<span style="color:#b91c1c; font-weight:bold;">₱0.00 (LWOP)</span>');
+        $('#ps_half_net1').html(isSecondHalf ? '0.00' : '<span style="color:#b91c1c; font-weight:bold;">₱0.00</span>');
+        $('#ps_half_net2').html(isSecondHalf ? '<span style="color:#b91c1c; font-weight:bold;">₱0.00</span>' : '0.00');
+      } else {
+        $('#ps_lwop_notice').hide();
+        $('#ps_net').text(fmt(e.net_pay));
+        $('#ps_half_net1').text(isSecondHalf ? '0.00' : fmt(e.net_pay)); 
+        $('#ps_half_net2').text(isSecondHalf ? fmt(e.net_pay) : '0.00');
+      }
 
       // ── Build Side Canvas (Attendance & Leave Credit Offset) ──────────────
       const lateMins = e.late_minutes || 0;
@@ -572,13 +654,22 @@
           sideHtml += `
             <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:12px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span style="font-weight:700; font-size:12px; color:var(--text);">📅 Absences</span>
+                <span style="font-weight:700; font-size:12px; color:var(--text);">📅 Absences (${isLwopZero ? 'Leave Without Pay' : 'Unearned'})</span>
                 <span style="background:rgba(220,53,69,0.1); color:#d9534f; font-weight:700; font-size:11px; padding:2px 8px; border-radius:12px;">${absentDays} day(s)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px; color:var(--muted2);">
+                <span>Policy Classification:</span>
+                <span style="font-weight:600; color:#c62828;">${isLwopZero ? 'LWOP (Exhausted Credits)' : 'DTR Absences'}</span>
               </div>
               <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; border-top:1px dashed var(--border); padding-top:6px; margin-top:4px;">
                 <span>Absence Deduction:</span>
                 <span style="color:#c62828;">₱${fmt(absentDeduct)}</span>
               </div>
+              ${e.uncollected_deductions > 0 ? `
+              <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; margin-top:6px; color:#c2410c; background:#ffedd5; padding:4px 8px; border-radius:6px;">
+                <span>Uncollected Deductions:</span>
+                <span>₱${fmt(e.uncollected_deductions)}</span>
+              </div>` : ''}
             </div>
           `;
         }
@@ -608,7 +699,7 @@
   $('#btnPrint').on('click', function() {
     const prtContent = document.getElementById("payslipContent");
     const WinPrint = window.open('', '', 'left=0,top=0,width=850,height=900,toolbar=0,scrollbars=0,status=0');
-    WinPrint.document.write('<html><head><style>@page { size: portrait; margin: 10mm; } body { background: #fff; line-height: 1.35; -webkit-print-color-adjust: exact; }</style></head><body>');
+    WinPrint.document.write('<html><head><style>@page { size: portrait; margin: 10mm; } body { background: #fff; line-height: 1.35; font-family: monospace; -webkit-print-color-adjust: exact; }</style></head><body>');
     WinPrint.document.write(prtContent.outerHTML.replace('display:none', 'display:block; max-width: none;'));
     WinPrint.document.write('</body></html>');
     WinPrint.document.close();

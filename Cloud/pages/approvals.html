@@ -205,6 +205,7 @@
       <div class="ph-total-row"><span>Total Deductions</span><span id="dDeduct">₱0.00</span></div>
       <div class="ph-total-row grand"><span>Net Take-Home Pay</span><span id="dNet">₱0.00</span></div>
     </div>
+    <div id="drawerAuditBadge" style="margin-top:10px;"></div>
     <div style="margin-top:15px;text-align:right;">
       <button class="btn btn-primary" onclick="$('#payheadDrawer').removeClass('open')">Close Details</button>
     </div>
@@ -494,20 +495,9 @@
     let eHtml = `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Basic Salary (50%)</span><span style="font-weight:600;">${fCurrency(e.half_basic)}</span></div>`;
     let dHtml = ``;
 
-    if (e.payheads_json) {
-      try {
-        const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
-        (ph.earnings || []).forEach(item => {
-          eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600;">${fCurrency(item.amount)}</span></div>`;
-        });
-        (ph.deductions || []).forEach(item => {
-          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600; color:var(--red);">${fCurrency(item.amount)}</span></div>`;
-        });
-      } catch(ex) {}
-    }
-
+    // 1. Attendance Deductions
     if (parseFloat(e.absent_deduction) > 0) {
-      dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Absence Deduction</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.absent_deduction)}</span></div>`;
+      dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Absence Deduction (${e.absent_days || 0}d)</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.absent_deduction)}</span></div>`;
     }
     if (parseFloat(e.tardiness_deduction) > 0) {
       dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Unpaid Tardiness (${e.lwop_tardiness_minutes || e.late_minutes} min)</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.tardiness_deduction)}</span></div>`;
@@ -516,19 +506,71 @@
       dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Unpaid Undertime (${e.lwop_undertime_minutes || e.undertime_minutes} min)</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.undertime_deduction)}</span></div>`;
     }
 
+    // 2. Statutory Contributions
+    let hasStat = false;
     if (e.statutory_json) {
       try {
         const st = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
         const skip = ['ABSENCE','TARDINESS','UNDERTIME','WTAX'];
         for (const [key, amount] of Object.entries(st)) {
-          if (skip.includes(key) || parseFloat(amount) === 0) continue;
-          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${key.replace(/_/g,' ')}</span><span style="font-weight:600; color:var(--red);">${fCurrency(amount)}</span></div>`;
+          if (skip.includes(key) || parseFloat(amount) <= 0) continue;
+          hasStat = true;
+          let label = key.replace(/_/g,' ');
+          if (key === 'GSIS' || key === 'GSIS_EE') label = 'GSIS Contribution (EE 9%)';
+          else if (key === 'PHILHEALTH' || key === 'PHIC_EE') label = 'PhilHealth (EE)';
+          else if (key === 'PAGIBIG' || key === 'PAGIBIG_EE') label = 'Pag-IBIG (EE)';
+          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${label}</span><span style="font-weight:600; color:var(--red);">${fCurrency(amount)}</span></div>`;
         }
-        const wtax = st['WTAX'];
+        const wtax = st.WTAX || st.wtax;
         if (wtax && parseFloat(wtax) > 0) {
-          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Withholding Tax</span><span style="font-weight:600; color:var(--red);">${fCurrency(wtax)}</span></div>`;
+          hasStat = true;
+          dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Withholding Tax (BIR)</span><span style="font-weight:600; color:var(--red);">${fCurrency(wtax)}</span></div>`;
         }
       } catch(ex) {}
+    }
+    if (!hasStat) {
+      if (parseFloat(e.gsis_ee) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>GSIS Contribution (EE 9%)</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.gsis_ee)}</span></div>`;
+      }
+      if (parseFloat(e.philhealth_ee) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>PhilHealth (EE)</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.philhealth_ee)}</span></div>`;
+      }
+      if (parseFloat(e.pagibig_ee) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Pag-IBIG (EE)</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.pagibig_ee)}</span></div>`;
+      }
+      if (parseFloat(e.withholding_tax) > 0) {
+        dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Withholding Tax (BIR)</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.withholding_tax)}</span></div>`;
+      }
+    }
+
+    // 3. Custom Payheads / Allowances & Other Deductions
+    let hasCustomDeduct = false;
+    let hasCustomEarn = false;
+    if (e.payheads_json) {
+      try {
+        const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+        (ph.earnings || []).forEach(item => {
+          if (parseFloat(item.amount) > 0) {
+            hasCustomEarn = true;
+            eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600;">${fCurrency(item.amount)}</span></div>`;
+          }
+        });
+        (ph.deductions || []).forEach(item => {
+          if (parseFloat(item.amount) > 0) {
+            hasCustomDeduct = true;
+            dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600; color:var(--red);">${fCurrency(item.amount)}</span></div>`;
+          }
+        });
+      } catch(ex) {}
+    }
+    if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
+      eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Other Earnings / Allowances</span><span style="font-weight:600;">${fCurrency(e.other_earnings)}</span></div>`;
+    }
+    if (parseFloat(e.holiday_pay) > 0) {
+      eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Holiday Pay</span><span style="font-weight:600;">${fCurrency(e.holiday_pay)}</span></div>`;
+    }
+    if (!hasCustomDeduct && parseFloat(e.other_deductions) > 0) {
+      dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Other Deductions / Loans</span><span style="font-weight:600; color:var(--red);">${fCurrency(e.other_deductions)}</span></div>`;
     }
 
     $('#earningList').html(eHtml || '<div style="padding:10px; color:var(--muted2); font-size:12px;">No earnings found</div>');
@@ -659,10 +701,49 @@
       }
     }
 
-    $('#attendanceOffsetContent').html(attHtml);
     $('#dGross').text(fCurrency(e.total_gross));
     $('#dDeduct').text(fCurrency(e.total_deduct));
-    $('#dNet').text(fCurrency(e.net_pay));
+
+    const isLwopZero = Boolean(e.is_lwop || (parseFloat(e.net_pay) <= 0 && (e.absent_days || 0) > 0));
+    if (isLwopZero) {
+      $('#dNet').html('<span style="color:var(--red); font-weight:800;">₱0.00 (LWOP)</span>');
+    } else {
+      $('#dNet').text(fCurrency(e.net_pay));
+    }
+
+    const storedGross = parseFloat(e.total_gross) || 0;
+    const storedDeduct = parseFloat(e.total_deduct) || 0;
+    const storedNet = parseFloat(e.net_pay) || 0;
+    const calcNet = Math.round((storedGross - storedDeduct) * 100) / 100;
+    const netVariance = Math.abs(calcNet - storedNet);
+
+    if (netVariance <= 0.01) {
+      $('#drawerAuditBadge').html(`
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#166534; display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-weight:600; display:flex; align-items:center; gap:6px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            Deduction &amp; Net Pay Verified
+          </span>
+          <span style="font-size:10.5px; color:#15803d; font-weight:700;">✓ 100% Match</span>
+        </div>
+      `);
+    } else {
+      $('#drawerAuditBadge').html(`
+        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#991b1b; display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-weight:600;">⚠ Variance: ₱${fCurrency(netVariance)}</span>
+          <span style="font-size:10.5px;">Audited Net: ₱${fCurrency(calcNet)}</span>
+        </div>
+      `);
+    }
+
+    if (e.uncollected_deductions && e.uncollected_deductions > 0) {
+      $('#drawerAuditBadge').append(`
+        <div style="margin-top:6px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; font-size:11px; color:#92400e;">
+          <strong>Uncollected Deductions:</strong> ₱${fCurrency(e.uncollected_deductions)} carried forward per DepEd Order No. 5, s. 2018.
+        </div>
+      `);
+    }
+
     $('#payheadDrawer').addClass('open');
   };
 

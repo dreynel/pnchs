@@ -572,6 +572,8 @@ def process_payroll():
                         'net_pay':            f('net_pay'),
                         'is_negative':        bool(rec.get('is_negative', 0)),
                         'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
+                        'is_lwop':            bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01),
+                        'uncollected_deductions': round(max(0.0, f('total_deduct') - f('total_gross')), 2) if bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01) else 0.0,
                         'dtr_filed':          bool(rec.get('dtr_filed', 0)),
                     })
                     gGross  += f('total_gross')
@@ -752,6 +754,8 @@ def process_payroll():
                     'net_pay':            f('net_pay'),
                     'is_negative':        bool(f('net_pay') < 0),
                     'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
+                    'is_lwop':            bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01),
+                    'uncollected_deductions': round(max(0.0, f('total_deduct') - f('total_gross')), 2) if bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01) else 0.0,
                     'dtr_filed':          True,
                     'runs_count':         rec.get('runs_count', len(active_hdrs)),
                 })
@@ -851,6 +855,8 @@ def process_payroll_single_run(cur, period_key, label_override=None):
             'net_pay':            f('net_pay'),
             'is_negative':        bool(rec.get('is_negative', 0)),
             'below_net_floor':    bool(f('net_pay') < 2500.0 and f('basic_salary') > 0),
+            'is_lwop':            bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01),
+            'uncollected_deductions': round(max(0.0, f('total_deduct') - f('total_gross')), 2) if bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01) else 0.0,
             'dtr_filed':          bool(rec.get('dtr_filed', 0)),
             'runs_count':         1
         })
@@ -952,6 +958,8 @@ def my_payslip():
                 'total_deduct':       f('total_deduct'),
                 'net_pay':            f('net_pay'),
                 'is_negative':        bool(rec.get('is_negative', 0)),
+                'is_lwop':            bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01),
+                'uncollected_deductions': round(max(0.0, f('total_deduct') - f('total_gross')), 2) if bool(rec.get('absent_days', 0) > 0 and (f('total_gross') - f('absent_deduction')) <= 0.01) else 0.0,
                 'dtr_filed':          bool(rec.get('dtr_filed', 0)),
             }
             return jsonify({

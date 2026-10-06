@@ -480,7 +480,7 @@ def get_payroll_verification():
                 'undertime': f"{r.get('undertime_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{undertime_ded:,.2f}",
                 'absence': f"{r.get('absent_days') or 0} days × ₱{daily_rate:,.2f} = ₱{absent_ded:,.2f}",
                 'gross_sum': f"Basic (₱{basic_pay:,.2f}) + Hol (₱{holiday_pay:,.2f}) + Allow (₱{other_earnings + ph_earnings:,.2f}) = ₱{audited_gross:,.2f}",
-                'ded_sum': f"Absence (₱{absent_ded:,.2f}) + Late (₱{tardiness_ded:,.2f}) + Under (₱{undertime_ded:,.2f}) + PHIC (₱{philhealth_ee:,.2f}) + Tax (₱{withholding_tax:,.2f}) + Custom (₱{other_deductions + ph_deductions:,.2f}) = ₱{audited_deductions:,.2f}",
+                'ded_sum': f"GSIS (₱{sss_ee:,.2f}) + PhilHealth (₱{philhealth_ee:,.2f}) + Pag-IBIG (₱{pagibig_ee:,.2f}) + Tax (₱{withholding_tax:,.2f}) + Absences (₱{absent_ded:,.2f}) + Late/Under (₱{tardiness_ded + undertime_ded:,.2f}) + Loans/Custom (₱{other_deductions + ph_deductions:,.2f}) = ₱{audited_deductions:,.2f}",
                 'net_sum': f"Gross (₱{audited_gross:,.2f}) - Deductions (₱{audited_deductions:,.2f}) = ₱{audited_net:,.2f}"
             }
         })

@@ -545,9 +545,11 @@
             <td>₱${statutory.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
             <td style="color:#c2410c;">₱${lwop.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
             <td>
-              ${(emp.net_pay || 0) < 0 
-                ? `<strong style="color:#dc2626;">-₱${Math.abs(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong> <span class="badge bg-danger text-white" style="font-size:8.5px;">Negative</span>` 
-                : `<strong style="color:#047857;">₱${(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong>`}
+              ${(emp.is_lwop || ((emp.net_pay || 0) <= 0 && (emp.absent_days || 0) > 0))
+                ? `<strong style="color:#c2410c; background:#ffedd5; padding:2px 8px; border-radius:6px; font-size:10.5px;">LWOP (₱0.00 Payout)</strong>`
+                : ((emp.net_pay || 0) < 0 
+                  ? `<strong style="color:#dc2626;">-₱${Math.abs(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong> <span class="badge bg-danger text-white" style="font-size:8.5px;">Negative</span>` 
+                  : `<strong style="color:#047857;">₱${(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong>`)}
             </td>
           </tr>
         `;

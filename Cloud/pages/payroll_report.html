@@ -283,6 +283,7 @@
               <th class="num">PhilHealth</th>
               <th class="num">Pag-IBIG</th>
               <th class="num">W/Tax</th>
+              <th class="num">Loans/Other</th>
               <th class="num">Total Deductions</th>
             </tr>
           </thead>
@@ -296,7 +297,11 @@
           <td style="font-weight:600;">${e.name}</td>
           <td>${e.designation}</td>
           <td class="num amt-earn">${fCurrency(e.total_gross)}</td>
-          <td class="num amt-net" style="${Number(e.net_pay || 0) < 0 ? 'color:var(--red); font-weight:800;' : ''}">${fCurrency(e.net_pay)}</td>
+          <td class="num amt-net" style="${Number(e.net_pay || 0) <= 0 ? 'color:var(--red); font-weight:800;' : ''}">
+            ${(e.is_lwop || (Number(e.net_pay || 0) <= 0 && (e.absent_days || 0) > 0))
+              ? '<span style="background:#fee2e2; color:#991b1b; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;" title="Leave Without Pay (Total Absence)">LWOP ₱0.00</span>'
+              : fCurrency(e.net_pay)}
+          </td>
           <td class="num">${fCurrency(e.half_basic || 0)}</td>
           <td class="num">${fCurrency(e.other_earnings || 0)}</td>
           <td class="num" style="color:var(--red)">${e.absent_deduction > 0 ? '-' + fCurrency(e.absent_deduction) : '—'}</td>
@@ -305,6 +310,7 @@
           <td class="num">${e.philhealth_ee > 0 ? '-' + fCurrency(e.philhealth_ee) : '—'}</td>
           <td class="num">${e.pagibig_ee > 0 ? '-' + fCurrency(e.pagibig_ee) : '—'}</td>
           <td class="num">${e.withholding_tax > 0 ? '-' + fCurrency(e.withholding_tax) : '—'}</td>
+          <td class="num">${e.other_deductions > 0 ? '-' + fCurrency(e.other_deductions) : '—'}</td>
           <td class="num amt-deduct">-${fCurrency(e.total_deduct)}</td>
         </tr>
       `;
@@ -318,7 +324,7 @@
               <td colspan="2" style="font-weight:700; text-align:right;">GRAND TOTAL</td>
               <td class="num amt-earn" style="font-weight:700;">${fCurrency(summary.grand_total_gross)}</td>
               <td class="num amt-net" style="font-weight:700; font-size:14px;">${fCurrency(summary.grand_total_net)}</td>
-              <td colspan="8"></td>
+              <td colspan="9"></td>
               <td class="num amt-deduct" style="font-weight:700;">-${fCurrency(summary.grand_total_deduct)}</td>
             </tr>
           </tfoot>
@@ -332,11 +338,11 @@
   function downloadCSV(data) {
     if (!data || !data.employees) return;
     
-    let csv = 'Employee Name,Designation,Basic Salary,Other Earnings,Gross Pay,Absent Deduction,Tardy/Undertime Deduction,GSIS/SSS,PhilHealth,Pag-IBIG,Withholding Tax,Total Deductions,Net Pay\n';
+    let csv = 'Employee Name,Designation,Basic Salary,Other Earnings,Gross Pay,Absent Deduction,Tardy/Undertime Deduction,GSIS/SSS,PhilHealth,Pag-IBIG,Withholding Tax,Loans/Other Deductions,Total Deductions,Net Pay\n';
     
     data.employees.forEach(e => {
       const tardyUt = (e.tardiness_deduction || 0) + (e.undertime_deduction || 0);
-      csv += `"${e.name}","${e.designation}",${e.half_basic || 0},${e.other_earnings || 0},${e.total_gross},${e.absent_deduction || 0},${tardyUt},${e.gsis_ee || 0},${e.philhealth_ee || 0},${e.pagibig_ee || 0},${e.withholding_tax || 0},${e.total_deduct},${e.net_pay}\n`;
+      csv += `"${e.name}","${e.designation}",${e.half_basic || 0},${e.other_earnings || 0},${e.total_gross},${e.absent_deduction || 0},${tardyUt},${e.gsis_ee || 0},${e.philhealth_ee || 0},${e.pagibig_ee || 0},${e.withholding_tax || 0},${e.other_deductions || 0},${e.total_deduct},${e.net_pay}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
