@@ -172,5 +172,24 @@ class DashboardRolesValidationTestCase(unittest.TestCase):
         self.assertIn('function normalizeRole', html)
         self.assertIn('Access Guard', html)
 
+    def test_accounting_approval_menu_in_sidebar(self):
+        with self.app.session_transaction() as sess:
+            sess['user'] = {'role': 'Accounting', 'username': 'acct_test', 'name': 'Accounting Officer'}
+
+        res = self.app.get('/dashboard')
+        self.assertEqual(res.status_code, 200)
+        html = res.data.decode('utf-8')
+
+        # Accounting must have the Payroll Approval nav-item in sidebar
+        self.assertIn('Payroll Approval', html)
+        self.assertIn('/payroll_approvals', html)
+        self.assertIn('/pages/approvals.html', html)
+
+        # Accessing /payroll_approvals returns 200 with proper title
+        res_app = self.app.get('/payroll_approvals')
+        self.assertEqual(res_app.status_code, 200)
+        html_app = res_app.data.decode('utf-8')
+        self.assertIn('Payroll Approval', html_app)
+
 if __name__ == '__main__':
     unittest.main()

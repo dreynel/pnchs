@@ -111,10 +111,10 @@
       </div>
 
       <div class="filter-tabs">
-        <div class="ftab active" data-status="Pending" onclick="switchTab(this, 'Pending')">Pending</div>
-        <div class="ftab" data-status="Approved" onclick="switchTab(this, 'Approved')">Approved</div>
-        <div class="ftab" data-status="Rejected" onclick="switchTab(this, 'Rejected')">Rejected</div>
-        <div class="ftab" data-status="All" onclick="switchTab(this, 'All')">All</div>
+        <div class="ftab active" data-status="Pending" onclick="switchTab(this, 'Pending')">Pending <span id="tabCountPending" style="font-size:10.5px; opacity:0.75; font-weight:600;"></span></div>
+        <div class="ftab" data-status="Approved" onclick="switchTab(this, 'Approved')">Approved <span id="tabCountApproved" style="font-size:10.5px; opacity:0.75; font-weight:600;"></span></div>
+        <div class="ftab" data-status="Rejected" onclick="switchTab(this, 'Rejected')">Rejected <span id="tabCountRejected" style="font-size:10.5px; opacity:0.75; font-weight:600;"></span></div>
+        <div class="ftab" data-status="All" onclick="switchTab(this, 'All')">All <span id="tabCountAll" style="font-size:10.5px; opacity:0.75; font-weight:600;"></span></div>
       </div>
 
       <div class="doc-list" id="docList">
@@ -174,6 +174,194 @@
       <button class="btn btn-outline" onclick="closeActionModal()">Cancel</button>
       <button class="btn btn-primary" id="confirmActionBtn" onclick="submitAction()">Confirm</button>
     </div>
+  </div>
+</div>
+
+<!-- ── Payslip Modal ── -->
+<div class="modal-overlay" id="payslipModal" style="z-index:3200;">
+  <div class="modal-content" style="width:900px; max-width:95vw; max-height:90vh; overflow-y:auto; padding:0; border-radius:12px; background:#f4f7fa;">
+    <div class="modal-header-premium" style="display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--border); padding:15px 25px;">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy);">Official Payslip</div>
+        <div style="font-size:11px;color:var(--muted2);margin-top:2px;">Official Department of Education Payroll Record</div>
+      </div>
+      <div style="display:flex; gap:12px;">
+        <button class="btn btn-primary" onclick="printAdminPayslip()" style="padding:8px 18px; border-radius:8px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          Print Payslip
+        </button>
+        <button class="btn" id="closePayslip" onclick="$('#payslipModal').removeClass('open')" style="background:none; border:none; font-size:24px; color:var(--muted2); cursor:pointer;">&times;</button>
+      </div>
+    </div>
+    
+    <div style="padding:20px; display:flex; justify-content:center;">
+      <div id="payslipContent" style="width: 850px; max-width: 100%; font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.35; color: #000; background: #fff; padding: 30px; box-sizing: border-box; text-transform: uppercase; box-shadow:0 10px 25px rgba(0,0,0,0.05); border-radius:4px;">
+        <!-- HEADER BLOCK -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 14px;">
+          <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+            <img src="/static/logo.png" alt="PNCHS Seal" style="width: 50px; height: 50px; object-fit: contain;">
+            <div style="font-size: 9.5px; line-height: 1.3;" id="ps_print_date"></div>
+          </div>
+          <div style="text-align: center; flex: 2; line-height: 1.35; letter-spacing: 0.3px;">
+            <span style="font-size: 10px;">Republic of the Philippines</span><br>
+            <span style="font-weight: bold; font-size: 12.5px;">DEPARTMENT OF EDUCATION</span><br>
+            <span style="font-size: 10px;">REGION VI - WESTERN VISAYAS · DIVISION OF ILOILO</span><br>
+            <span style="font-weight: bold; font-size: 11.5px;">POTOTAN NATIONAL COMPREHENSIVE HIGH SCHOOL</span><br>
+            <span style="letter-spacing: 2px; font-weight: bold; font-size: 12px; margin-top: 2px; display: inline-block;">OFFICIAL PAYROLL SLIP</span>
+          </div>
+          <div style="text-align: right; flex: 1; font-size: 10px;">
+            <div>DOC REF: <span id="ps_print_id" style="font-weight: bold;">000000</span></div>
+            <div style="color: #666; font-size: 9px; margin-top: 2px;">School ID: 302556</div>
+          </div>
+        </div>
+
+        <!-- DATE / PERIOD BAR -->
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 12px; font-weight: bold;">
+          <div id="ps_issue_date" style="flex: 1;"></div>
+          <div id="ps_month_label" style="text-align: center; flex: 2;">For the Month of ...</div>
+          <div style="text-align: right; flex: 1;">Page 1 Of 1</div>
+        </div>
+
+        <!-- LWOP NOTICE BANNER -->
+        <div id="ps_lwop_notice" style="display:none; background:#fff1f2; border:1px solid #fecdd3; border-radius:4px; padding:8px 12px; margin-bottom:12px; color:#9f1239; font-size:10px; line-height:1.45; text-transform:none;">
+          <strong>⚠️ STATUS: LEAVE WITHOUT PAY (LWOP) — ZERO SALARY DISBURSED</strong><br>
+          Total absence recorded for this pay period with exhausted leave credits. In accordance with Civil Service Commission (CSC) and DepEd "No Work, No Pay" rules, basic pay is fully offset by absence deductions. Statutory contributions and loan amortizations cannot be deducted from payroll and remain as uncollected arrears.
+        </div>
+
+        <!-- EMPLOYEE INFO GRID -->
+        <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; border-bottom: 1px solid #000; padding-bottom: 12px; margin-bottom: 12px;">
+          <div style="border-right: 1px dashed #ccc; padding-right: 15px;">
+            <div style="margin-bottom:3px;">Name: <span id="ps_name" style="font-weight: bold; font-size: 12px;"></span></div>
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr; margin-bottom:3px;">
+              <span>Employee No.: <span id="ps_id" style="font-weight: bold;"></span></span>
+              <span>Account No.: <span id="ps_acc_no" style="font-weight: bold;">----------</span></span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr; margin-bottom:3px;">
+              <span>Date of Hiring: &nbsp;/ &nbsp;/</span>
+              <span>Date of Retirement: ----------</span>
+            </div>
+            <div style="margin-bottom:3px;">Position: <span id="ps_designation" style="font-weight: bold;"></span></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; margin-bottom:3px;">
+              <span>Grade: -- &nbsp;&nbsp;Step: -</span>
+              <span>Tax Code: --------</span>
+            </div>
+            <div>Amount of Exemption:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.00</div>
+          </div>
+          <div style="padding-left: 5px;">
+            <div style="margin-bottom:3px;">Reg: 06 REGION VI - WESTERN VISAYAS</div>
+            <div style="margin-bottom:3px;">Div: 022 ILOILO</div>
+            <div style="margin-bottom:3px;">Sta: 500 SENIOR HIGH SCHOOL</div>
+            <div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:3px; font-weight: bold;">
+              <span>Basic Salary:</span><span id="ps_basic_full"></span>
+            </div>
+            <div id="ps_earnings_list"></div>
+            <div style="display: flex; justify-content: space-between; padding-left: 10px; border-top: 1px solid #eee; padding-top: 4px; font-weight: bold; margin-top: 4px;">
+              <span>Gross Compensation:</span><span id="ps_gross"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DEDUCTIONS GRID (Dashed table style) -->
+        <div style="display: grid; grid-template-columns: 55% 45%; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 5px; font-weight: bold; background: #f9f9f9; padding: 4px;">
+          <div style="text-align: center; letter-spacing: 5px;">D E D U C T I O N S</div>
+          <div style="text-align: center; letter-spacing: 1px;">UNDEDUCTED OBLIGATIONS</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 55% 45%; margin-bottom: 10px; min-height: 220px;">
+          <!-- Left side Deductions -->
+          <div style="padding-right: 15px; border-right: 1px solid #000;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; margin-bottom: 5px; padding-bottom: 3px; font-size: 10px; font-weight: bold;">
+              <span style="flex: 2;">Deduction Code Description</span>
+              <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+                <span style="width: 65px;">Effectivity<br>Date</span>
+                <span style="width: 70px;">Termination<br>Date</span>
+                <span style="width: 80px;">Amount Of<br>Deduction</span>
+              </span>
+            </div>
+            <div id="ps_deductions_list" style="margin-bottom: 10px;"></div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 6px; font-weight: bold; font-size: 12px; margin-top: auto;">
+              <span>Total Deductions:</span>
+              <span id="ps_total_deduct" style="padding-right: 5px;"></span>
+            </div>
+          </div>
+          <!-- Right side Undeducted -->
+          <div style="padding-left: 15px;">
+             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; margin-bottom: 5px; padding-bottom: 3px; font-size: 10px; font-weight: bold;">
+              <span style="flex: 2;">Deduction Code Description</span>
+              <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+                <span style="width: 60px;">Effect<br>Date</span>
+                <span style="width: 60px;">Termin<br>Date</span>
+                <span style="width: 75px;">Amount Of<br>Deduction</span>
+              </span>
+            </div>
+            <div id="ps_undeducted_list" style="margin-bottom: 10px;">
+              <div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-bottom: 1px solid #000; padding: 15px 0; margin-bottom: 20px;">
+          <div style="display: flex; width: 450px; justify-content: space-between; margin-bottom: 6px; font-weight: bold; font-size: 13px;">
+            <span style="letter-spacing: 2px;">N E T  P A Y    :</span><span id="ps_net" style="padding-right: 5px; background: #f0f0f0;"></span>
+          </div>
+          <div style="display: flex; width: 450px; justify-content: space-between; margin-bottom: 4px; font-size: 11px;">
+            <span>1ST HALF PAY :</span><span id="ps_half_net1" style="padding-right: 5px;"></span>
+          </div>
+          <div style="display: flex; width: 450px; justify-content: space-between; font-size: 11px;">
+            <span>2ND HALF PAY :</span><span id="ps_half_net2" style="padding-right: 5px;"></span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 55% 45%; gap: 30px;">
+          <div style="border: 1px solid #000; padding: 15px; height: 180px; position: relative; background: #fafafa;">
+            <div style="text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 10px;">MONTHLY TAKEHOME PAY CHART</div>
+            <svg width="100%" height="110" viewBox="0 0 400 110" style="padding-left: 45px; padding-bottom: 20px;">
+               <line x1="0" y1="0" x2="350" y2="0" stroke="#eee" stroke-width="1" />
+               <line x1="0" y1="25" x2="350" y2="25" stroke="#eee" stroke-width="1" />
+               <line x1="0" y1="50" x2="350" y2="50" stroke="#eee" stroke-width="1" />
+               <line x1="0" y1="75" x2="350" y2="75" stroke="#eee" stroke-width="1" />
+               <line x1="0" y1="90" x2="350" y2="90" stroke="#000" stroke-width="1.5" />
+               <line x1="0" y1="0" x2="0" y2="90" stroke="#000" stroke-width="1.5" />
+               <rect x="10" y="30" width="18" height="60" fill="#2c3e50" rx="1" />
+               <rect x="40" y="25" width="18" height="65" fill="#2c3e50" rx="1" />
+               <rect x="70" y="35" width="18" height="55" fill="#2c3e50" rx="1" />
+               <rect x="100" y="20" width="18" height="70" fill="#2c3e50" rx="1" />
+               <rect x="130" y="40" width="18" height="50" fill="#2c3e50" rx="1" />
+               <rect x="160" y="30" width="18" height="60" fill="#2c3e50" rx="1" />
+               <rect x="190" y="25" width="18" height="65" fill="#2c3e50" rx="1" />
+               <rect x="220" y="45" width="18" height="45" fill="#2c3e50" rx="1" />
+               <rect x="250" y="30" width="18" height="60" fill="#2c3e50" rx="1" />
+               <rect x="280" y="20" width="18" height="70" fill="#2c3e50" rx="1" />
+               <rect x="310" y="35" width="18" height="55" fill="#2c3e50" rx="1" />
+               <g font-family="Courier New" font-size="9" text-anchor="middle">
+                 <text x="19" y="105">F</text><text x="49" y="105">M</text>
+                 <text x="79" y="105">A</text><text x="109" y="105">M</text>
+                 <text x="139" y="105">J</text><text x="169" y="105">J</text>
+                 <text x="199" y="105">A</text><text x="229" y="105">S</text>
+                 <text x="259" y="105">O</text><text x="289" y="105">N</text>
+                 <text x="319" y="105">D</text>
+               </g>
+               <g font-family="Courier New" font-size="8" text-anchor="end">
+                 <text x="-5" y="5">12000</text>
+                 <text x="-5" y="30">9000</text>
+                 <text x="-5" y="55">6000</text>
+                 <text x="-5" y="80">3000</text>
+               </g>
+            </svg>
+          </div>
+          <div style="border: 1px solid #000; padding: 15px; background: #fff;">
+            <div style="text-align: center; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; font-size: 10px;">
+              NEW OBLIGATIONS<br><span style="font-size: 8px; font-weight: normal;">(To be filled up by GFI/PLI)</span>
+            </div>
+            <div style="margin-bottom: 15px; font-size: 10px;">ORGANIZATION: _______________________</div>
+            <div style="margin-bottom: 15px; font-size: 10px;">TYPE: _______________________________</div>
+            <div style="margin-bottom: 15px; font-size: 10px;">AMOUNT LOANED: ______________________</div>
+            <div style="margin-bottom: 5px; font-size: 10px;">MONTHLY AMORTIZATION: ______________</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Drawer for Employee Details in Approvals -->
@@ -232,6 +420,16 @@
     $.get('/api/approvals?status=all', function(res) {
       if (res.success) {
         allApprovals = res.approvals || [];
+        updateTabCounts();
+
+        // If there are no Pending records, automatically switch to 'All' so records display immediately
+        const pCnt = allApprovals.filter(a => (a.ApprovalStatus || '').toLowerCase() === 'pending').length;
+        if (pCnt === 0 && allApprovals.length > 0 && currentFilter === 'Pending') {
+          currentFilter = 'All';
+          $('.ftab').removeClass('active');
+          $('.ftab[data-status="All"]').addClass('active');
+        }
+
         renderList();
       } else {
         $('#docList').html('<div class="empty-state">Failed to load approvals.</div>');
@@ -240,6 +438,16 @@
       $('#docList').html('<div class="empty-state">Error connecting to server.</div>');
     });
   };
+
+  function updateTabCounts() {
+    const pCnt = allApprovals.filter(a => (a.ApprovalStatus || '').toLowerCase() === 'pending').length;
+    const aCnt = allApprovals.filter(a => (a.ApprovalStatus || '').toLowerCase() === 'approved').length;
+    const rCnt = allApprovals.filter(a => (a.ApprovalStatus || '').toLowerCase() === 'rejected').length;
+    $('#tabCountPending').text(`(${pCnt})`);
+    $('#tabCountApproved').text(`(${aCnt})`);
+    $('#tabCountRejected').text(`(${rCnt})`);
+    $('#tabCountAll').text(`(${allApprovals.length})`);
+  }
 
   window.switchTab = function(el, status) {
     $('.ftab').removeClass('active');
@@ -253,10 +461,14 @@
   };
 
   function renderList() {
-    const q = $('#apSearch').val().toLowerCase();
+    const q = ($('#apSearch').val() || '').trim().toLowerCase();
     let filtered = allApprovals.filter(a => {
-      const matchStatus = (currentFilter === 'All') || (a.ApprovalStatus.toLowerCase() === currentFilter.toLowerCase());
-      const matchSearch = a.Title.toLowerCase().includes(q) || a.DocNumber.toLowerCase().includes(q) || (a.RequesterID && a.RequesterID.toLowerCase().includes(q));
+      const aStatus = (a.ApprovalStatus || '').toLowerCase();
+      const matchStatus = (currentFilter === 'All') || (aStatus === currentFilter.toLowerCase());
+      const aTitle = (a.Title || '').toLowerCase();
+      const aDocNum = (a.DocNumber != null ? String(a.DocNumber) : '').toLowerCase();
+      const aReq = (a.RequesterID != null ? String(a.RequesterID) : '').toLowerCase();
+      const matchSearch = !q || aTitle.includes(q) || aDocNum.includes(q) || aReq.includes(q);
       return matchStatus && matchSearch;
     });
 
@@ -362,6 +574,14 @@
         }
 
         const isNeg = Number(e.net_pay || 0) < 0;
+        const isLwop = Boolean(e.is_lwop || (parseFloat(e.net_pay) <= 0 && (e.absent_days || 0) > 0));
+        let netHtml = '';
+        if (isLwop) {
+          netHtml = '₱0.00<br><span class="badge" style="background:#fee2e2; color:#991b1b; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:700;" title="Leave Without Pay (Total Absence / Exhausted Credits)">LWOP ₱0.00</span>';
+        } else {
+          netHtml = fCurrency(e.net_pay) + (isNeg ? '<br><span class="badge bg-danger text-white" style="font-size:9px;" title="Negative Net Pay">Negative Net</span>' : (e.below_net_floor ? '<br><span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:9px;" title="Below ₱2.5k Floor">Below ₱2.5k Floor</span>' : ''));
+        }
+
         empRowsHtml += `
           <tr onclick="showEmpInApproval('${e.id}')" style="cursor:pointer;">
             <td style="padding:10px 14px;"><strong>${e.name}</strong><br><small style="color:var(--muted2);">${e.id}</small></td>
@@ -369,10 +589,14 @@
             <td style="padding:10px 14px;">${attBadge}</td>
             <td style="padding:10px 14px; text-align:right; font-weight:600; color:#059669;">${fCurrency(e.total_gross)}</td>
             <td style="padding:10px 14px; text-align:right; font-weight:600; color:#dc2626;">${fCurrency(e.total_deduct)}</td>
-            <td style="padding:10px 14px; text-align:right; font-weight:700; ${isNeg ? 'color:var(--red);' : 'color:var(--navy);'}">${fCurrency(e.net_pay)}${isNeg ? '<br><span class="badge bg-danger text-white" style="font-size:9px;">Negative Net</span>' : ''}</td>
-            <td style="padding:10px 14px; text-align:center;">
-              <button class="btn btn-outline" onclick="event.stopPropagation();showEmpInApproval('${e.id}')" style="padding:4px 10px; font-size:11px;">
-                Inspect Details &rarr;
+            <td style="padding:10px 14px; text-align:right; font-weight:700; ${isNeg || isLwop ? 'color:var(--red);' : 'color:var(--navy);'}">${netHtml}</td>
+            <td style="padding:10px 14px; text-align:center; white-space:nowrap;">
+              <button class="btn btn-outline" onclick="event.stopPropagation();showPayslipInApproval('${e.id}')" title="View Payslip" style="background:var(--navy-light);border:1.5px solid #c5d8f5;border-radius:7px;padding:4px 8px;cursor:pointer;color:var(--navy-mid);font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;margin-right:4px;">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Payslip
+              </button>
+              <button class="btn btn-outline" onclick="event.stopPropagation();showEmpInApproval('${e.id}')" title="Inspect Breakdown Details" style="padding:4px 8px; font-size:11px;">
+                Inspect &rarr;
               </button>
             </td>
           </tr>
@@ -745,6 +969,206 @@
     }
 
     $('#payheadDrawer').addClass('open');
+  };
+
+  // ── Official Payslip modal in Approvals ───────────────────────────────────
+  window.showPayslipInApproval = function(empId) {
+    if (!activeApproval || !activeApproval.details || !activeApproval.details.employees) return;
+    const e = activeApproval.details.employees.find(x => x.id === empId);
+    if (!e) return;
+
+    const pD = new Date();
+    $('#ps_print_date').html(pD.toLocaleDateString('en-US') + '<br>' + pD.toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit'}));
+    $('#ps_issue_date').text(pD.toLocaleDateString('en-US'));
+    const periodTitle = activeApproval.details.period || activeApproval.Title || activeApproval.DocNumber;
+    $('#ps_month_label').text('FOR THE PERIOD OF ' + periodTitle);
+    const rId = Math.floor(Math.random() * 900000) + 100000;
+    $('#ps_print_id').text(rId);
+
+    $('#ps_name').text(e.name);
+    $('#ps_id').text(e.id);
+    $('#ps_designation').text(e.designation);
+    $('#ps_acc_no').text(e.account_no || '----------');
+    $('#ps_basic_full').text(fCurrency(e.half_basic));
+
+    let earnHtml = '';
+    let hasCustomEarn = false;
+    if (e.payheads_json) {
+      try {
+        const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+        (ph.earnings || []).forEach(item => {
+          if (parseFloat(item.amount) > 0) {
+            hasCustomEarn = true;
+            earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>${item.name}:</span><span>${fCurrency(item.amount)}</span></div>`;
+          }
+        });
+      } catch(ex) {}
+    }
+    if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
+      earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>OTHER EARNINGS / ALLOWANCES:</span><span>${fCurrency(e.other_earnings)}</span></div>`;
+    }
+    if (parseFloat(e.holiday_pay) > 0) {
+      earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>HOLIDAY PAY:</span><span>${fCurrency(e.holiday_pay)}</span></div>`;
+    }
+    $('#ps_earnings_list').html(earnHtml);
+    $('#ps_gross').text(fCurrency(e.total_gross));
+
+    let deductHtml = '';
+    const addRow = (lbl, val) => {
+      if (!val || parseFloat(val) <= 0) return;
+      deductHtml += `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px;">
+          <span style="flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">${lbl}</span>
+          <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+            <span style="width: 65px;">--</span>
+            <span style="width: 70px;">--</span>
+            <span style="width: 80px;">${fCurrency(val)}</span>
+          </span>
+        </div>`;
+    };
+
+    let undhtml = [];
+    let undTotal = 0;
+    const addUndeducted = (desc, amt) => {
+      if (!amt || parseFloat(amt) <= 0) return;
+      const val = parseFloat(amt);
+      undTotal += val;
+      undhtml.push(`
+        <div style="display:flex; justify-content: space-between; margin-bottom:3px; color:#b91c1c;">
+          <span style="flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">${desc}</span>
+          <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
+            <span style="width: 60px;">--</span>
+            <span style="width: 60px;">--</span>
+            <span style="width: 75px; font-weight:600;">${fCurrency(val)}</span>
+          </span>
+        </div>
+      `);
+    };
+
+    const absLabel = (e.absent_days && e.absent_days > 0) ? `ABSENCE (${e.absent_days} DAY${e.absent_days > 1 ? 'S' : ''})` : 'ABSENCE';
+    const tardMins = e.lwop_tardiness_minutes || e.late_minutes || 0;
+    const tardLabel = tardMins > 0 ? `TARDINESS (${tardMins} MIN)` : 'TARDINESS';
+    const underMins = e.lwop_undertime_minutes || e.undertime_minutes || 0;
+    const underLabel = underMins > 0 ? `UNDERTIME (${underMins} MIN)` : 'UNDERTIME';
+
+    addRow(tardLabel, e.tardiness_deduction);
+    addRow(underLabel, e.undertime_deduction);
+    addRow(absLabel, e.absent_deduction);
+
+    let hasStat = false;
+    if (e.statutory_json) {
+      try {
+        const st = typeof e.statutory_json === 'string' ? JSON.parse(e.statutory_json) : e.statutory_json;
+        for (const [key, amount] of Object.entries(st)) {
+          if (['ABSENCE', 'TARDINESS', 'UNDERTIME', 'WTAX'].includes(key) || parseFloat(amount) <= 0) continue;
+          hasStat = true;
+          let label = key.replace(/_/g, ' ');
+          if (key === 'GSIS_EE' || key === 'GSIS') label = 'GSIS PREMIUM (9%)';
+          else if (key === 'PHIC_EE' || key === 'PHILHEALTH') label = 'PHILHEALTH';
+          else if (key === 'PAGIBIG_EE' || key === 'PAGIBIG') label = 'PAG-IBIG FUND';
+          addRow(label, amount);
+        }
+        const wtax = st['WTAX'] || st['wtax'];
+        if (wtax && parseFloat(wtax) > 0) {
+          hasStat = true;
+          addRow('WITHHOLDING TAX', wtax);
+        }
+      } catch(err) {}
+    }
+    if (!hasStat) {
+      addRow("GSIS PREMIUM (9%)", e.gsis_ee);
+      addRow("PHILHEALTH", e.philhealth_ee);
+      addRow("PAG-IBIG FUND", e.pagibig_ee);
+      addRow("WITHHOLDING TAX", e.withholding_tax);
+    }
+
+    let hasCustom = false;
+    if (e.payheads_json) {
+      try {
+        const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+        (ph.deductions || []).forEach(item => {
+          if (parseFloat(item.amount) > 0) {
+            hasCustom = true;
+            addRow(item.name, item.amount);
+          }
+        });
+      } catch(ex) {}
+    }
+    if (!hasCustom && parseFloat(e.other_deductions) > 0) {
+      addRow("OTHER DEDUCTIONS / LOANS", e.other_deductions);
+    }
+
+    $('#ps_deductions_list').html(deductHtml);
+    $('#ps_total_deduct').text(fCurrency(e.total_deduct));
+
+    // ── Undeducted Obligations (DepEd Order No. 5, s. 2018 Arrears) ─────────
+    const isPsLwopZero = Boolean(e.is_lwop || (parseFloat(e.net_pay) <= 0 && (e.absent_days || 0) > 0));
+    const hasUncollected = Boolean(e.uncollected_deductions && e.uncollected_deductions > 0);
+
+    if (isPsLwopZero || hasUncollected) {
+      if (parseFloat(e.gsis_ee) > 0) addUndeducted('GSIS PREMIUM (UNPAID)', e.gsis_ee);
+      if (parseFloat(e.philhealth_ee) > 0) addUndeducted('PHILHEALTH (UNPAID)', e.philhealth_ee);
+      if (parseFloat(e.pagibig_ee) > 0) addUndeducted('PAG-IBIG FUND (UNPAID)', e.pagibig_ee);
+      
+      let hasCustomLoans = false;
+      if (e.payheads_json) {
+        try {
+          const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          (ph.deductions || []).forEach(item => {
+            if (parseFloat(item.amount) > 0) {
+              hasCustomLoans = true;
+              addUndeducted(`${item.name} (UNPAID)`, item.amount);
+            }
+          });
+        } catch(ex) {}
+      }
+      if (!hasCustomLoans && parseFloat(e.other_deductions) > 0) {
+        addUndeducted('LOANS / APDS (UNPAID)', e.other_deductions);
+      }
+      if (undhtml.length === 0 && e.uncollected_deductions > 0) {
+        addUndeducted('UNCOLLECTED ARREARS', e.uncollected_deductions);
+      }
+    }
+
+    if (undhtml.length > 0) {
+      const displayUndTotal = (e.uncollected_deductions && e.uncollected_deductions > 0) ? e.uncollected_deductions : undTotal;
+      $('#ps_undeducted_list').html(undhtml.join('') + `
+        <div style="display:flex; justify-content:space-between; border-top:1px dashed #b91c1c; padding-top:4px; margin-top:6px; font-weight:bold; font-size:10px; color:#b91c1c;">
+          <span>TOTAL UNDEDUCTED:</span>
+          <span>${fCurrency(displayUndTotal)}</span>
+        </div>
+      `);
+    } else {
+      $('#ps_undeducted_list').html('<div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>');
+    }
+
+    // ── Semi-monthly distribution & Net Pay ────────────────────────────────
+    const periodStr = String((activeApproval.details && activeApproval.details.period) || activeApproval.DocNumber || '');
+    const isSecondHalf = periodStr.includes('2nd') || periodStr.endsWith('-2');
+    if (isPsLwopZero) {
+      $('#ps_lwop_notice').show();
+      $('#ps_net').html('<span style="color:#b91c1c; font-weight:bold;">₱0.00 (LWOP)</span>');
+      $('#ps_half_net1').html(isSecondHalf ? '0.00' : '<span style="color:#b91c1c; font-weight:bold;">₱0.00</span>');
+      $('#ps_half_net2').html(isSecondHalf ? '<span style="color:#b91c1c; font-weight:bold;">₱0.00</span>' : '0.00');
+    } else {
+      $('#ps_lwop_notice').hide();
+      $('#ps_net').text(fCurrency(e.net_pay));
+      $('#ps_half_net1').text(isSecondHalf ? '0.00' : fCurrency(e.net_pay)); 
+      $('#ps_half_net2').text(isSecondHalf ? fCurrency(e.net_pay) : '0.00');
+    }
+
+    $('#payslipModal').addClass('open');
+  };
+
+  window.printAdminPayslip = function () {
+    const prt = document.getElementById("payslipContent");
+    const WinPrint = window.open('', '', 'left=0,top=0,width=850,height=900,toolbar=0,scrollbars=0,status=0');
+    WinPrint.document.write('<html><head><style>@page { size: portrait; margin: 10mm; } body { background: #fff; line-height: 1.35; font-family: monospace; -webkit-print-color-adjust: exact; }</style></head><body>');
+    WinPrint.document.write(prt.outerHTML);
+    WinPrint.document.write('</body></html>');
+    WinPrint.document.close();
+    WinPrint.focus();
+    setTimeout(() => { WinPrint.print(); WinPrint.close(); }, 500);
   };
 
   window.openActionModal = function(act) {

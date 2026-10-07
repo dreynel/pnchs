@@ -1465,7 +1465,7 @@ function applyRolePermissions(rawRole) {
       { icon: '⏱️', label: 'DTR Logs', title: 'Biometric Logs', url: '/pages/logs.html', browser: '/logs' },
       { icon: '💰', label: 'Payroll', title: 'Payroll Processing', url: '/pages/payroll.html', browser: '/payroll' },
       { icon: '📊', label: 'Salary Grades', title: 'Salary Grades', url: '/pages/salary_grades.html', browser: '/salary_grades' },
-      { icon: '📋', label: 'Approvals', title: 'Approvals', url: '/pages/approvals.html', browser: '/approvals' }
+      { icon: '📋', label: 'Approvals', title: 'Payroll Approval', url: '/pages/approvals.html', browser: '/payroll_approvals' }
     ];
   } else {
     // Employee / Teacher
@@ -1562,16 +1562,12 @@ window.applyRolePermissions = applyRolePermissions;
 
   // ── Fetch Dashboard Stats ─────────────────────────────────────────────
   let isFetching = false;
-  function initDashboard() {
-    if (isFetching) return;
-    isFetching = true;
 
-    $.get('/api/dashboard/stats', function(data) {
-      isFetching = false;
-      if (!data || data.error) return console.error(data ? data.error : 'Empty response');
+  function renderDashboardData(data) {
+    if (!data || data.error) return;
 
-      const s = data.summary;
-      const k = data.kpis;
+    const s = data.summary;
+    const k = data.kpis;
 
       // Top Welcome Stats
       updateMetric('wb-total-employees', s.total_employees);
@@ -1689,24 +1685,55 @@ window.applyRolePermissions = applyRolePermissions;
           </div>
         `);
       }
-    }).fail(function() {
-      isFetching = false;
-    });
-  }
-
-  initDashboard();
-
-  // Smooth live polling (every 10s without reset-bouncing)
-  const liveInterval = setInterval(function() {
-    if (document.getElementById('recent-activity-list')) {
-      initDashboard();
-    } else {
-      clearInterval(liveInterval);
     }
-  }, 10000);
 
-  window.addEventListener('pnchs:data-change', function() {
-    if (document.getElementById('recent-activity-list')) initDashboard();
-  });
-})();
-</script>
+    function initDashboard(force = false) {
+      if (isFetching) return;
+
+      const now = Date.now();
+      const lastFetch = parseInt(sessionStorage.getItem('pnchs_stats_time') || '0', 10);
+      const cachedRaw = sessionStorage.getItem('pnchs_stats_cache');
+
+      if (!force && cachedRaw && (now - lastFetch < 10000)) {
+        try {
+          renderDashboardData(JSON.parse(cachedRaw));
+          return;
+        } catch(e) {}
+      }
+
+      isFetching = true;
+      $.get('/api/dashboard/stats', function(data) {
+        isFetching = false;
+        if (!data || data.error) return console.error(data ? data.error : 'Empty response');
+        try {
+          sessionStorage.setItem('pnchs_stats_time', String(Date.now()));
+          sessionStorage.setItem('pnchs_stats_cache', JSON.stringify(data));
+        } catch(e) {}
+        renderDashboardData(data);
+      }).fail(function() {
+        isFetching = false;
+      });
+    }
+
+    initDashboard();
+
+    // Smooth live polling (every 10s without reset-bouncing)
+    const liveInterval = setInterval(function() {
+      if (document.getElementById('recent-activity-list')) {
+        initDashboard(true);
+      } else {
+        clearInterval(liveInterval);
+      }
+    }, 10000);
+
+    window.addEventListener('pnchs:data-change', function(e) {
+      if (document.getElementById('recent-activity-list')) {
+        if (e && e.detail) {
+          renderDashboardData(e.detail);
+        } else {
+          initDashboard(false);
+        }
+      }
+    });
+  })();
+  </script>

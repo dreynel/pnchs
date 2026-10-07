@@ -124,9 +124,11 @@ def get_approvals():
                                 'first_name': fe['first_name'],
                                 'last_name': fe['last_name'],
                                 'designation': fe['designation'],
+                                'account_no': fe.get('account_no') or '',
                                 'basic_salary': 15000.00,
                                 'half_basic': 7500.00,
                                 'other_earnings': 0.0,
+                                'holiday_pay': 0.0,
                                 'other_deductions': 0.0,
                                 'absent_days': 0,
                                 'absent_deduction': 0.0,
@@ -138,6 +140,10 @@ def get_approvals():
                                 'lwop_undertime_minutes': 0,
                                 'tardiness_deduction': 0.0,
                                 'undertime_deduction': 0.0,
+                                'sss_ee': 0.0,
+                                'philhealth_ee': 0.0,
+                                'pagibig_ee': 0.0,
+                                'withholding_tax': 0.0,
                                 'statutory_json': None,
                                 'payheads_json': None,
                                 'total_gross': 7500.00,
@@ -151,20 +157,35 @@ def get_approvals():
                     gDeduct = sum(float(x['total_deduct'] or 0) for x in emp_rows)
                     gNet = sum(float(x['net_pay'] or 0) for x in emp_rows)
 
+                    months_map = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                    pr_m_name = months_map[r['pr_month']] if (r.get('pr_month') and 1 <= r['pr_month'] <= 12) else ''
+                    pr_half_str = "1st Half" if r.get('pr_half') == 1 else "2nd Half"
+                    period_name = f"{pr_m_name} {r.get('pr_year', '')} ({pr_half_str})".strip() if pr_m_name else (doc_num or 'Payroll Period')
+
                     emp_list = []
                     for x in emp_rows:
                         vl_m = int(x['vl_minutes'])
                         sl_m = int(x['sl_minutes'])
+                        t_gross = float(x.get('total_gross') or 0)
+                        t_deduct = float(x.get('total_deduct') or 0)
+                        a_days = int(x.get('absent_days') or 0)
+                        a_ded = float(x.get('absent_deduction') or 0)
+                        n_pay = float(x.get('net_pay') or 0)
+                        is_lwop_flag = bool(a_days > 0 and (t_gross - a_ded) <= 0.01) or bool(n_pay <= 0 and a_days > 0)
+                        uncol_amt = round(max(0.0, t_deduct - t_gross), 2) if is_lwop_flag else 0.0
+
                         emp_list.append({
                             'id':                 x['employee_id'],
                             'name':               f"{x['first_name']} {x['last_name']}",
                             'designation':        x['designation'],
-                            'basic_salary':       float(x['basic_salary'] or 0),
-                            'half_basic':         float(x['half_basic'] or 0),
-                            'other_earnings':     float(x['other_earnings'] or 0),
-                            'other_deductions':   float(x['other_deductions'] or 0),
-                            'absent_days':        x.get('absent_days', 0),
-                            'absent_deduction':   float(x.get('absent_deduction') or 0),
+                            'account_no':         x.get('account_no') or '----------',
+                            'basic_salary':       float(x.get('basic_salary') or 0),
+                            'half_basic':         float(x.get('half_basic') or 0),
+                            'other_earnings':     float(x.get('other_earnings') or 0),
+                            'holiday_pay':        float(x.get('holiday_pay') or 0),
+                            'other_deductions':   float(x.get('other_deductions') or 0),
+                            'absent_days':        a_days,
+                            'absent_deduction':   a_ded,
                             'late_minutes':        x.get('late_minutes', 0),
                             'undertime_minutes':   x.get('undertime_minutes', 0),
                             'vl_tardiness_minutes': x.get('vl_tardiness_minutes', 0),
@@ -173,11 +194,19 @@ def get_approvals():
                             'lwop_undertime_minutes': x.get('lwop_undertime_minutes', 0),
                             'tardiness_deduction': float(x.get('tardiness_deduction') or 0),
                             'undertime_deduction': float(x.get('undertime_deduction') or 0),
+                            'gsis_ee':            float(x.get('sss_ee') or 0),
+                            'philhealth_ee':      float(x.get('philhealth_ee') or 0),
+                            'pagibig_ee':         float(x.get('pagibig_ee') or 0),
+                            'withholding_tax':    float(x.get('withholding_tax') or 0),
                             'statutory_json':      x.get('statutory_json'),
                             'payheads_json':       x.get('payheads_json'),
-                            'total_gross':        float(x['total_gross'] or 0),
-                            'total_deduct':       float(x['total_deduct'] or 0),
-                            'net_pay':            float(x['net_pay'] or 0),
+                            'total_gross':        t_gross,
+                            'total_deduct':       t_deduct,
+                            'net_pay':            0.0 if is_lwop_flag else n_pay,
+                            'is_lwop':            is_lwop_flag,
+                            'uncollected_deductions': uncol_amt,
+                            'below_net_floor':    bool(0 < n_pay < 2500),
+                            'dtr_filed':          bool(x.get('dtr_filed', True)),
                             'vl_minutes':          vl_m,
                             'sl_minutes':          sl_m,
                             'vl_formatted':        LeavePolicyService.format_minutes_to_dhm(vl_m),
@@ -188,6 +217,7 @@ def get_approvals():
                         'year': r['pr_year'],
                         'month': r['pr_month'],
                         'half': r['pr_half'],
+                        'period': period_name,
                         'emp_count': len(emp_list),
                         'gross_pay': gGross,
                         'total_deduct': gDeduct,

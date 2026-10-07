@@ -402,15 +402,18 @@
       }
 
       let undhtml = [];
+      let undTotal = 0;
       function addUndeducted(code, desc, amt) {
           if(!amt || parseFloat(amt) === 0) return;
+          const val = parseFloat(amt);
+          undTotal += val;
           undhtml.push(`
             <div style="display:flex; justify-content: space-between; margin-bottom:3px; color:#b91c1c;">
               <span style="flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">${desc}</span>
               <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
                 <span style="width: 60px;">--</span>
                 <span style="width: 60px;">--</span>
-                <span style="width: 75px; font-weight:600;">${fmt(amt)}</span>
+                <span style="width: 75px; font-weight:600;">${fmt(val)}</span>
               </span>
             </div>
           `);
@@ -497,17 +500,33 @@
         if (parseFloat(e.gsis_ee) > 0) addUndeducted('SSS', 'GSIS PREMIUM (UNPAID)', e.gsis_ee);
         if (parseFloat(e.philhealth_ee) > 0) addUndeducted('PHIC', 'PHILHEALTH (UNPAID)', e.philhealth_ee);
         if (parseFloat(e.pagibig_ee) > 0) addUndeducted('HDMF', 'PAG-IBIG FUND (UNPAID)', e.pagibig_ee);
-        if (parseFloat(e.other_deductions) > 0) addUndeducted('OTH', 'LOANS / APDS (UNPAID)', e.other_deductions);
+        
+        let hasCustomLoans = false;
+        if (e.payheads_json) {
+          try {
+            const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+            (ph.deductions || []).forEach(item => {
+              if (parseFloat(item.amount) > 0) {
+                hasCustomLoans = true;
+                addUndeducted('LN', `${item.name} (UNPAID)`, item.amount);
+              }
+            });
+          } catch(ex) {}
+        }
+        if (!hasCustomLoans && parseFloat(e.other_deductions) > 0) {
+          addUndeducted('OTH', 'LOANS / APDS (UNPAID)', e.other_deductions);
+        }
         if (undhtml.length === 0 && e.uncollected_deductions > 0) {
           addUndeducted('ARR', 'UNCOLLECTED ARREARS', e.uncollected_deductions);
         }
       }
 
       if (undhtml.length > 0) {
+        const displayUndTotal = (e.uncollected_deductions && e.uncollected_deductions > 0) ? e.uncollected_deductions : undTotal;
         $('#ps_undeducted_list').html(undhtml.join('') + `
           <div style="display:flex; justify-content:space-between; border-top:1px dashed #b91c1c; padding-top:4px; margin-top:6px; font-weight:bold; font-size:10px; color:#b91c1c;">
             <span>TOTAL UNDEDUCTED:</span>
-            <span>${fmt(e.uncollected_deductions || e.total_deduct)}</span>
+            <span>${fmt(displayUndTotal)}</span>
           </div>
         `);
       } else {

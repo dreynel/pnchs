@@ -294,14 +294,13 @@
   </style>
 
   </div>
-</div>
 
 <!-- ── Payslip Modal ── -->
 <div class="modal-overlay" id="payslipModal" style="z-index:3000;">
   <div class="modal-content" style="width:900px; max-width:95vw; max-height:90vh; overflow-y:auto; padding:0; border-radius:12px; background:#f4f7fa;">
     <div class="modal-header-premium" style="display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--border); padding:15px 25px;">
       <div>
-        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy);">Official Payslip Review</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy);">Official Payslip</div>
         <div style="font-size:11px;color:var(--muted2);margin-top:2px;">Official Department of Education Payroll Record</div>
       </div>
       <div style="display:flex; gap:12px;">
@@ -413,7 +412,7 @@
                 <span style="width: 75px;">Amount Of<br>Deduction</span>
               </span>
             </div>
-            <div id="ps_undeducted_list">
+            <div id="ps_undeducted_list" style="margin-bottom: 10px;">
               <div style="color: #999; font-style: italic; text-align: center; margin-top: 40px;">No undeducted obligations</div>
             </div>
           </div>
@@ -606,7 +605,11 @@
         <td class="num">${e.dtr_filed ? '<span class="dtr-pill full">OK</span>' : '<span class="dtr-pill absent">NO LOGS</span>'}</td>
         <td class="num amt-earn">${fmt(e.total_gross)}</td>
         <td class="num amt-deduct">${fmt(e.total_deduct)}</td>
-        <td class="num amt-net" style="${parseFloat(e.net_pay) < 0 ? 'color:var(--red); font-weight:800;' : ''}">${fmt(e.net_pay)}${parseFloat(e.net_pay) < 0 ? '<br><span class="badge bg-danger text-white" style="font-size:9px;" title="Negative Net Pay: Total deductions exceed semi-monthly earnings">Negative Net</span>' : (e.below_net_floor ? '<br><span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:9px;" title="Net Pay below DepEd ₱5,000 monthly threshold (₱2,500 semi-monthly)">Below ₱2.5k Floor</span>' : '')}</td>
+        <td class="num amt-net" style="${parseFloat(e.net_pay) <= 0 ? 'color:var(--red); font-weight:800;' : ''}">
+          ${(e.is_lwop || (parseFloat(e.net_pay) <= 0 && (e.absent_days || 0) > 0)) 
+            ? '₱0.00<br><span class="badge" style="background:#fee2e2; color:#991b1b; font-size:9px; padding:2px 6px; border-radius:4px; font-weight:700;" title="Leave Without Pay (Total Absence / Exhausted Credits)">LWOP ₱0.00</span>' 
+            : fmt(e.net_pay) + (parseFloat(e.net_pay) < 0 ? '<br><span class="badge bg-danger text-white" style="font-size:9px;" title="Negative Net Pay: Total deductions exceed semi-monthly earnings">Negative Net</span>' : (e.below_net_floor ? '<br><span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:9px;" title="Net Pay below DepEd ₱5,000 monthly threshold (₱2,500 semi-monthly)">Below ₱2.5k Floor</span>' : ''))}
+        </td>
         <td style="text-align:center;">
           <button onclick="event.stopPropagation();showPayslip('${e.id}')" title="View Payslip"
             style="background:var(--navy-light);border:1.5px solid #c5d8f5;border-radius:7px;padding:5px 10px;cursor:pointer;color:var(--navy-mid);font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;transition:all .15s;" onmouseover="this.style.background='var(--navy)';this.style.color='#fff'" onmouseout="this.style.background='var(--navy-light)';this.style.color='var(--navy-mid)'">
@@ -940,15 +943,18 @@
       };
 
       let undhtml = [];
+      let undTotal = 0;
       const addUndeducted = (desc, amt) => {
         if (!amt || parseFloat(amt) <= 0) return;
+        const val = parseFloat(amt);
+        undTotal += val;
         undhtml.push(`
           <div style="display:flex; justify-content: space-between; margin-bottom:3px; color:#b91c1c;">
             <span style="flex: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">${desc}</span>
             <span style="display:flex; flex: 2; gap: 5px; text-align: right; justify-content: flex-end;">
               <span style="width: 60px;">--</span>
               <span style="width: 60px;">--</span>
-              <span style="width: 75px; font-weight:600;">${fmt(amt)}</span>
+              <span style="width: 75px; font-weight:600;">${fmt(val)}</span>
             </span>
           </div>
         `);
@@ -1018,17 +1024,33 @@
         if (parseFloat(e.gsis_ee) > 0) addUndeducted('GSIS PREMIUM (UNPAID)', e.gsis_ee);
         if (parseFloat(e.philhealth_ee) > 0) addUndeducted('PHILHEALTH (UNPAID)', e.philhealth_ee);
         if (parseFloat(e.pagibig_ee) > 0) addUndeducted('PAG-IBIG FUND (UNPAID)', e.pagibig_ee);
-        if (parseFloat(e.other_deductions) > 0) addUndeducted('LOANS / APDS (UNPAID)', e.other_deductions);
+        
+        let hasCustomLoans = false;
+        if (e.payheads_json) {
+          try {
+            const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+            (ph.deductions || []).forEach(item => {
+              if (parseFloat(item.amount) > 0) {
+                hasCustomLoans = true;
+                addUndeducted(`${item.name} (UNPAID)`, item.amount);
+              }
+            });
+          } catch(ex) {}
+        }
+        if (!hasCustomLoans && parseFloat(e.other_deductions) > 0) {
+          addUndeducted('LOANS / APDS (UNPAID)', e.other_deductions);
+        }
         if (undhtml.length === 0 && e.uncollected_deductions > 0) {
           addUndeducted('UNCOLLECTED ARREARS', e.uncollected_deductions);
         }
       }
 
       if (undhtml.length > 0) {
+        const displayUndTotal = (e.uncollected_deductions && e.uncollected_deductions > 0) ? e.uncollected_deductions : undTotal;
         $('#ps_undeducted_list').html(undhtml.join('') + `
           <div style="display:flex; justify-content:space-between; border-top:1px dashed #b91c1c; padding-top:4px; margin-top:6px; font-weight:bold; font-size:10px; color:#b91c1c;">
             <span>TOTAL UNDEDUCTED:</span>
-            <span>${fmt(e.uncollected_deductions || e.total_deduct)}</span>
+            <span>${fmt(displayUndTotal)}</span>
           </div>
         `);
       } else {

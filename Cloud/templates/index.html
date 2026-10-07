@@ -663,6 +663,15 @@
         <span class="label">Payroll Processing</span>
       </a>
 
+      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Approval', '/pages/approvals.html', '/payroll_approvals')">
+        <div class="nav-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <span class="label">Payroll Approval</span>
+      </a>
+
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Releasing', '/pages/payroll_releasing.html', '/payroll_releasing')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -691,7 +700,7 @@
       </a>
       {% endif %}
 
-      {% if user.role in ['Admin', 'HR', 'HR Officer', 'Principal', 'Accounting', 'Finance', 'Finance Officer'] %}
+      {% if user.role in ['Admin', 'HR', 'HR Officer', 'Principal'] %}
       <div class="nav-divider"></div>
       <div class="nav-section-label">Governance</div>
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html', '/approvals')">
@@ -1082,69 +1091,89 @@
       };
 
 
-      function loadNotificationsList() {
+      function renderNotificationsUI(res) {
+        if (!res || !res.success) return;
+        const notifs = res.notifications || [];
+        unreadCount = res.unread_count || 0;
+        $('#notifBadgeCount').text(unreadCount);
+        if (unreadCount > 0) {
+          $('#liveNotifDot').show();
+        } else {
+          $('#liveNotifDot').hide();
+        }
+
+        // Check for newly arrived unread notifications to display targeted live toast
+        if (notifInitialLoadDone) {
+          notifs.forEach(n => {
+            if (!n.is_read && !lastSeenNotifIds.has(n.id)) {
+              showLiveToast(`<strong>${n.title}</strong>: ${n.message}`, n.icon || '🔔');
+            }
+          });
+        }
+        notifs.forEach(n => lastSeenNotifIds.add(n.id));
+        notifInitialLoadDone = true;
+
+        let listHtml = '';
+        if (notifs.length > 0) {
+          notifs.forEach(n => {
+            const unreadCls = !n.is_read ? 'unread' : '';
+            const icon = n.icon || '🔔';
+            const targetUrl = n.link_url || '';
+            const targetTitle = n.link_label || 'View';
+            listHtml += `
+              <div class="notif-item ${unreadCls}" onclick="handleNotificationClick(${n.id}, '${targetUrl}', '${targetTitle}')">
+                <div class="notif-icon-box">${icon}</div>
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+                    <div class="notif-item-title">${n.title}</div>
+                    <span style="font-size:9.5px; color:var(--muted2); white-space:nowrap;">${n.time_ago || ''}</span>
+                  </div>
+                  <div class="notif-item-sub">${n.message}</div>
+                  ${n.link_label ? `<div class="notif-item-time" style="color:var(--navy); font-weight:600;">${n.link_label} &rarr;</div>` : ''}
+                </div>
+              </div>
+            `;
+          });
+        } else {
+          listHtml = `<div style="padding:24px;text-align:center;color:var(--muted2);font-size:12px;">No new notifications for your role.</div>`;
+        }
+
+        $('#notifList').html(listHtml);
+
+        // Configure footer link dynamically based on authenticated role
+        const role = res.role || '';
+        let ftrHtml = '';
+        if (role === 'Principal' || role === 'Admin') {
+          ftrHtml = `<a href="#" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html'); $('#notifDropdown').removeClass('show');">Executive Approvals &rarr;</a>`;
+        } else if (role === 'Accounting' || role === 'Finance' || role === 'Finance Officer') {
+          ftrHtml = `<a href="#" onclick="navigate(event, this, 'Payroll', '/pages/payroll.html'); $('#notifDropdown').removeClass('show');">Payroll Processing &rarr;</a>`;
+        } else if (role === 'HR' || role === 'HR Officer') {
+          ftrHtml = `<a href="#" onclick="navigate(event, this, 'Leave Management', '/pages/leaves.html'); $('#notifDropdown').removeClass('show');">Leave Management &rarr;</a>`;
+        } else {
+          ftrHtml = `<a href="#" onclick="navigate(event, this, 'My Payslip', '/pages/mypayslip.html'); $('#notifDropdown').removeClass('show');">View My Payslips &rarr;</a>`;
+        }
+        $('#notifFooter').html(ftrHtml);
+      }
+
+      function loadNotificationsList(force = false) {
+        const now = Date.now();
+        const lastFetch = parseInt(sessionStorage.getItem('pnchs_notif_time') || '0', 10);
+        const cachedRaw = sessionStorage.getItem('pnchs_notif_cache');
+
+        if (!force && cachedRaw && (now - lastFetch < 10000)) {
+          try {
+            renderNotificationsUI(JSON.parse(cachedRaw));
+            return;
+          } catch(e) {}
+        }
+
         $.get('/api/notifications', function(res) {
           if (!res || !res.success) return;
-          const notifs = res.notifications || [];
-          unreadCount = res.unread_count || 0;
-          $('#notifBadgeCount').text(unreadCount);
-          if (unreadCount > 0) {
-            $('#liveNotifDot').show();
-          } else {
-            $('#liveNotifDot').hide();
-          }
-
-          // Check for newly arrived unread notifications to display targeted live toast
-          if (notifInitialLoadDone) {
-            notifs.forEach(n => {
-              if (!n.is_read && !lastSeenNotifIds.has(n.id)) {
-                showLiveToast(`<strong>${n.title}</strong>: ${n.message}`, n.icon || '🔔');
-              }
-            });
-          }
-          notifs.forEach(n => lastSeenNotifIds.add(n.id));
-          notifInitialLoadDone = true;
-
-          let listHtml = '';
-          if (notifs.length > 0) {
-            notifs.forEach(n => {
-              const unreadCls = !n.is_read ? 'unread' : '';
-              const icon = n.icon || '🔔';
-              const targetUrl = n.link_url || '';
-              const targetTitle = n.link_label || 'View';
-              listHtml += `
-                <div class="notif-item ${unreadCls}" onclick="handleNotificationClick(${n.id}, '${targetUrl}', '${targetTitle}')">
-                  <div class="notif-icon-box">${icon}</div>
-                  <div style="flex:1; min-width:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
-                      <div class="notif-item-title">${n.title}</div>
-                      <span style="font-size:9.5px; color:var(--muted2); white-space:nowrap;">${n.time_ago || ''}</span>
-                    </div>
-                    <div class="notif-item-sub">${n.message}</div>
-                    ${n.link_label ? `<div class="notif-item-time" style="color:var(--navy); font-weight:600;">${n.link_label} &rarr;</div>` : ''}
-                  </div>
-                </div>
-              `;
-            });
-          } else {
-            listHtml = `<div style="padding:24px;text-align:center;color:var(--muted2);font-size:12px;">No new notifications for your role.</div>`;
-          }
-
-          $('#notifList').html(listHtml);
-
-          // Configure footer link dynamically based on authenticated role
-          const role = res.role || '';
-          let ftrHtml = '';
-          if (role === 'Principal' || role === 'Admin') {
-            ftrHtml = `<a href="#" onclick="navigate(event, this, 'Approvals', '/pages/approvals.html'); $('#notifDropdown').removeClass('show');">Executive Approvals &rarr;</a>`;
-          } else if (role === 'Accounting' || role === 'Finance' || role === 'Finance Officer') {
-            ftrHtml = `<a href="#" onclick="navigate(event, this, 'Payroll', '/pages/payroll.html'); $('#notifDropdown').removeClass('show');">Payroll Processing &rarr;</a>`;
-          } else if (role === 'HR' || role === 'HR Officer') {
-            ftrHtml = `<a href="#" onclick="navigate(event, this, 'Leave Management', '/pages/leaves.html'); $('#notifDropdown').removeClass('show');">Leave Management &rarr;</a>`;
-          } else {
-            ftrHtml = `<a href="#" onclick="navigate(event, this, 'My Payslip', '/pages/mypayslip.html'); $('#notifDropdown').removeClass('show');">View My Payslips &rarr;</a>`;
-          }
-          $('#notifFooter').html(ftrHtml);
+          try {
+            sessionStorage.setItem('pnchs_notif_time', String(Date.now()));
+            sessionStorage.setItem('pnchs_notif_cache', JSON.stringify(res));
+          } catch(e) {}
+          renderNotificationsUI(res);
         });
       }
 
@@ -1153,37 +1182,79 @@
       let lastPayrollGross = null;
       let isFirstPoll = true;
 
-      function pollDatabaseFeed() {
-        // Poll targeted notifications
-        loadNotificationsList();
+      function processStatsData(data) {
+        if (!data || data.error) return;
+        window.__pnchsCachedStats = data;
+
+        const totalEmps = data.summary?.total_employees || 0;
+        const payrollGross = data.kpis?.total_gross || 0;
+
+        if (!isFirstPoll) {
+          let changeDetected = false;
+          if (lastEmpCount !== null && totalEmps !== lastEmpCount) changeDetected = true;
+          if (lastPayrollGross !== null && payrollGross !== lastPayrollGross) changeDetected = true;
+
+          if (changeDetected) {
+            window.dispatchEvent(new CustomEvent('pnchs:data-change', { detail: data }));
+          }
+        }
+
+        lastEmpCount = totalEmps;
+        lastPayrollGross = payrollGross;
+        isFirstPoll = false;
+      }
+
+      function pollDatabaseFeed(force = false) {
+        // Poll targeted notifications (cached across reloads if < 10s)
+        loadNotificationsList(force);
+
+        const now = Date.now();
+        const lastFetch = parseInt(sessionStorage.getItem('pnchs_stats_time') || '0', 10);
+        const cachedRaw = sessionStorage.getItem('pnchs_stats_cache');
+
+        if (!force && cachedRaw && (now - lastFetch < 10000)) {
+          try {
+            processStatsData(JSON.parse(cachedRaw));
+            return;
+          } catch(e) {}
+        }
 
         // Background data sync for open tabs/charts
         $.get('/api/dashboard/stats', function(data) {
           if (!data || data.error) return;
-
-          const totalEmps = data.summary?.total_employees || 0;
-          const payrollGross = data.kpis?.total_gross || 0;
-
-          if (!isFirstPoll) {
-            let changeDetected = false;
-            if (lastEmpCount !== null && totalEmps !== lastEmpCount) changeDetected = true;
-            if (lastPayrollGross !== null && payrollGross !== lastPayrollGross) changeDetected = true;
-
-            if (changeDetected) {
-              window.dispatchEvent(new CustomEvent('pnchs:data-change', { detail: data }));
-            }
-          }
-
-          lastEmpCount = totalEmps;
-          lastPayrollGross = payrollGross;
-          isFirstPoll = false;
+          try {
+            sessionStorage.setItem('pnchs_stats_time', String(Date.now()));
+            sessionStorage.setItem('pnchs_stats_cache', JSON.stringify(data));
+          } catch(e) {}
+          processStatsData(data);
         });
       }
 
-      // Start global real-time synchronization ticker (every 3.5 seconds)
-      setInterval(pollDatabaseFeed, 3500);
-      pollDatabaseFeed();
-      loadNotificationsList();
+      // Start global real-time synchronization ticker (every 10s, throttled even after reload)
+      const STATS_POLL_INTERVAL = 10000;
+      const initialPollNow = Date.now();
+      const lastPollTimestamp = Math.max(
+        parseInt(sessionStorage.getItem('pnchs_notif_time') || '0', 10),
+        parseInt(sessionStorage.getItem('pnchs_stats_time') || '0', 10)
+      );
+      const elapsedSinceLastPoll = initialPollNow - lastPollTimestamp;
+
+      // Immediately render cached stats & notifications if available (0 network requests if fresh)
+      pollDatabaseFeed(false);
+
+      // If reloaded within the 10s window, defer the first network request to the remainder of 10s
+      const initialPollDelay = (elapsedSinceLastPoll < STATS_POLL_INTERVAL && elapsedSinceLastPoll > 0)
+        ? (STATS_POLL_INTERVAL - elapsedSinceLastPoll)
+        : 0;
+
+      if (initialPollDelay > 0) {
+        setTimeout(function() {
+          pollDatabaseFeed(true);
+          setInterval(function() { pollDatabaseFeed(true); }, STATS_POLL_INTERVAL);
+        }, initialPollDelay);
+      } else {
+        setInterval(function() { pollDatabaseFeed(true); }, STATS_POLL_INTERVAL);
+      }
 
       // ── Load page into #pageContent ──────────────────────────────────────
       function loadPage(url) {
@@ -1226,7 +1297,7 @@
           '/pages/payroll_releasing.html': '/payroll_releasing',
           '/pages/salary_grades.html': '/salary_grades',
           '/pages/registry.html': '/registry',
-          '/pages/approvals.html': '/approvals',
+          '/pages/approvals.html': (['Accounting', 'Finance', 'Finance Officer'].includes('{{ user.role }}')) ? '/payroll_approvals' : '/approvals',
           '/pages/dtr.html': '/dtr',
           '/pages/logs.html': '/logs',
           '/pages/payroll_report.html': '/payroll_report',

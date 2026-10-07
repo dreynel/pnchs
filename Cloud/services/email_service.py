@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 import threading
 from datetime import datetime
 _cloud_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_env_path = os.path.join(_cloud_dir, '.env')
 _root_dir = os.path.dirname(_cloud_dir)
 _candidate_envs = [
     os.path.join(_cloud_dir, '.env'),
@@ -15,6 +16,10 @@ _candidate_envs = [
 
 try:
     from dotenv import load_dotenv
+    if os.path.exists(_env_path):
+        load_dotenv(_env_path)
+    else:
+        load_dotenv()
     for _p in _candidate_envs:
         if os.path.exists(_p):
             load_dotenv(_p)
@@ -22,6 +27,20 @@ try:
 except ImportError:
     pass
 
+# Always guarantee fallback parsing of .env if file exists and keys aren't in os.environ
+if os.path.exists(_env_path):
+    try:
+        with open(_env_path, 'r', encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    _k = _k.strip()
+                    _v = _v.strip().strip('"').strip("'")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception:
+        pass
 # Fallback parser for .env if python-dotenv is not installed
 for _p in _candidate_envs:
     if os.path.exists(_p):

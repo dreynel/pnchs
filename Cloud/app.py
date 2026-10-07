@@ -214,7 +214,8 @@ def payroll_releasing():
 def approvals():
     if session['user'].get('role') not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer']:
         return redirect(url_for('dashboard'))
-    return render_template('index.html', user=session['user'], initial_page='/pages/approvals.html', title='Approvals')
+    title = 'Payroll Approval' if session['user'].get('role') in ['Accounting', 'Finance', 'Finance Officer'] else 'Approvals'
+    return render_template('index.html', user=session['user'], initial_page='/pages/approvals.html', title=title)
 
 
 @app.route('/holidays')
