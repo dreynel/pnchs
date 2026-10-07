@@ -176,8 +176,8 @@ def pages(filename):
         return jsonify({'error': 'Unauthorized page access: Principal/Admin does not have access to Employee Registry, Payroll, Salary Grades, or Statutory Registry'}), 403
     if role in ['HR', 'HR Officer'] and filename in ['payroll.html', 'payroll_releasing.html', 'salary_grades.html', 'registry.html', 'payroll_report.html', 'payroll_audit.html', 'audit_trail.html']:
         return jsonify({'error': 'Unauthorized page access: HR does not have access to Statutory Registry, Salary Grades, Payroll Processing/Releasing, Payroll Reports, or Audit Trail'}), 403
-    if role in ['Accounting', 'Finance', 'Finance Officer'] and filename in ['employee.html', 'audit_trail.html']:
-        return jsonify({'error': 'Unauthorized page access: Accounting does not have access to Employee Registry or Audit Trail'}), 403
+    if role in ['Accounting', 'Finance', 'Finance Officer'] and filename in ['employee.html', 'audit_trail.html', 'approvals.html']:
+        return jsonify({'error': 'Unauthorized page access: Approvals, Employee Registry, and Audit Trail are restricted for Accounting.'}), 403
     if role == 'Employee' and filename not in ['dtr.html', 'mypayslip.html', 'leaves.html', 'holidays.html', 'dtr_content.html']:
         return jsonify({'error': 'Unauthorized page access'}), 403
     pages_dir = os.path.join(app.root_path, 'pages')
@@ -212,10 +212,9 @@ def payroll_releasing():
 @app.route('/payroll_approvals')
 @login_required
 def approvals():
-    if session['user'].get('role') not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer']:
+    if session['user'].get('role') not in ['Admin', 'Principal', 'HR', 'HR Officer']:
         return redirect(url_for('dashboard'))
-    title = 'Payroll Approval' if session['user'].get('role') in ['Accounting', 'Finance', 'Finance Officer'] else 'Approvals'
-    return render_template('index.html', user=session['user'], initial_page='/pages/approvals.html', title=title)
+    return render_template('index.html', user=session['user'], initial_page='/pages/approvals.html', title='Approvals')
 
 
 @app.route('/holidays')

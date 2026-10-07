@@ -663,15 +663,6 @@
         <span class="label">Payroll Processing</span>
       </a>
 
-      <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Approval', '/pages/approvals.html', '/payroll_approvals')">
-        <div class="nav-icon">
-          <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <span class="label">Payroll Approval</span>
-      </a>
-
       <a href="#" class="nav-item" onclick="navigate(event, this, 'Payroll Releasing', '/pages/payroll_releasing.html', '/payroll_releasing')">
         <div class="nav-icon">
           <svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
@@ -1297,7 +1288,7 @@
           '/pages/payroll_releasing.html': '/payroll_releasing',
           '/pages/salary_grades.html': '/salary_grades',
           '/pages/registry.html': '/registry',
-          '/pages/approvals.html': (['Accounting', 'Finance', 'Finance Officer'].includes('{{ user.role }}')) ? '/payroll_approvals' : '/approvals',
+          '/pages/approvals.html': '/approvals',
           '/pages/dtr.html': '/dtr',
           '/pages/logs.html': '/logs',
           '/pages/payroll_report.html': '/payroll_report',

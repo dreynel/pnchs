@@ -35,10 +35,8 @@ def get_approvals():
             elif role in ['Admin', 'Administrator', 'Principal']:
                 # Principal can view and manage both Leave and Payroll approvals
                 pass
-            elif role in ['Accounting', 'Finance', 'Finance Officer']:
-                query += " AND a.DocType='Payroll'"
             else:
-                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR, Principal, and Accounting.'}), 403
+                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR and Principal.'}), 403
 
             if status_filter and status_filter.lower() != 'all':
                 query += " AND a.ApprovalStatus = %s"

@@ -87,7 +87,6 @@ class DashboardRolesValidationTestCase(unittest.TestCase):
             '/pages/payroll_audit.html',
             '/pages/leaves.html',
             '/pages/logs.html',
-            '/pages/approvals.html',
             '/pages/dtr.html'
         ]
         for p in allowed:
@@ -97,7 +96,8 @@ class DashboardRolesValidationTestCase(unittest.TestCase):
         # Restricted for Finance
         restricted = [
             '/pages/employee.html',
-            '/pages/audit_trail.html'
+            '/pages/audit_trail.html',
+            '/pages/approvals.html'
         ]
         for p in restricted:
             res = self.app.get(p)
@@ -172,7 +172,7 @@ class DashboardRolesValidationTestCase(unittest.TestCase):
         self.assertIn('function normalizeRole', html)
         self.assertIn('Access Guard', html)
 
-    def test_accounting_approval_menu_in_sidebar(self):
+    def test_accounting_approval_restricted(self):
         with self.app.session_transaction() as sess:
             sess['user'] = {'role': 'Accounting', 'username': 'acct_test', 'name': 'Accounting Officer'}
 
@@ -180,16 +180,22 @@ class DashboardRolesValidationTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         html = res.data.decode('utf-8')
 
-        # Accounting must have the Payroll Approval nav-item in sidebar
-        self.assertIn('Payroll Approval', html)
-        self.assertIn('/payroll_approvals', html)
-        self.assertIn('/pages/approvals.html', html)
+        # Accounting must NOT have the Payroll Approval nav-item in sidebar
+        self.assertNotIn('Payroll Approval', html)
+        self.assertNotIn('/payroll_approvals', html)
 
-        # Accessing /payroll_approvals returns 200 with proper title
+        # Accessing /payroll_approvals or /approvals redirects away to /dashboard
         res_app = self.app.get('/payroll_approvals')
-        self.assertEqual(res_app.status_code, 200)
-        html_app = res_app.data.decode('utf-8')
-        self.assertIn('Payroll Approval', html_app)
+        self.assertEqual(res_app.status_code, 302)
+        self.assertIn('/dashboard', res_app.headers.get('Location', ''))
+
+        res_app2 = self.app.get('/approvals')
+        self.assertEqual(res_app2.status_code, 302)
+        self.assertIn('/dashboard', res_app2.headers.get('Location', ''))
+
+        # Direct access to /pages/approvals.html is 403 Forbidden
+        res_page = self.app.get('/pages/approvals.html')
+        self.assertEqual(res_page.status_code, 403)
 
 if __name__ == '__main__':
     unittest.main()

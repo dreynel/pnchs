@@ -1096,8 +1096,8 @@ function canRoleAccess(role, pageUrl) {
   }
 
   if (r === 'Accounting') {
-    // Restricted from: employee.html, audit_trail.html
-    const restricted = ['employee.html', 'audit_trail.html'];
+    // Restricted from: employee.html, audit_trail.html, approvals.html
+    const restricted = ['employee.html', 'audit_trail.html', 'approvals.html'];
     return !restricted.includes(cleanUrl);
   }
 
@@ -1465,7 +1465,7 @@ function applyRolePermissions(rawRole) {
       { icon: '⏱️', label: 'DTR Logs', title: 'Biometric Logs', url: '/pages/logs.html', browser: '/logs' },
       { icon: '💰', label: 'Payroll', title: 'Payroll Processing', url: '/pages/payroll.html', browser: '/payroll' },
       { icon: '📊', label: 'Salary Grades', title: 'Salary Grades', url: '/pages/salary_grades.html', browser: '/salary_grades' },
-      { icon: '📋', label: 'Approvals', title: 'Payroll Approval', url: '/pages/approvals.html', browser: '/payroll_approvals' }
+      { icon: '📤', label: 'Releasing', title: 'Payroll Releasing', url: '/pages/payroll_releasing.html', browser: '/payroll_releasing' }
     ];
   } else {
     // Employee / Teacher
