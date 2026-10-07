@@ -886,18 +886,47 @@ def process_payroll_single_run(cur, period_key, label_override=None):
 @payroll_bp.route('/my_payslip', methods=['GET'])
 def my_payslip():
     from flask import session
-    if 'user' not in session or not session['user'].get('employee_id'):
-        return jsonify({'error': 'Unauthorized'}), 401
+    if 'user' not in session:
+        return jsonify({'error': 'Unauthorized: Please log in'}), 401
+
+    user = session['user']
+    user_role = str(user.get('role') or '').strip()
+    is_admin_or_officer = user_role in ['Admin', 'Principal', 'Accounting', 'Finance', 'Finance Officer', 'HR', 'HR Officer']
 
     year  = request.args.get('year',  '').strip()
     month = request.args.get('month', '').strip()
     half  = request.args.get('half',  '').strip()
+    requested_emp_id = request.args.get('employee_id', '').strip()
 
     if not year or not month or not half:
         return jsonify({'error': 'Missing parameters'}), 400
 
-    period_key = f"{int(year)}-{int(month)}-{int(half)}"
-    emp_id = session['user']['employee_id']
+    try:
+        period_key = f"{int(year)}-{int(month)}-{int(half)}"
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid period parameters'}), 400
+
+    emp_id = None
+    if is_admin_or_officer and requested_emp_id:
+        emp_id = requested_emp_id
+    elif user.get('employee_id'):
+        emp_id = user['employee_id']
+    else:
+        # Fallback: Attempt auto-resolution by email/username from tblemployee
+        try:
+            with db_cursor() as (conn, cur):
+                cur.execute("""
+                    SELECT employee_id FROM tblemployee 
+                    WHERE LOWER(employee_id)=LOWER(%s) 
+                       OR (email IS NOT NULL AND LOWER(email)=LOWER(%s))
+                    LIMIT 1
+                """, (str(user.get('email') or ''), str(user.get('email') or '')))
+                found_emp = cur.fetchone()
+                if found_emp and found_emp.get('employee_id'):
+                    emp_id = found_emp['employee_id']
+                    session['user']['employee_id'] = emp_id
+        except Exception:
+            pass
 
     try:
         with db_cursor() as (conn, cur):
@@ -905,8 +934,27 @@ def my_payslip():
             pr = cur.fetchone()
             if not pr:
                 return jsonify({'error': 'Payslip for this period has not been generated.'}), 404
-            if not pr.get('is_released') and not pr.get('released_at'):
+
+            is_released = bool(
+                pr.get('is_released') in (1, True, '1', 'true', 't') or
+                pr.get('released_at') is not None or
+                str(pr.get('status') or '').strip().lower() == 'released'
+            )
+
+            # Access restriction: Regular employees can access payslip once released.
+            # Management & finance roles can preview payslips even prior to release.
+            if not is_released and not is_admin_or_officer:
                 return jsonify({'error': 'Payslip for this period has not been released yet. Payslips are accessible only after releasing by Finance.'}), 403
+
+            # If management/officer has no employee_id assigned, default to first employee in tblpayroll_details
+            if not emp_id and is_admin_or_officer:
+                cur.execute("SELECT employee_id FROM tblpayroll_details WHERE period_key=%s ORDER BY employee_id ASC LIMIT 1", (period_key,))
+                first_row = cur.fetchone()
+                if first_row:
+                    emp_id = first_row['employee_id']
+
+            if not emp_id:
+                return jsonify({'error': 'No employee profile linked to your user account. Please contact HR.'}), 404
 
             cur.execute("""
                 SELECT d.*, e.first_name, e.last_name, e.designation,
@@ -919,7 +967,7 @@ def my_payslip():
             """, (period_key, emp_id))
             rec = cur.fetchone()
             if not rec:
-                return jsonify({'error': 'Employee payslip record not found.'}), 404
+                return jsonify({'error': f'Employee payslip record not found for {emp_id}.'}), 404
 
             def f(k): return float(rec.get(k) or 0)
             vl_m = int(rec.get('vl_minutes') or 4800)

@@ -99,6 +99,12 @@
         <option value="2">2nd Half (16-31)</option>
       </select>
     </div>
+    <div class="filter-group" id="empFilterGroup" style="display:none;">
+      <div class="filter-label">Employee</div>
+      <select class="filter-select" id="selEmployee" style="width:230px;">
+        <option value="">Loading employees…</option>
+      </select>
+    </div>
     <div class="filter-group" style="justify-content:flex-end;">
       <div class="filter-label">&nbsp;</div>
       <div style="display:flex;gap:6px;">
@@ -325,6 +331,45 @@
   }
   $('#selMonth').val(now.getMonth() + 1);
 
+  // Role detection: Officers & Management can view any employee's payslip
+  const userRole = (window.currentUser?.role || $('#userRole').text().trim() || '');
+  const isOfficer = ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer'].includes(userRole);
+
+  if (isOfficer) {
+    $('#empFilterGroup').show();
+    $.get('/api/employee/', function(res) {
+      const list = res.data || res.employees || res || [];
+      const $sel = $('#selEmployee').empty();
+      if (Array.isArray(list) && list.length > 0) {
+        list.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
+        list.forEach(emp => {
+          const isSel = (window.currentUser?.employee_id && emp.employee_id === window.currentUser.employee_id) ? 'selected' : '';
+          $sel.append(`<option value="${emp.employee_id}" ${isSel}>${emp.employee_id} - ${emp.last_name}, ${emp.first_name}</option>`);
+        });
+      } else {
+        $sel.append('<option value="">No employees found</option>');
+      }
+    });
+
+    $('#selEmployee').on('change', function() {
+      $('#btnGenerate').trigger('click');
+    });
+  }
+
+  // Pre-select latest released payroll run
+  $.get('/api/payroll/runs', function(res) {
+    const runs = res.runs || res.data || [];
+    const releasedRun = runs.find(r => r.is_released || r.released_at || r.status === 'Released');
+    if (releasedRun) {
+      if (releasedRun.year) $('#selYear').val(releasedRun.year);
+      if (releasedRun.month) $('#selMonth').val(releasedRun.month);
+      if (releasedRun.half) $('#selHalf').val(releasedRun.half);
+    }
+    $('#btnGenerate').trigger('click');
+  }).fail(function() {
+    $('#btnGenerate').trigger('click');
+  });
+
   function fmt(n) { 
     const val = parseFloat(n) || 0;
     if (val < 0) {
@@ -348,12 +393,16 @@
     const month = $('#selMonth').val();
     const half = $('#selHalf').val();
     const monthName = $('#selMonth option:selected').text();
+    const empId = $('#selEmployee').is(':visible') ? $('#selEmployee').val() : '';
 
     $('#psPrompt').hide();
     $('#psContainer').hide();
     $('#psLoading').css('display', 'flex');
 
-    $.get('/api/payroll/my_payslip', { year, month, half }, function(d) {
+    const params = { year, month, half };
+    if (empId) params.employee_id = empId;
+
+    $.get('/api/payroll/my_payslip', params, function(d) {
       $('#psLoading').hide();
       $('#psContainer').css('display', 'flex').fadeIn();
       $('#btnPrint').prop('disabled', false);
@@ -709,9 +758,17 @@
 
     }).fail(function(xhr) {
       $('#psLoading').hide();
-      const errMsg = xhr.responseJSON?.error || 'Unknown error';
-      Swal.fire({ icon: 'error', title: 'Generation Failed', text: errMsg });
-      $('#psPrompt').html(`<div style="color:var(--red);">Failed to load payslip: ${errMsg}</div>`).show();
+      $('#psContainer').hide();
+      const errMsg = xhr.responseJSON?.error || 'Unknown error occurred while retrieving payslip.';
+      $('#psPrompt').html(`
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; text-align:center;">
+          <div style="width:56px; height:56px; border-radius:16px; background:#fff1f2; border:1.5px solid #fecdd3; display:flex; align-items:center; justify-content:center; color:#e11d48; margin-bottom:14px;">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div style="font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--navy); margin-bottom:6px;">Payslip Notice</div>
+          <div style="font-size:13px; color:var(--muted); max-width:480px; line-height:1.5;">${errMsg}</div>
+        </div>
+      `).show();
     });
   });
 

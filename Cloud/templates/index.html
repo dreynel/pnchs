@@ -911,6 +911,7 @@
   </div>
 
   <script>
+    window.currentUser = {{ user|tojson if user else 'null' }};
     $(function () {
 
       // Disable AJAX caching globally so all API and page calls fetch real-time data from database
