@@ -99,12 +99,7 @@
         <option value="2">2nd Half (16-31)</option>
       </select>
     </div>
-    <div class="filter-group" id="empFilterGroup" style="display:none;">
-      <div class="filter-label">Employee</div>
-      <select class="filter-select" id="selEmployee" style="width:230px;">
-        <option value="">Loading employees…</option>
-      </select>
-    </div>
+
     <div class="filter-group" style="justify-content:flex-end;">
       <div class="filter-label">&nbsp;</div>
       <div style="display:flex;gap:6px;">
@@ -331,30 +326,7 @@
   }
   $('#selMonth').val(now.getMonth() + 1);
 
-  // Role detection: Officers & Management can view any employee's payslip
-  const userRole = (window.currentUser?.role || $('#userRole').text().trim() || '');
-  const isOfficer = ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer'].includes(userRole);
 
-  if (isOfficer) {
-    $('#empFilterGroup').show();
-    $.get('/api/employee/', function(res) {
-      const list = res.data || res.employees || res || [];
-      const $sel = $('#selEmployee').empty();
-      if (Array.isArray(list) && list.length > 0) {
-        list.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
-        list.forEach(emp => {
-          const isSel = (window.currentUser?.employee_id && emp.employee_id === window.currentUser.employee_id) ? 'selected' : '';
-          $sel.append(`<option value="${emp.employee_id}" ${isSel}>${emp.employee_id} - ${emp.last_name}, ${emp.first_name}</option>`);
-        });
-      } else {
-        $sel.append('<option value="">No employees found</option>');
-      }
-    });
-
-    $('#selEmployee').on('change', function() {
-      $('#btnGenerate').trigger('click');
-    });
-  }
 
   // Pre-select latest released payroll run
   $.get('/api/payroll/runs', function(res) {
@@ -393,14 +365,7 @@
     const month = $('#selMonth').val();
     const half = $('#selHalf').val();
     const monthName = $('#selMonth option:selected').text();
-    const empId = $('#selEmployee').is(':visible') ? $('#selEmployee').val() : '';
-
-    $('#psPrompt').hide();
-    $('#psContainer').hide();
-    $('#psLoading').css('display', 'flex');
-
     const params = { year, month, half };
-    if (empId) params.employee_id = empId;
 
     $.get('/api/payroll/my_payslip', params, function(d) {
       $('#psLoading').hide();

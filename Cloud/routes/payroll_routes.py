@@ -906,12 +906,9 @@ def my_payslip():
     except (ValueError, TypeError):
         return jsonify({'error': 'Invalid period parameters'}), 400
 
-    emp_id = None
-    if is_admin_or_officer and requested_emp_id:
-        emp_id = requested_emp_id
-    elif user.get('employee_id'):
-        emp_id = user['employee_id']
-    else:
+    # Enforce strictly own payslip across ALL roles
+    emp_id = user.get('employee_id')
+    if not emp_id:
         # Fallback: Attempt auto-resolution by email/username from tblemployee
         try:
             with db_cursor() as (conn, cur):
@@ -945,13 +942,6 @@ def my_payslip():
             # Management & finance roles can preview payslips even prior to release.
             if not is_released and not is_admin_or_officer:
                 return jsonify({'error': 'Payslip for this period has not been released yet. Payslips are accessible only after releasing by Finance.'}), 403
-
-            # If management/officer has no employee_id assigned, default to first employee in tblpayroll_details
-            if not emp_id and is_admin_or_officer:
-                cur.execute("SELECT employee_id FROM tblpayroll_details WHERE period_key=%s ORDER BY employee_id ASC LIMIT 1", (period_key,))
-                first_row = cur.fetchone()
-                if first_row:
-                    emp_id = first_row['employee_id']
 
             if not emp_id:
                 return jsonify({'error': 'No employee profile linked to your user account. Please contact HR.'}), 404
