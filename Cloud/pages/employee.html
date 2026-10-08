@@ -1550,9 +1550,17 @@
 
 
   // ── Add modal ─────────────────────────────────────────────────────────────
+  function enforceBirthdayLimit() {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 10);
+    const maxStr = d.toISOString().split('T')[0];
+    $('#fBirthday').attr('max', maxStr);
+  }
+
   function openAddModal() {
     editMode = false;
     clearForm();
+    enforceBirthdayLimit();
     addPhRow({ pay_head: 'Basic Salary', amount: 0, category: 'Earning', mode: 'Amount', percentage_value: 0 });
     $('#modalTitle').text('Add Employee');
     $('#fEmploymentStatus').val('Active');
@@ -1574,6 +1582,7 @@
     if (!selectedId) return;
     editMode = true;
     clearForm();
+    enforceBirthdayLimit();
 
     $.get(API + '/' + selectedId, function (emp) {
       $('#fEmployeeId').val(emp.id).prop('disabled', true);
@@ -1656,6 +1665,19 @@
 
     if (!payload.first_name || !payload.last_name || !payload.designation) {
       toast('Please fill in all required fields.', 'error'); return;
+    }
+
+    if (!payload.birthday) {
+      toast('Birthday is required.', 'error'); return;
+    }
+
+    const tenYearsAgo = new Date();
+    tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+    const maxAllowedDate = tenYearsAgo.toISOString().split('T')[0];
+    if (payload.birthday > maxAllowedDate) {
+      toast(`Invalid Birthday: Employee must be at least 10 years old (birthday cannot be later than ${maxAllowedDate}).`, 'error');
+      $('#fBirthday').focus();
+      return;
     }
 
     isSaving = true;

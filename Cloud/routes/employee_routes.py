@@ -3,6 +3,7 @@ from db import db_cursor
 from services.policy_engine import AuditService
 from services.email_service import send_welcome_email, validate_email_service, is_valid_email
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, date
 import json
 import secrets
 import string
@@ -21,6 +22,24 @@ def check_role_access():
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def validate_birthday(birthday_str):
+    if not birthday_str or not str(birthday_str).strip():
+        return False, "Birthday is required."
+    try:
+        bday_date = datetime.strptime(str(birthday_str).strip(), '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return False, "Invalid birthday format (must be YYYY-MM-DD)."
+    
+    today = date.today()
+    try:
+        min_cutoff = date(today.year - 10, today.month, today.day)
+    except ValueError:
+        min_cutoff = date(today.year - 10, today.month, today.day - 1)
+    
+    if bday_date > min_cutoff:
+        return False, f"Invalid birthday: Employee must be at least 10 years old (birthday cannot be later than {min_cutoff.strftime('%Y-%m-%d')})."
+    return True, None
 
 def generate_random_password(length=10):
     """
@@ -272,6 +291,10 @@ def create_employee():
     for field in required:
         if not str(data.get(field, '')).strip():
             return jsonify({"error": f"'{field}' is required"}), 400
+
+    valid_bday, bday_err = validate_birthday(data.get('birthday'))
+    if not valid_bday:
+        return jsonify({"error": bday_err}), 400
     try:
         with db_cursor(commit=True) as (conn, cur):
             provided_id = data.get('employee_id', '').strip()
@@ -419,6 +442,11 @@ def update_employee(emp_id):
                 emp_status = 'Active'
 
             middle_name = (data.get('middle_name') or '').strip()
+            if 'birthday' in data and data.get('birthday'):
+                valid_bday, bday_err = validate_birthday(data.get('birthday'))
+                if not valid_bday:
+                    return jsonify({"error": bday_err}), 400
+
             email = data.get('email','').strip()
             if email and not is_valid_email(email):
                 return jsonify({"error": f"Invalid email format: '{email}'"}), 400
