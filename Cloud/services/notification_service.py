@@ -126,12 +126,13 @@ class NotificationService:
                 OR (%s IS NOT NULL AND n.target_employee_id = %s)
                 OR (n.target_role = 'Accounting' AND %s IN ('Accounting', 'Finance', 'Finance Officer'))
                 OR (n.target_role = 'HR' AND %s IN ('HR', 'HR Officer'))
+                OR (n.target_role IN ('Principal', 'Admin') AND %s IN ('Principal', 'Admin', 'Administrator'))
             )
             ORDER BY n.created_at DESC, n.id DESC
             LIMIT %s
         """
         cur.execute(query, (
-            user_id, employee_id, employee_id, role, role, limit
+            user_id, employee_id, employee_id, role, role, role, limit
         ))
         rows = cur.fetchall()
 

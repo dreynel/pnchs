@@ -923,18 +923,25 @@
       let lastSeenNotifIds = new Set();
       let notifInitialLoadDone = false;
 
-      function showLiveToast(msg, icon = '🔔') {
+      function showLiveToast(msg, icon = '🔔', notifId = null, targetUrl = '', targetTitle = '') {
+        const clickable = targetUrl ? 'cursor:pointer;' : '';
         const toast = $(`
-          <div class="live-toast">
+          <div class="live-toast" style="${clickable}">
             <span style="font-size:16px;">${icon}</span>
             <div style="flex:1;">${msg}</div>
           </div>
         `);
+        if (targetUrl) {
+          toast.on('click', function() {
+            handleNotificationClick(notifId, targetUrl, targetTitle);
+            toast.remove();
+          });
+        }
         $('#liveToastWrap').append(toast);
         setTimeout(() => {
           toast.addClass('fade-out');
           setTimeout(() => toast.remove(), 300);
-        }, 4500);
+        }, 5500);
       }
       window.showLiveToast = showLiveToast;
 
@@ -948,12 +955,38 @@
       };
 
       window.handleNotificationClick = function(notifId, targetUrl, targetTitle) {
-        $.post('/api/notifications/' + notifId + '/read');
-        $('#notifDropdown').removeClass('show');
-        if (targetUrl) {
-          navigate(event, null, targetTitle || 'Page', targetUrl);
+        if (notifId) {
+          $.post('/api/notifications/' + notifId + '/read', function() {
+            sessionStorage.removeItem('pnchs_notif_cache');
+            loadNotificationsList(true);
+          });
         }
-        loadNotificationsList();
+        $('#notifDropdown').removeClass('show');
+
+        if (!targetUrl) return;
+
+        let cleanUrl = targetUrl.split('?')[0];
+        let resolvedTitle = targetTitle || 'Page';
+
+        // Role-based smart redirections
+        const userRole = (window.currentUser?.role || $('#userRole').text().trim() || '');
+        if (userRole === 'Employee') {
+          if (cleanUrl.includes('payroll') || cleanUrl.includes('mypayslip')) {
+            cleanUrl = '/pages/mypayslip.html';
+            resolvedTitle = 'My Payslip';
+          } else if (cleanUrl.includes('approvals')) {
+            cleanUrl = '/pages/leaves.html';
+            resolvedTitle = 'Leave Management';
+          }
+        } else if (['Principal', 'Admin'].includes(userRole)) {
+          if (cleanUrl.includes('payroll.html')) {
+            cleanUrl = '/pages/approvals.html';
+            resolvedTitle = 'Executive Approvals';
+          }
+        }
+
+        // Navigate using proper signature (el, title, url, browserUrl)
+        navigate(null, resolvedTitle, cleanUrl);
       };
 
       window.markAllNotificationsRead = function(e) {
@@ -1098,7 +1131,7 @@
         if (notifInitialLoadDone) {
           notifs.forEach(n => {
             if (!n.is_read && !lastSeenNotifIds.has(n.id)) {
-              showLiveToast(`<strong>${n.title}</strong>: ${n.message}`, n.icon || '🔔');
+              showLiveToast(`<strong>${n.title}</strong>: ${n.message}`, n.icon || '🔔', n.id, n.link_url || '', n.link_label || '');
             }
           });
         }

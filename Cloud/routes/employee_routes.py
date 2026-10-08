@@ -110,7 +110,7 @@ def normalize_role(role_input):
         return 'Principal'
     elif r_upper in ['HR', 'HR OFFICER', 'HUMAN RESOURCES']:
         return 'HR'
-    elif r_upper in ['ACCOUNTING', 'ACCOUNTANT', 'FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER', 'CASHIER', 'BOOKKEEPER']:
+    elif r_upper in ['ACCOUNTING', 'ACCOUNTING OFFICER', 'ACCOUNTANT', 'FINANCE', 'FINANCE OFFICER', 'PAYROLL OFFICER', 'CASHIER', 'BOOKKEEPER']:
         return 'Accounting'
     return 'Employee'
 

@@ -912,7 +912,7 @@
           <select id="fSystemRole">
             <option value="Employee">Employee (Basic Access)</option>
             <option value="HR Officer">HR Officer (HR Access)</option>
-            <option value="Finance Officer">Finance Officer (Finance Access)</option>
+            <option value="Accounting Officer">Accounting Officer (Accounting Access)</option>
             <option value="Principal">Principal (Admin Access)</option>
           </select>
         </div>
@@ -1589,8 +1589,16 @@
       $('#fEmploymentStatus').val(emp.employment_status || 'Active');
       $('#fEmployeeType').val(emp.employee_type || 'Faculty');
       $('#fSalaryGrade').val(emp.salary_grade || '');
-      $('#fStep').val(emp.step || 1);
-      $('#fSystemRole').val(emp.system_role || 'Employee');
+      const sysRole = emp.system_role || 'Employee';
+      if (['Accounting', 'Accounting Officer', 'Finance', 'Finance Officer'].includes(sysRole)) {
+        $('#fSystemRole').val('Accounting Officer');
+      } else if (['HR', 'HR Officer'].includes(sysRole)) {
+        $('#fSystemRole').val('HR Officer');
+      } else if (['Admin', 'Principal'].includes(sysRole)) {
+        $('#fSystemRole').val('Principal');
+      } else {
+        $('#fSystemRole').val('Employee');
+      }
       $('#fFirstName').val(emp.first_name);
       $('#fMiddleName').val(emp.middle_name || '');
       $('#fLastName').val(emp.last_name);

@@ -250,23 +250,6 @@ def create_run():
                         other_deductions += amount
                         payhead_breakdown['deductions'].append({'name': ph['pay_head'], 'amount': round(amount / 2, 2)})
 
-                # Process Global Payheads
-                for g in global_payheads:
-                    amount = float(g['amount'])
-                    if g.get('mode') == 'Percentage' and basic_salary > 0:
-                        amount = basic_salary * (float(g.get('percentage_value') or 0) / 100)
-                    
-                    if g.get('type') == 'Earning':
-                        other_earnings += amount
-                        payhead_breakdown['earnings'].append({'name': g['name'], 'amount': round(amount / 2, 2)})
-                    else:
-                        other_deductions += amount
-                        payhead_breakdown['deductions'].append({'name': g['name'], 'amount': round(amount / 2, 2)})
-
-                half_basic      = basic_salary / 2
-                half_earnings   = other_earnings / 2
-                half_deductions = other_deductions / 2
-
                 # Daily & per-minute rate
                 daily_rate   = (basic_salary / month_working_days) if basic_salary and month_working_days else 0
                 per_min_rate = (daily_rate / 8 / 60) if daily_rate else 0
@@ -336,6 +319,20 @@ def create_run():
                     absent_days = 0
 
                 absent_deduction = absent_days * daily_rate
+
+                # ── Global Payheads (Applied only if employee has less than 5 absences in a half month) ──
+                if absent_days < 5:
+                    for g in global_payheads:
+                        amount = float(g['amount'])
+                        if g.get('mode') == 'Percentage' and basic_salary > 0:
+                            amount = basic_salary * (float(g.get('percentage_value') or 0) / 100)
+                        
+                        if g.get('type') == 'Earning':
+                            other_earnings += amount
+                            payhead_breakdown['earnings'].append({'name': g['name'], 'amount': round(amount / 2, 2)})
+                        else:
+                            other_deductions += amount
+                            payhead_breakdown['deductions'].append({'name': g['name'], 'amount': round(amount / 2, 2)})
 
                 if apply_deped_policy:
                     # ONLY unpaid (LWOP) tardiness and undertime result in salary deduction!
@@ -1508,8 +1505,8 @@ def review_leave(lid):
     user = session.get('user', {})
     role = user.get('role')
 
-    if role not in ['Admin', 'Principal', 'HR', 'HR Officer', 'Accounting', 'Finance', 'Finance Officer']:
-        return jsonify({'error': 'Unauthorized'}), 403
+    if role not in ['HR', 'HR Officer']:
+        return jsonify({'error': 'Unauthorized: Only HR can approve or reject leave applications.'}), 403
 
     data       = request.json or {}
     new_status = data.get('status')

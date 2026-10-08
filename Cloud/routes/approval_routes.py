@@ -33,10 +33,12 @@ def get_approvals():
             if role in ['HR', 'HR Officer']:
                 query += " AND a.DocType='Leave'"
             elif role in ['Admin', 'Administrator', 'Principal']:
-                # Principal can view and manage both Leave and Payroll approvals
-                pass
+                # Principal manages Payroll approvals only; Leave approvals are strictly with HR
+                query += " AND a.DocType='Payroll'"
+            elif role in ['Accounting', 'Finance', 'Finance Officer']:
+                query += " AND a.DocType='Payroll'"
             else:
-                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR and Principal.'}), 403
+                return jsonify({'error': 'Unauthorized: Approvals are only accessible to HR, Principal, and Accounting.'}), 403
 
             if status_filter and status_filter.lower() != 'all':
                 query += " AND a.ApprovalStatus = %s"
@@ -290,8 +292,8 @@ def approval_action(approval_id):
 
             if doc_type == 'Payroll' and role not in ['Admin', 'Administrator', 'Principal']:
                 return jsonify({'error': 'Unauthorized: Payroll approvals are reserved for Admin and Principal only.'}), 403
-            elif doc_type == 'Leave' and role not in ['HR', 'HR Officer', 'Admin', 'Administrator', 'Principal']:
-                return jsonify({'error': 'Unauthorized: Leave approvals are reserved for HR, Admin, and Principal only.'}), 403
+            elif doc_type == 'Leave' and role not in ['HR', 'HR Officer']:
+                return jsonify({'error': 'Unauthorized: Leave approvals can only be processed by HR.'}), 403
 
             # Update tblapprovals record
             cur.execute("""
