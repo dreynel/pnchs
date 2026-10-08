@@ -173,9 +173,6 @@ def verify_admin():
                     is_valid = check_password_hash(stored, password)
                 else:
                     is_valid = (stored == password)
-                    if is_valid:
-                        new_hash = generate_password_hash(password)
-                        cur.execute("UPDATE tblusers SET password=%s WHERE id=%s", (new_hash, emp['id']))
 
                 if not is_valid:
                     return jsonify({'success': False, 'error': 'Invalid admin credentials.'}), 401

@@ -99,12 +99,8 @@ def login():
                 if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
                     is_valid = check_password_hash(stored, password)
                 else:
-                    # Legacy plaintext fallback
+                    # Plaintext comparison
                     is_valid = (stored == password)
-                    if is_valid:
-                        # Auto-upgrade to secure scrypt hash
-                        new_hash = generate_password_hash(password)
-                        cur.execute("UPDATE tblusers SET password=%s WHERE id=%s", (new_hash, user_row['id']))
 
                 if is_valid:
                     emp = user_row
@@ -350,8 +346,7 @@ def change_password():
         if not is_valid:
             return jsonify({'error': 'Incorrect current password.'}), 400
 
-        new_hash = generate_password_hash(new_password)
-        cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (new_hash, user_row['id']))
+        cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (new_password, user_row['id']))
 
         AuditService.log_action(
             cur, 'PASSWORD_CHANGED',

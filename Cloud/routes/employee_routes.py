@@ -351,12 +351,11 @@ def create_employee():
                 suffix = new_id.split('-')[-1] if '-' in new_id else new_id
                 username = f"{username}{suffix}"
             
-            hashed_password = generate_password_hash(raw_password)
             db_role = normalize_role(data.get('system_role'))
             
             cur.execute(
                 "INSERT INTO tblusers (username, password, name, role, employee_id) VALUES (%s, %s, %s, %s, %s)",
-                (username, hashed_password, fullname, db_role, new_id)
+                (username, raw_password, fullname, db_role, new_id)
             )
             
             AuditService.log_action(cur, 'EMPLOYEE_CREATED', employee_id=new_id, user_name=session.get('user', {}).get('name', 'Unknown'), target_table='tblemployee', target_id=new_id, new_value=json.dumps(data))
@@ -535,13 +534,12 @@ def resend_credentials(emp_id):
             stored_hash = user_row['password'] if user_row else ''
             
             # If the user still has sample password Password123!, preserve Password123!
-            if stored_hash and check_password_hash(stored_hash, "Password123!"):
+            if stored_hash == "Password123!" or (stored_hash and check_password_hash(stored_hash, "Password123!")):
                 raw_password = "Password123!"
             else:
                 # If they have a custom or generated password, generate fresh random password and update
                 raw_password = generate_random_password(10)
-                new_hash = generate_password_hash(raw_password)
-                cur.execute("UPDATE tblusers SET password = %s WHERE employee_id = %s", (new_hash, emp_id))
+                cur.execute("UPDATE tblusers SET password = %s WHERE employee_id = %s", (raw_password, emp_id))
 
             email_res = send_welcome_email({
                 'employee_id': emp_id,
@@ -590,10 +588,8 @@ def change_employee_password(emp_id):
 
             cur.execute("SELECT id, username FROM tblusers WHERE employee_id = %s", (emp_id,))
             user_row = cur.fetchone()
-            new_hash = generate_password_hash(new_password)
-
             if user_row:
-                cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (new_hash, user_row['id']))
+                cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (new_password, user_row['id']))
                 user_id = user_row['id']
                 username = user_row['username']
             else:
@@ -602,7 +598,7 @@ def change_employee_password(emp_id):
                 full_name = f"{emp['first_name']} {emp['last_name']}".strip()
                 cur.execute(
                     "INSERT INTO tblusers (username, password, name, role, employee_id) VALUES (%s, %s, %s, %s, %s)",
-                    (username, new_hash, full_name, 'Employee', emp_id)
+                    (username, new_password, full_name, 'Employee', emp_id)
                 )
                 user_id = cur.lastrowid
 

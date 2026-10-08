@@ -1,38 +1,42 @@
 import os
 import re
+import mysql.connector
+from mysql.connector import Error, pooling
 from contextlib import contextmanager
-import psycopg2
-from psycopg2 import pool
-from psycopg2 import Error, DatabaseError, OperationalError, IntegrityError
-import psycopg2.extras
-import psycopg2.extensions
 
-# ── Neon Database Configuration ───────────────────────────────────────────────
+# ── Hostinger VPS MySQL Configuration ──────────────────────────────────────────
 
-NEON_DEFAULT_URI = "postgresql://neondb_owner:npg_ZX56pOIfsgqo@ep-restless-pond-avdmjozs-pooler.c-11.us-east-1.aws.neon.tech/pnchs?sslmode=require&channel_binding=require"
+DB_HOST = os.getenv("DB_HOST", "187.52.121.22")
+DB_PORT = int(os.getenv("DB_PORT", 3306))
+DB_NAME = os.getenv("DB_NAME", "dbpnchs")
+DB_USER = os.getenv("DB_USER", "pnchs_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "YourSecurePassword123!")
 
-DATABASE_URL = (
-    os.getenv("DATABASE_URL")
-    or os.getenv("POSTGRES_URL")
-    or os.getenv("NEON_DATABASE_URL")
-    or os.getenv("DB_URI")
-    or NEON_DEFAULT_URI
-)
+DB_CONFIG = {
+    "host": DB_HOST,
+    "port": DB_PORT,
+    "database": DB_NAME,
+    "user": DB_USER,
+    "password": DB_PASSWORD,
+    "charset": "utf8mb4",
+    "autocommit": False,
+    "use_pure": True,
+}
 
 # ── Case-Insensitive Dict Row ────────────────────────────────────────────────
 
-class CaseInsensitiveRow(psycopg2.extras.RealDictRow):
+class CaseInsensitiveDict(dict):
     """
-    Subclass of RealDictRow providing case-insensitive key lookup.
-    Enables legacy column lookups like row['ApprovalID'] to transparently
-    match PostgreSQL lowercase column names ('approvalid').
+    Subclass of dict providing case-insensitive key lookup.
+    Enables lookups like row['ApprovalID'] to transparently
+    match lowercase column names ('approvalid').
     """
     def __getitem__(self, key):
         if super().__contains__(key):
             return super().__getitem__(key)
         if isinstance(key, str):
             lk = key.lower()
-            for k in self.keys():
+            for k in self:
                 if isinstance(k, str) and k.lower() == lk:
                     return super().__getitem__(k)
         return super().__getitem__(key)
@@ -48,234 +52,139 @@ class CaseInsensitiveRow(psycopg2.extras.RealDictRow):
             return True
         if isinstance(key, str):
             lk = key.lower()
-            return any(isinstance(k, str) and k.lower() == lk for k in self.keys())
+            return any(isinstance(k, str) and k.lower() == lk for k in self)
         return False
 
 
-# ── PostgreSQL Cursor with MySQL Compatibility & Lastrowid ───────────────────
+# ── MySQL Cursor with Query Translation & Case-Insensitive Dict ──────────────
 
-class CaseInsensitiveRealDictCursor(psycopg2.extras.RealDictCursor):
+class CaseInsensitiveMySQLCursor(mysql.connector.cursor.MySQLCursorDict):
     """
-    Custom cursor that:
-    1. Returns CaseInsensitiveRow instances for dict-like row access.
-    2. Provides cur.lastrowid using LASTVAL() on INSERT queries.
-    3. Preprocesses SQL queries to seamlessly handle MySQL constructs:
-       - Strips backticks (`identifier` -> identifier).
-       - Rewrites CAST(... AS CHAR) to CAST(... AS VARCHAR).
-       - Translates ON DUPLICATE KEY UPDATE to PostgreSQL ON CONFLICT.
+    Cursor that:
+    1. Returns CaseInsensitiveDict instances for dict-like row access.
+    2. Rewrites PostgreSQL constructs seamlessly to MySQL:
+       - ON CONFLICT (...) DO UPDATE SET ... -> ON DUPLICATE KEY UPDATE ...
+       - ON CONFLICT (...) DO NOTHING -> ON DUPLICATE KEY UPDATE id=id
+       - EXCLUDED.column -> VALUES(column)
+       - INTERVAL '30 days' -> INTERVAL 30 DAY
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.row_factory = CaseInsensitiveRow
-        self._lastrowid = None
-
-    @property
-    def lastrowid(self):
-        return self._lastrowid
-
-    def execute(self, query, vars=None):
+    def execute(self, query, vars=None, **kwargs):
         if isinstance(query, str):
-            # 1. Strip backticks
-            if '`' in query:
-                query = query.replace('`', '')
-
-            # 2. Rewrite CAST(... AS CHAR) -> CAST(... AS VARCHAR)
-            if 'AS CHAR' in query.upper():
-                query = re.sub(
-                    r'CAST\s*\(\s*(.*?)\s+AS\s+CHAR\s*\)', 
-                    r'CAST(\1 AS VARCHAR)', 
-                    query, 
-                    flags=re.IGNORECASE
-                )
-
-            # 3. Rewrite unquoted INTERVAL (e.g. INTERVAL 30 DAY -> INTERVAL '30 DAY')
+            # 1. Translate INTERVAL '30 days' / INTERVAL '1 month'
             if 'INTERVAL' in query.upper():
                 query = re.sub(
-                    r'INTERVAL\s+(\d+)\s+([A-Za-z]+)',
-                    r"INTERVAL '\1 \2'",
+                    r"INTERVAL\s+'(\d+)\s+([A-Za-z]+)'",
+                    r"INTERVAL \1 \2",
                     query,
                     flags=re.IGNORECASE
                 )
 
-            # 4. Translate SHOW TABLES [LIKE '...']
-            if query.strip().upper().startswith("SHOW TABLES"):
-                m = re.match(r'^\s*SHOW\s+TABLES\s+LIKE\s+(.+)$', query, flags=re.IGNORECASE)
-                if m:
-                    like_pat = m.group(1).rstrip(';')
-                    query = f"SELECT tablename as Tables_in_database FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE {like_pat}"
-                else:
-                    query = "SELECT tablename as Tables_in_database FROM pg_tables WHERE schemaname = 'public'"
-
-            # 5. Translate INSERT IGNORE INTO ... -> INSERT INTO ... ON CONFLICT DO NOTHING
-            if 'INSERT IGNORE INTO' in query.upper():
-                query = re.sub(r'INSERT\s+IGNORE\s+INTO', 'INSERT INTO', query, flags=re.IGNORECASE)
-                if 'ON CONFLICT' not in query.upper():
-                    clean_q = query.rstrip().rstrip(';')
-                    query = f"{clean_q} ON CONFLICT DO NOTHING"
-
-            # 6. Transparent translation of ON DUPLICATE KEY UPDATE
+            # 2. Translate PostgreSQL ON CONFLICT to MySQL ON DUPLICATE KEY UPDATE
             u_query = query.upper()
-            if 'ON DUPLICATE KEY UPDATE' in u_query:
-                if 'TBLLEAVE_BALANCES' in u_query:
-                    query = re.sub(r'ON\s+DUPLICATE\s+KEY\s+UPDATE.*$', 'ON CONFLICT (employee_id) DO NOTHING', query, flags=re.IGNORECASE | re.DOTALL)
-                elif 'TBLPOLICY_CONFIG' in u_query:
-                    query = re.sub(r'ON\s+DUPLICATE\s+KEY\s+UPDATE.*$', 'ON CONFLICT (config_key) DO UPDATE SET config_value=EXCLUDED.config_value', query, flags=re.IGNORECASE | re.DOTALL)
-                elif 'FINGERPRINTS' in u_query:
-                    query = re.sub(r'ON\s+DUPLICATE\s+KEY\s+UPDATE.*$', 'ON CONFLICT (employee_id, finger_index) DO UPDATE SET fingerprint_template=EXCLUDED.fingerprint_template, user_name=EXCLUDED.user_name', query, flags=re.IGNORECASE | re.DOTALL)
-                elif 'TBLAPPROVALS' in u_query:
-                    query = re.sub(r'ON\s+DUPLICATE\s+KEY\s+UPDATE.*$', 'ON CONFLICT (doctype, docnumber) DO UPDATE SET approvalstatus=\'Pending\', requesterid=EXCLUDED.requesterid', query, flags=re.IGNORECASE | re.DOTALL)
-                elif 'TBLSALARY_GRADES' in u_query:
+            if 'ON CONFLICT' in u_query:
+                # Replace EXCLUDED.col with VALUES(col)
+                query = re.sub(r'EXCLUDED\.(\w+)', r'VALUES(\1)', query, flags=re.IGNORECASE)
+                
+                # ON CONFLICT (...) DO NOTHING
+                if 'DO NOTHING' in u_query:
                     query = re.sub(
-                        r'ON\s+DUPLICATE\s+KEY\s+UPDATE.*$', 
-                        'ON CONFLICT (salary_grade) DO UPDATE SET position_title=EXCLUDED.position_title, step_1=EXCLUDED.step_1, step_2=EXCLUDED.step_2, step_3=EXCLUDED.step_3, step_4=EXCLUDED.step_4, step_5=EXCLUDED.step_5, step_6=EXCLUDED.step_6, step_7=EXCLUDED.step_7, step_8=EXCLUDED.step_8', 
-                        query, 
+                        r'ON\s+CONFLICT\s*\([^)]*\)\s*DO\s+NOTHING',
+                        r'ON DUPLICATE KEY UPDATE id=id',
+                        query,
+                        flags=re.IGNORECASE
+                    )
+                # ON CONFLICT (...) DO UPDATE SET ...
+                elif 'DO UPDATE SET' in u_query:
+                    query = re.sub(
+                        r'ON\s+CONFLICT\s*\([^)]*\)\s*DO\s+UPDATE\s+SET\s+(.*)$',
+                        r'ON DUPLICATE KEY UPDATE \1',
+                        query,
                         flags=re.IGNORECASE | re.DOTALL
                     )
 
-        res = super().execute(query, vars)
+        return super().execute(query, vars, **kwargs)
 
-        # Sequence ID tracking for lastrowid
-        self._lastrowid = None
-        if isinstance(query, str) and query.strip().upper().startswith("INSERT "):
-            try:
-                super().execute("SAVEPOINT _sp_lastrowid;")
-                with self.connection.cursor(cursor_factory=psycopg2.extensions.cursor) as id_cur:
-                    id_cur.execute("SELECT LASTVAL();")
-                    id_res = id_cur.fetchone()
-                    if id_res:
-                        self._lastrowid = id_res[0]
-                super().execute("RELEASE SAVEPOINT _sp_lastrowid;")
-            except Exception:
-                try:
-                    super().execute("ROLLBACK TO SAVEPOINT _sp_lastrowid;")
-                except Exception:
-                    pass
-                self._lastrowid = None
+    def fetchone(self):
+        row = super().fetchone()
+        return CaseInsensitiveDict(row) if row is not None else None
 
-        return res
+    def fetchall(self):
+        rows = super().fetchall()
+        return [CaseInsensitiveDict(r) for r in rows] if rows else []
 
 
-# ── PostgreSQL Connection Wrapper ─────────────────────────────────────────────
+# ── Connection Pool ──────────────────────────────────────────────────────────
 
-class PostgresConnection(psycopg2.extensions.connection):
-    """
-    Subclass of psycopg2 connection that:
-    - Automatically uses CaseInsensitiveRealDictCursor when dictionary=True or no factory specified.
-    - Implements is_connected() and reconnect() for backwards compatibility with mysql.connector.
-    """
-    def cursor(self, *args, **kwargs):
-        kwargs.pop('buffered', None)
-        if kwargs.pop('dictionary', False) or 'cursor_factory' not in kwargs:
-            kwargs['cursor_factory'] = CaseInsensitiveRealDictCursor
-        return super().cursor(*args, **kwargs)
-
-    def is_connected(self):
-        return self.closed == 0
-
-    def reconnect(self, attempts=3, delay=1):
-        # psycopg2 connections handle pooling at pool level; no-op if alive
-        pass
-
-
-# ── Threaded Connection Pool ──────────────────────────────────────────────────
-
-connection_pool = None
+_connection_pool = None
 
 def _init_pool():
-    global connection_pool
+    global _connection_pool
     try:
-        connection_pool = pool.ThreadedConnectionPool(
-            minconn=2,
-            maxconn=20,
-            dsn=DATABASE_URL,
-            connection_factory=PostgresConnection
+        _connection_pool = pooling.MySQLConnectionPool(
+            pool_name="hostinger_vps_pool",
+            pool_size=15,
+            pool_reset_session=True,
+            **DB_CONFIG
         )
-        print("[OK] Connected to PostgreSQL pool (Neon)")
-    except Exception as e:
-        print(f"[WARNING] Error initializing PostgreSQL pool: {e}")
-        connection_pool = None
+        print(f"[OK] Connected to Hostinger VPS MySQL pool ({DB_HOST}:{DB_PORT}/{DB_NAME})")
+    except Error as e:
+        print(f"[WARN] Error initializing database connection pool: {e}. Using direct connections.")
+        _connection_pool = None
 
 _init_pool()
 
-
 def get_connection():
-    """
-    Obtain a verified healthy connection from the pool or a fresh connection.
-    Recycles stale/idle connections automatically.
-    """
-    global connection_pool
-    if connection_pool:
+    """Open and return a new MySQL connection from pool or fresh direct connection."""
+    global _connection_pool
+    if _connection_pool:
         try:
-            conn = connection_pool.getconn()
-            if conn and conn.closed == 0:
-                # Test connection liveness
-                try:
-                    with conn.cursor() as test_cur:
-                        test_cur.execute("SELECT 1;")
-                    return conn
-                except Exception:
-                    # Connection dropped by Neon pooler, discard and retry
-                    try:
-                        connection_pool.putconn(conn, close=True)
-                    except Exception:
-                        pass
-            else:
-                try:
-                    connection_pool.putconn(conn, close=True)
-                except Exception:
-                    pass
+            conn = _connection_pool.get_connection()
+            if not conn.is_connected():
+                conn.reconnect(attempts=3, delay=1)
+            return conn
         except Exception:
             pass
-
-    # Direct connection fallback
-    return psycopg2.connect(DATABASE_URL, connection_factory=PostgresConnection)
-
-
-def release_connection(conn, close=False):
-    """Release a connection back to the pool or close it."""
-    global connection_pool
-    if connection_pool:
-        try:
-            connection_pool.putconn(conn, close=close)
-            return
-        except Exception:
-            pass
-    try:
-        conn.close()
-    except Exception:
-        pass
+    return mysql.connector.connect(**DB_CONFIG)
 
 
 @contextmanager
 def db_cursor(commit=False):
     """
-    Context manager that yields (conn, cur).
-    Automatically commits or rolls back, then cleans up cursor and connection.
+    Context manager that yields (conn, cursor).
+    Automatically commits or rolls back, then closes.
+    Uses buffered=True to prevent 'Unread result found' errors in pooled connections.
     """
     conn = None
-    cur  = None
+    cur = None
     try:
         conn = get_connection()
-        cur  = conn.cursor(cursor_factory=CaseInsensitiveRealDictCursor)
+        try:
+            cur = conn.cursor(cursor_class=CaseInsensitiveMySQLCursor, buffered=True)
+        except Error:
+            if hasattr(conn, 'reconnect'):
+                conn.reconnect(attempts=3, delay=1)
+            else:
+                conn = mysql.connector.connect(**DB_CONFIG)
+            cur = conn.cursor(cursor_class=CaseInsensitiveMySQLCursor, buffered=True)
+
         yield conn, cur
         if commit:
             conn.commit()
-    except Exception as e:
-        if conn and conn.closed == 0:
+    except Error as e:
+        if conn:
             try:
                 conn.rollback()
             except Exception:
                 pass
         raise e
     finally:
-        if cur and not cur.closed:
+        if cur:
             try:
                 cur.close()
             except Exception:
                 pass
-        if conn:
-            release_connection(conn)
-
-
-def is_postgres():
-    return True
+        if conn and hasattr(conn, 'is_connected') and conn.is_connected():
+            try:
+                conn.close()
+            except Exception:
+                pass

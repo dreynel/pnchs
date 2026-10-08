@@ -306,6 +306,35 @@ CREATE TABLE IF NOT EXISTS tblapprovals (
 """
 
 
+DDL_NOTIFICATIONS = """
+CREATE TABLE IF NOT EXISTS tblnotifications (
+    id                 INT AUTO_INCREMENT PRIMARY KEY,
+    sender_name        VARCHAR(150) NOT NULL DEFAULT 'System',
+    target_role        VARCHAR(50)  NULL,
+    target_user_id     INT          NULL,
+    target_employee_id VARCHAR(20)  NULL,
+    category           VARCHAR(50)  NOT NULL DEFAULT 'System',
+    title              VARCHAR(255) NOT NULL,
+    message            TEXT         NOT NULL,
+    link_url           VARCHAR(255) NULL,
+    link_label         VARCHAR(100) NULL,
+    icon               VARCHAR(20)  NOT NULL DEFAULT '🔔',
+    priority           VARCHAR(20)  NOT NULL DEFAULT 'Normal',
+    created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+DDL_NOTIFICATION_READS = """
+CREATE TABLE IF NOT EXISTS tblnotification_reads (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    notification_id INT      NOT NULL,
+    user_id         INT      NOT NULL,
+    read_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_notif_user_read (notification_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+
 def _add_column_if_missing(cur, table, column, alter_sql):
     """Add a column only if it doesn't already exist (compatible with all MySQL versions)."""
     cur.execute(
@@ -321,40 +350,6 @@ def _add_column_if_missing(cur, table, column, alter_sql):
 
 def init():
     try:
-        from db import is_postgres, db_cursor
-        if is_postgres():
-            with db_cursor(commit=True) as (conn, cur):
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS tblnotifications (
-                        id SERIAL PRIMARY KEY,
-                        sender_name VARCHAR(150) NOT NULL DEFAULT 'System',
-                        target_role VARCHAR(50) NULL,
-                        target_user_id INT NULL,
-                        target_employee_id VARCHAR(20) NULL,
-                        category VARCHAR(50) NOT NULL DEFAULT 'System',
-                        title VARCHAR(255) NOT NULL,
-                        message TEXT NOT NULL,
-                        link_url VARCHAR(255) NULL,
-                        link_label VARCHAR(100) NULL,
-                        icon VARCHAR(20) NOT NULL DEFAULT '🔔',
-                        priority VARCHAR(20) NOT NULL DEFAULT 'Normal',
-                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    );
-                """)
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS tblnotification_reads (
-                        id SERIAL PRIMARY KEY,
-                        notification_id INT NOT NULL REFERENCES tblnotifications(id) ON DELETE CASCADE,
-                        user_id INT NOT NULL REFERENCES tblusers(id) ON DELETE CASCADE,
-                        read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        CONSTRAINT uq_notif_user_read UNIQUE (notification_id, user_id)
-                    );
-                """)
-                cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public';")
-                tables = [r['tablename'] for r in cur.fetchall()]
-                print(f"[OK] PostgreSQL database ready with {len(tables)} tables.")
-            return
-
         conn = get_connection()
         cur  = conn.cursor(dictionary=True)
         cur.execute(DDL)
@@ -376,9 +371,13 @@ def init():
         cur.execute(DDL_AUDIT_LOGS)
         cur.execute(DDL_SALARY_GRADES)
         cur.execute(DDL_APPROVALS)
+        cur.execute(DDL_NOTIFICATIONS)
+        cur.execute(DDL_NOTIFICATION_READS)
 
         # ── Safe column migrations (works on all MySQL versions) ───────────────
         migrations = [
+            ('tblemployee',        'middle_name',     "ALTER TABLE tblemployee ADD COLUMN middle_name VARCHAR(80) NULL AFTER last_name"),
+            ('tbltime_logs',       'xtimestamp',      "ALTER TABLE tbltime_logs ADD COLUMN xtimestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
             ('tblemployee',        'employee_type',   "ALTER TABLE tblemployee ADD COLUMN employee_type VARCHAR(50) DEFAULT 'NON_TEACHING' AFTER designation"),
             ('tblemployee',        'salary_grade',    "ALTER TABLE tblemployee ADD COLUMN salary_grade INT NULL AFTER employee_type"),
             ('tblemployee',        'step',            "ALTER TABLE tblemployee ADD COLUMN step INT DEFAULT 1 AFTER salary_grade"),
@@ -458,12 +457,11 @@ def init():
               AND employee_id NOT IN (SELECT employee_id FROM tblemployee)
         """)
 
-        # Seed initial system users with hashed passwords if employee exists or employee_id is None
-        from werkzeug.security import generate_password_hash
+        # Seed initial system users if employee exists or employee_id is None
         users = [
-            ('principal', generate_password_hash('Password123!'), 'School Principal', 'Principal', None),
-            ('accounting1', generate_password_hash('Password123!'), 'Accounting Officer', 'Accounting', None),
-            ('hr1', generate_password_hash('Password123!'), 'HR Officer', 'HR', None)
+            ('principal', 'Password123!', 'School Principal', 'Principal', None),
+            ('accounting1', 'Password123!', 'Accounting Officer', 'Accounting', None),
+            ('hr1', 'Password123!', 'HR Officer', 'HR', None)
         ]
         for u in users:
             cur.execute("SELECT id FROM tblusers WHERE username=%s", (u[0],))
