@@ -1,4 +1,10 @@
 <style>
+  :root {
+    --green: #16a34a;
+    --green-dim: rgba(22, 163, 74, 0.12);
+    --red-dim: rgba(192, 57, 43, 0.12);
+  }
+
   .pr-page {
     height: 100%;
     display: flex;
@@ -20,25 +26,134 @@
 
   /* Layout */
   .pr-body { flex: 1; display: flex; overflow: hidden; }
-  .pr-left { width: 340px; min-width: 300px; display: flex; flex-direction: column; border-right: 1.5px solid var(--border); background: var(--surface); height: 100%; }
+  .pr-left {
+    width: 360px;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1.5px solid var(--border);
+    background: var(--surface);
+    height: 100%;
+    flex-shrink: 0;
+  }
+  @media (min-width: 1400px) {
+    .pr-left {
+      width: clamp(380px, 22vw, 440px);
+    }
+  }
   .pr-right { flex: 1; display: flex; flex-direction: column; background: var(--bg); position: relative; overflow: hidden; }
 
   /* List navigation */
-  .pr-left-header { padding: 20px 22px; border-bottom: 1.5px solid var(--border); }
+  .pr-left-header { padding: 16px 18px; border-bottom: 1.5px solid var(--border); flex-shrink: 0; }
   .search-box { position: relative; display: flex; align-items: center; }
-  .search-box svg { position: absolute; left: 12px; width: 14px; height: 14px; color: var(--muted2); }
-  .search-box input { width: 100%; padding: 10px 12px 10px 36px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface2); font-size: 12px; transition: all 0.2s; outline: none; }
+  .search-box svg { position: absolute; left: 12px; width: 14px; height: 14px; color: var(--muted2); pointer-events: none; }
+  .search-box input { width: 100%; padding: 9px 12px 9px 36px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface2); font-size: 12px; transition: all 0.2s; outline: none; }
   .search-box input:focus { border-color: var(--navy-mid); background: var(--surface); box-shadow: 0 0 0 3px var(--navy-light); }
   
-  .filter-tabs { display: flex; gap: 4px; padding: 12px 22px 0; background: var(--surface); border-bottom: 1px solid var(--border); }
-  .ftab { padding: 8px 14px; font-size: 11.5px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; position: relative; }
-  .ftab.active { color: var(--navy); font-weight: 700; }
-  .ftab.active::after { content: ''; position: absolute; bottom: -1px; left: 14px; right: 14px; height: 2.5px; background: var(--accent); border-radius: 2px 2px 0 0; }
+  /* Filter tabs - Fully responsive for mobile and desktop */
+  .filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 14px 0;
+    background: var(--surface);
+    border-bottom: 1.5px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    flex-shrink: 0;
+  }
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
 
-  .doc-list { flex: 1; overflow-y: auto; padding: 10px 0; }
-  .doc-row { padding: 14px 22px; cursor: pointer; transition: all 0.2s; border-bottom: 1px solid rgba(226,221,214,0.3); }
+  .ftab {
+    padding: 8px 10px 9px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    transition: all 0.18s ease;
+    position: relative;
+    white-space: nowrap !important;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    user-select: none;
+    border-radius: 6px 6px 0 0;
+    line-height: 1.2;
+  }
+  .ftab:hover {
+    color: var(--navy);
+    background: rgba(30, 58, 95, 0.04);
+  }
+  .ftab.active {
+    color: var(--navy);
+    font-weight: 700;
+    border-bottom-color: var(--accent);
+    background: rgba(200, 151, 58, 0.06);
+  }
+
+  .ftab-badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 5.5px;
+    border-radius: 999px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: all 0.18s;
+  }
+  .ftab:hover .ftab-badge {
+    background: rgba(30, 58, 95, 0.08);
+    color: var(--navy);
+  }
+  .ftab.active .ftab-badge {
+    background: var(--navy-light);
+    border-color: #c5d8f5;
+    color: var(--navy-mid);
+  }
+  .ftab-badge-approval {
+    background: #e0f2fe;
+    border-color: #bae6fd;
+    color: #0284c7;
+  }
+  .ftab.active .ftab-badge-approval {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+  }
+  .ftab-badge-approved {
+    background: var(--green-dim);
+    border-color: rgba(22, 163, 74, 0.25);
+    color: var(--green);
+  }
+  .ftab.active .ftab-badge-approved {
+    background: var(--green);
+    border-color: var(--green);
+    color: #ffffff;
+  }
+  .ftab-badge-rejected {
+    background: var(--red-dim);
+    border-color: rgba(192, 57, 43, 0.25);
+    color: var(--red);
+  }
+  .ftab.active .ftab-badge-rejected {
+    background: var(--red);
+    border-color: var(--red);
+    color: #ffffff;
+  }
+
+  .doc-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .doc-row { padding: 13px 18px; cursor: pointer; transition: all 0.18s; border-bottom: 1px solid rgba(226,221,214,0.3); }
   .doc-row:hover { background: var(--surface2); }
-  .doc-row.active { background: var(--navy-light); border-left: 4px solid var(--navy-mid); padding-left: 18px; }
+  .doc-row.active { background: var(--navy-light); border-left: 4px solid var(--navy-mid); padding-left: 15px; }
   .doc-period { font-size: 13px; font-weight: 600; color: var(--navy); }
   .doc-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; font-size: 10.5px; }
 
@@ -138,8 +253,32 @@
     .pr-toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
     .pr-toolbar .btn { width: 100%; justify-content: center; }
     .pr-body { flex-direction: column; overflow-y: auto; }
-    .pr-left { width: 100%; min-width: 0; min-height: 45%; max-height: 45%; border-right: none; border-bottom: 1.5px solid var(--border); }
-    .pr-right { min-height: 55%; width: 100%; }
+    .pr-left {
+      width: 100%;
+      min-width: 0;
+      min-height: auto;
+      max-height: 48%;
+      border-right: none;
+      border-bottom: 1.5px solid var(--border);
+      flex-shrink: 0;
+    }
+    .pr-left-header { padding: 10px 14px; }
+    .filter-tabs {
+      padding: 6px 10px 0;
+      gap: 5px;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ftab {
+      padding: 7px 9px 8px;
+      font-size: 11px;
+    }
+    .pr-right {
+      min-height: 52%;
+      width: 100%;
+      flex: 1;
+    }
     .list-container { padding: 0 14px 14px; }
     .pr-detail-topbar { padding: 14px; flex-direction: column; align-items: flex-start; gap: 10px; }
     .pr-summary { grid-template-columns: 1fr 1fr; padding: 14px; }
@@ -150,6 +289,18 @@
   }
   @media (max-width: 480px) {
     .pr-summary { grid-template-columns: 1fr; }
+    .filter-tabs {
+      padding: 6px 8px 0;
+      gap: 4px;
+    }
+    .ftab {
+      padding: 6px 8px 7px;
+      font-size: 10.5px;
+    }
+    .ftab-badge {
+      font-size: 9px;
+      padding: 1px 4.5px;
+    }
   }
 </style>
 
@@ -168,15 +319,30 @@
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <input type="text" placeholder="Search payroll records...">
+          <input type="text" id="payrollSearch" placeholder="Search payroll records...">
         </div>
       </div>
-      <div class="filter-tabs">
-        <div class="ftab active">All</div>
-        <div class="ftab">Draft</div>
-        <div class="ftab">For Approval</div>
-        <div class="ftab">Approved</div>
-        <div class="ftab">Rejected</div>
+      <div class="filter-tabs" id="filterTabs">
+        <div class="ftab active" data-status="all">
+          <span>All</span>
+          <span class="ftab-badge" id="tabCountAll">0</span>
+        </div>
+        <div class="ftab" data-status="draft">
+          <span>Draft</span>
+          <span class="ftab-badge" id="tabCountDraft">0</span>
+        </div>
+        <div class="ftab" data-status="for approval">
+          <span>For Approval</span>
+          <span class="ftab-badge ftab-badge-approval" id="tabCountForApproval">0</span>
+        </div>
+        <div class="ftab" data-status="approved">
+          <span>Approved</span>
+          <span class="ftab-badge ftab-badge-approved" id="tabCountApproved">0</span>
+        </div>
+        <div class="ftab" data-status="rejected">
+          <span>Rejected</span>
+          <span class="ftab-badge ftab-badge-rejected" id="tabCountRejected">0</span>
+        </div>
       </div>
       <div class="doc-list" id="docList">
         <!-- JS populated -->
@@ -643,10 +809,26 @@
     function pad(str, len) { str = String(str); while (str.length < len) str = '&nbsp;' + str; return str; }
     function padRight(str, len) { str = String(str); while (str.length < len) str = str + '&nbsp;'; return str; }
 
+    function updateTabCounts() {
+      if (!records || !Array.isArray(records)) return;
+      const cAll = records.length;
+      const cDraft = records.filter(r => (r.status || '').trim().toLowerCase() === 'draft').length;
+      const cForApproval = records.filter(r => (r.status || '').trim().toLowerCase() === 'for approval').length;
+      const cApproved = records.filter(r => (r.status || '').trim().toLowerCase() === 'approved').length;
+      const cRejected = records.filter(r => (r.status || '').trim().toLowerCase() === 'rejected').length;
+
+      $('#tabCountAll').text(cAll);
+      $('#tabCountDraft').text(cDraft);
+      $('#tabCountForApproval').text(cForApproval);
+      $('#tabCountApproved').text(cApproved);
+      $('#tabCountRejected').text(cRejected);
+    }
+
     async function loadRuns() {
       try {
         const res = await $.get(API_RUNS);
-        records = res;
+        records = res || [];
+        updateTabCounts();
         renderDocList();
         if (records.length > 0 && !activeKey) {
           selectRecord(records[0].key);
@@ -675,29 +857,74 @@
       }
       payrollData = rec.data;
       renderDetail(rec);
+
+      // On mobile view, smoothly scroll down to the detail section when record is selected
+      if (window.innerWidth <= 768) {
+        setTimeout(() => {
+          const det = document.getElementById('prDetail');
+          if (det) det.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
     }
 
     function renderDocList() {
-      const filtered = activeTab === 'all' ? records
-        : records.filter(r => r.status.toLowerCase() === activeTab);
+      updateTabCounts();
+      const query = ($('#payrollSearch').val() || '').trim().toLowerCase();
+      let filtered = activeTab === 'all' ? (records || [])
+        : (records || []).filter(r => (r.status || '').trim().toLowerCase() === activeTab);
+
+      if (query) {
+        filtered = filtered.filter(r => 
+          (r.period || '').toLowerCase().includes(query) ||
+          (r.status || '').toLowerCase().includes(query) ||
+          String(r.year || '').includes(query)
+        );
+      }
 
       if (!filtered.length) {
-        $('#docList').html('<div style="padding:20px 18px;font-size:12px;color:var(--muted2);">No records found.</div>');
+        const tabTitle = activeTab === 'all' ? 'All' : (activeTab.charAt(0).toUpperCase() + activeTab.slice(1));
+        $('#docList').html(`
+          <div style="padding:28px 18px;font-size:12px;color:var(--muted2);text-align:center;">
+            <div style="font-weight:600;color:var(--navy);margin-bottom:4px;">No ${tabTitle} Records Found</div>
+            <div>No payroll cycles match the selected filter.</div>
+          </div>
+        `);
+        // If current activeKey is not in filtered list, hide detail and show empty state
+        const activeStillInList = (records || []).some(r => r.key === activeKey && (activeTab === 'all' || (r.status || '').trim().toLowerCase() === activeTab));
+        if (!activeStillInList) {
+          activeKey = null;
+          $('#prDetail').removeClass('visible');
+          $('#prEmpty').show().find('div:last-child').html(`No <strong>${tabTitle}</strong> payroll records to display.`);
+        }
+        return;
+      }
+
+      // Check if current activeKey is in the filtered list
+      const activeStillInList = filtered.some(r => r.key === activeKey);
+      if (!activeStillInList) {
+        // Automatically select the first record of the filtered tab!
+        activeKey = filtered[0].key;
+        selectRecord(activeKey);
         return;
       }
 
       const sColors = { draft: '#92400e', 'for approval': '#0284c7', approved: 'var(--green)', rejected: 'var(--red)' };
       const sBgs = { draft: '#fef3c7', 'for approval': '#e0f2fe', approved: 'var(--green-dim)', rejected: 'var(--red-dim)' };
 
-      $('#docList').html(filtered.map(r => `
-      <div class="doc-row${r.key === activeKey ? ' active' : ''}" data-key="${r.key}">
-        <div class="doc-period">${r.period}</div>
-        <div class="doc-meta">
-          <span>Faculty Payroll</span>
-          <span class="dtr-pill" style="background:${sBgs[r.status.toLowerCase()]};color:${sColors[r.status.toLowerCase()]};">${r.status}</span>
-        </div>
-      </div>
-    `).join(''));
+      $('#docList').html(filtered.map(r => {
+        const stKey = (r.status || '').trim().toLowerCase();
+        const pillBg = sBgs[stKey] || 'var(--surface2)';
+        const pillColor = sColors[stKey] || 'var(--muted)';
+        return `
+          <div class="doc-row${r.key === activeKey ? ' active' : ''}" data-key="${r.key}">
+            <div class="doc-period">${r.period}</div>
+            <div class="doc-meta">
+              <span>Faculty Payroll</span>
+              <span class="dtr-pill" style="background:${pillBg};color:${pillColor};">${r.status}</span>
+            </div>
+          </div>
+        `;
+      }).join(''));
 
       $('#docList .doc-row').on('click', function () {
         selectRecord($(this).data('key'));
@@ -1226,7 +1453,17 @@
     $('#closePayslip').on('click', () => $('#payslipModal').removeClass('open'));
     $('#payslipModal').on('click', function (e) { if (e.target === this) $(this).removeClass('open'); });
     $('#hideDrawer').on('click', () => $('#payheadDrawer').removeClass('open'));
-    $('.ftab').on('click', function () { $('.ftab').removeClass('active'); $(this).addClass('active'); activeTab = $(this).text().trim().toLowerCase(); renderDocList(); });
+    $('.ftab').on('click', function () {
+      $('.ftab').removeClass('active');
+      $(this).addClass('active');
+      activeTab = $(this).data('status') || $(this).clone().children().remove().end().text().trim().toLowerCase();
+      this.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      renderDocList();
+    });
+
+    $('#payrollSearch').on('input', function () {
+      renderDocList();
+    });
 
     $('#btnSendApproval').on('click', async function () {
       const { isConfirmed } = await Swal.fire({
