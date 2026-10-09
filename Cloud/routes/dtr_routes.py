@@ -163,9 +163,33 @@ def _parse_dtr_date_range(args):
 # ── GET /api/dtr/report ────────────────────────────────────────────────────────
 @dtr_bp.route('/report', methods=['GET'])
 def get_dtr_report():
-    emp_id = request.args.get('employee_id', '').strip()
-    if not emp_id:
-        return jsonify({'error': 'employee_id is required'}), 400
+    user = session.get('user')
+    # Self-service enforcement: if user is logged in, strictly restrict to own employee_id
+    if user and user.get('employee_id'):
+        emp_id = user['employee_id']
+    elif user and not user.get('employee_id'):
+        emp_id = None
+        try:
+            with db_cursor() as (conn, cur):
+                username = str(user.get('email') or user.get('username') or '')
+                cur.execute("""
+                    SELECT employee_id FROM tblemployee 
+                    WHERE LOWER(employee_id)=LOWER(%s) 
+                       OR (email IS NOT NULL AND LOWER(email)=LOWER(%s))
+                    LIMIT 1
+                """, (username, username))
+                found_emp = cur.fetchone()
+                if found_emp and found_emp.get('employee_id'):
+                    emp_id = found_emp['employee_id']
+                    session['user']['employee_id'] = emp_id
+        except Exception:
+            pass
+        if not emp_id:
+            return jsonify({'error': 'No employee profile linked to your user account. Please contact HR.'}), 404
+    else:
+        emp_id = request.args.get('employee_id', '').strip()
+        if not emp_id:
+            return jsonify({'error': 'employee_id is required'}), 400
 
     try:
         mode, start_date, end_date, label, year_int, month_int = _parse_dtr_date_range(request.args)

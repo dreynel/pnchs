@@ -78,12 +78,18 @@
 <div class="ps-toolbar">
   <div class="filter-row">
     <div class="filter-group">
+      <div class="filter-label">Pay Period</div>
+      <select class="filter-select" id="selRun" style="min-width:220px;">
+        <option value="">Loading pay periods...</option>
+      </select>
+    </div>
+    <div class="filter-group">
       <div class="filter-label">Year</div>
-      <select class="filter-select" id="selYear" style="width:90px;"></select>
+      <select class="filter-select" id="selYear" style="width:85px;"></select>
     </div>
     <div class="filter-group">
       <div class="filter-label">Month</div>
-      <select class="filter-select" id="selMonth" style="width:120px;">
+      <select class="filter-select" id="selMonth" style="width:115px;">
         <option value="1">January</option><option value="2">February</option>
         <option value="3">March</option><option value="4">April</option>
         <option value="5">May</option><option value="6">June</option>
@@ -94,7 +100,7 @@
     </div>
     <div class="filter-group">
       <div class="filter-label">Period</div>
-      <select class="filter-select" id="selHalf" style="width:140px;">
+      <select class="filter-select" id="selHalf" style="width:135px;">
         <option value="1">1st Half (1-15)</option>
         <option value="2">2nd Half (16-31)</option>
       </select>
@@ -326,20 +332,66 @@
   }
   $('#selMonth').val(now.getMonth() + 1);
 
+  let availableRuns = [];
 
+  window.selectAndGeneratePayslip = function(y, m, h) {
+    $('#selYear').val(y);
+    $('#selMonth').val(m);
+    $('#selHalf').val(h);
+    $('#selRun').val(`${y}|${m}|${h}`);
+    $('#btnGenerate').trigger('click');
+  };
 
-  // Pre-select latest released payroll run
+  // Pre-select latest released payroll run from available runs
   $.get('/api/payroll/runs', function(res) {
-    const runs = res.runs || res.data || [];
-    const releasedRun = runs.find(r => r.is_released || r.released_at || r.status === 'Released');
+    availableRuns = Array.isArray(res) ? res : (res.runs || res.data || []);
+    const $selRun = $('#selRun');
+    $selRun.empty();
+
+    if (availableRuns.length === 0) {
+      $selRun.append('<option value="">No Processed Payrolls Found</option>');
+    } else {
+      availableRuns.forEach(r => {
+        const isReleased = r.is_released || r.released_at || String(r.status).toLowerCase() === 'released';
+        const tag = isReleased ? '✓ Released' : (r.status || 'Processed');
+        $selRun.append(`<option value="${r.year}|${r.month}|${r.half}">${r.period} (${tag})</option>`);
+      });
+    }
+
+    const releasedRun = availableRuns.find(r => r.is_released || r.released_at || String(r.status).toLowerCase() === 'released') || availableRuns[0];
     if (releasedRun) {
       if (releasedRun.year) $('#selYear').val(releasedRun.year);
       if (releasedRun.month) $('#selMonth').val(releasedRun.month);
       if (releasedRun.half) $('#selHalf').val(releasedRun.half);
+      $('#selRun').val(`${releasedRun.year}|${releasedRun.month}|${releasedRun.half}`);
     }
     $('#btnGenerate').trigger('click');
   }).fail(function() {
     $('#btnGenerate').trigger('click');
+  });
+
+  $('#selRun').on('change', function() {
+    const val = $(this).val();
+    if (!val) return;
+    const parts = val.split('|');
+    if (parts.length === 3) {
+      $('#selYear').val(parts[0]);
+      $('#selMonth').val(parts[1]);
+      $('#selHalf').val(parts[2]);
+      $('#btnGenerate').trigger('click');
+    }
+  });
+
+  $('#selYear, #selMonth, #selHalf').on('change', function() {
+    const y = $('#selYear').val();
+    const m = $('#selMonth').val();
+    const h = $('#selHalf').val();
+    const match = availableRuns.find(r => String(r.year) === String(y) && String(r.month) === String(m) && String(r.half) === String(h));
+    if (match) {
+      $('#selRun').val(`${y}|${m}|${h}`);
+    } else {
+      $('#selRun').val('');
+    }
   });
 
   function fmt(n) { 
@@ -366,6 +418,13 @@
     const half = $('#selHalf').val();
     const monthName = $('#selMonth option:selected').text();
     const params = { year, month, half };
+
+    const $btn = $('#btnGenerate');
+    $btn.prop('disabled', true).text('Generating…');
+    $('#psPrompt').hide();
+    $('#psLoading').css('display', 'flex').show();
+    $('#psContainer').hide();
+    $('#btnPrint').prop('disabled', true);
 
     $.get('/api/payroll/my_payslip', params, function(d) {
       $('#psLoading').hide();
@@ -725,6 +784,26 @@
       $('#psLoading').hide();
       $('#psContainer').hide();
       const errMsg = xhr.responseJSON?.error || 'Unknown error occurred while retrieving payslip.';
+      let availHtml = '';
+      if (availableRuns && availableRuns.length > 0) {
+        const buttons = availableRuns.map(r => `
+          <button type="button" class="btn btn-outline" style="font-size:11px; padding:5px 12px; margin:3px; background:#fff; border:1.5px solid #cbd5e1; border-radius:8px; cursor:pointer;" onclick="window.selectAndGeneratePayslip(${r.year}, ${r.month}, ${r.half})">
+            📅 ${r.period}
+          </button>
+        `).join('');
+        availHtml = `
+          <div style="margin-top:16px; padding-top:14px; border-top:1px dashed #fecdd3; width:100%; max-width:520px;">
+            <div style="font-size:11.5px; font-weight:700; color:var(--navy); margin-bottom:8px;">Available Generated Pay Periods:</div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:4px;">${buttons}</div>
+          </div>
+        `;
+      } else {
+        availHtml = `
+          <div style="margin-top:14px; font-size:12px; color:var(--muted2); font-style:italic; max-width:440px; line-height:1.5;">
+            No processed payrolls currently exist in the database. Once payroll has been processed and released by Accounting, official payslips will be available here.
+          </div>
+        `;
+      }
       $('#psPrompt').html(`
         <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; text-align:center;">
           <div style="width:56px; height:56px; border-radius:16px; background:#fff1f2; border:1.5px solid #fecdd3; display:flex; align-items:center; justify-content:center; color:#e11d48; margin-bottom:14px;">
@@ -732,8 +811,11 @@
           </div>
           <div style="font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--navy); margin-bottom:6px;">Payslip Notice</div>
           <div style="font-size:13px; color:var(--muted); max-width:480px; line-height:1.5;">${errMsg}</div>
+          ${availHtml}
         </div>
       `).show();
+    }).always(function() {
+      $btn.prop('disabled', false).text('Generate');
     });
   });
 

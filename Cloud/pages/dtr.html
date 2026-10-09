@@ -55,35 +55,22 @@
   #empSearchInput:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 3px rgba(42,79,128,0.1); }
   #empSearchInput::placeholder { color: var(--muted2); }
 
-  .emp-dropdown {
-    display: none;
-    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-    background: var(--surface);
-    border: 1.5px solid var(--border); border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(20,35,60,0.12);
-    z-index: 50; max-height: 200px; overflow-y: auto;
+  /* Self-Service User Badge */
+  .dtr-user-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 9px; padding: 6px 12px; height: 35px;
+    box-sizing: border-box;
   }
-  .emp-dropdown.open { display: block; }
-  .emp-dropdown::-webkit-scrollbar { width: 3px; }
-  .emp-dropdown::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  .emp-opt {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 11px; cursor: pointer;
-    transition: background .12s;
-    border-bottom: 1px solid rgba(226,221,214,0.4);
-  }
-  .emp-opt:last-child { border-bottom: none; }
-  .emp-opt:hover { background: var(--navy-hover); }
-  .emp-opt.active { background: var(--navy-light); }
-  .emp-opt-avatar {
-    width: 26px; height: 26px; min-width: 26px; border-radius: 7px;
-    background: var(--navy-light); border: 1px solid #c5d8f5;
+  .dtr-user-avatar {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: var(--navy); color: #fff;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Playfair Display', serif; font-size: 9px; color: var(--navy-mid);
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
   }
-  .emp-opt-name  { font-size: 12.5px; font-weight: 600; color: var(--text); }
-  .emp-opt-meta  { font-size: 10px; color: var(--muted2); margin-top: 1px; }
+  .dtr-user-meta { display: flex; align-items: baseline; gap: 5px; }
+  .dtr-user-name { font-size: 12px; font-weight: 600; color: var(--navy); white-space: nowrap; }
+  .dtr-user-id { font-size: 10.5px; color: var(--muted2); font-weight: 500; }
 
   /* Year / Month selects */
   .filter-select {
@@ -180,20 +167,20 @@
   <div class="dtr-toolbar">
     <div class="dtr-toolbar-info">
       <div class="dtr-toolbar-title">Daily Time Record</div>
-      <div class="dtr-toolbar-sub">Select an employee and period to view attendance</div>
+      <div class="dtr-toolbar-sub">Personal Attendance &amp; Biometric Records</div>
     </div>
 
     <div class="filter-row">
 
-      <!-- Employee search-select -->
+      <!-- Current User Self-Service Badge -->
       <div class="filter-group" id="empFilterGroup">
-        <div class="filter-label">Employee</div>
-        <div class="emp-select-wrap">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-          </svg>
-          <input type="text" id="empSearchInput" placeholder="Search employee…" autocomplete="off">
-          <div class="emp-dropdown" id="empDropdown"></div>
+        <div class="filter-label">Employee Profile</div>
+        <div class="dtr-user-badge">
+          <div class="dtr-user-avatar" id="dtrUserAvatar">--</div>
+          <div class="dtr-user-meta">
+            <span class="dtr-user-name" id="dtrUserName">Loading profile…</span>
+            <span class="dtr-user-id" id="dtrUserId"></span>
+          </div>
         </div>
       </div>
 
@@ -285,7 +272,7 @@
           </svg>
         </div>
         <div class="dtr-prompt-title">Daily Time Record</div>
-        <div class="dtr-prompt-sub">Choose an employee and period then click <strong>Generate</strong> to view the DTR.</div>
+        <div class="dtr-prompt-sub">Select a period then click <strong>Generate</strong> to view your attendance record.</div>
       </div>
 
     </div>
@@ -337,85 +324,37 @@
   $('#dtrDateFrom').val(firstOfMonthStr);
   $('#dtrDateTo').val(todayStr);
 
-  // ── Load employee list ────────────────────────────────────────────────────
+  // ── Load authenticated user profile (Self-Service) ────────────────────────
   $.get('/api/auth/me', function (user) {
-    if (user.role === 'Employee' && user.employee_id) {
-      $('#empFilterGroup').hide();
-      selectedEmp = {
-        id: user.employee_id,
-        full_name: user.name,
-        designation: ''
-      };
-      $('#btnGenerate').prop('disabled', false).click();
-    } else {
-      $.get('/api/dtr/employees', function (data) {
-        employees = data || [];
-        renderDropdown('');
-        selectedEmp = null;
-        $('#empSearchInput').val('');
-        $('#btnGenerate').prop('disabled', true);
-      });
-    }
-  });
-
-  function renderDropdown(q) {
-    const filtered = q
-      ? employees.filter(e =>
-          (e.full_name && e.full_name.toLowerCase().includes(q.toLowerCase())) ||
-          (e.id && e.id.toLowerCase().includes(q.toLowerCase())) ||
-          (e.designation && e.designation.toLowerCase().includes(q.toLowerCase()))
-        )
-      : employees;
-
-    const $dd = $('#empDropdown');
-    if (!filtered.length) {
-      $dd.html('<div style="padding:10px 12px;font-size:12px;color:var(--muted2);">No employees found</div>');
+    if (!user || !user.employee_id) {
+      $('#dtrUserName').text(user ? (user.name || user.username) : 'Unknown');
+      $('#dtrUserId').text('(No ID)');
+      $('#btnGenerate').prop('disabled', true);
+      $('#dtrPrompt').html(`
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px; text-align:center;">
+          <div style="width:56px; height:56px; border-radius:16px; background:#fff1f2; border:1.5px solid #fecdd3; display:flex; align-items:center; justify-content:center; color:#e11d48; margin-bottom:14px;">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div style="font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--navy); margin-bottom:6px;">Employee Profile Notice</div>
+          <div style="font-size:13px; color:var(--muted); max-width:480px; line-height:1.5;">No employee profile linked to your user account (${user ? (user.name || user.username || '') : ''}). Please contact HR to link your employee profile.</div>
+        </div>
+      `).show();
       return;
     }
-    $dd.html(filtered.map(e => {
-      const initials = (e.first_name[0] || '') + (e.last_name[0] || '');
-      const active = selectedEmp && selectedEmp.id === e.id ? 'active' : '';
-      return `
-        <div class="emp-opt ${active}" data-id="${e.id}" data-name="${e.full_name}" data-desig="${e.designation}">
-          <div class="emp-opt-avatar">${initials.toUpperCase()}</div>
-          <div>
-            <div class="emp-opt-name">${e.full_name}</div>
-            <div class="emp-opt-meta">${e.id} · ${e.designation}</div>
-          </div>
-        </div>`;
-    }).join(''));
-  }
 
-  // ── Employee search input ─────────────────────────────────────────────────
-  $(document).off('focus', '#empSearchInput').on('focus', '#empSearchInput', function () {
-    renderDropdown($(this).val());
-    $('#empDropdown').addClass('open');
-  });
-
-  $(document).off('input', '#empSearchInput').on('input', '#empSearchInput', function () {
-    renderDropdown($(this).val());
-    $('#empDropdown').addClass('open');
-    selectedEmp = null;
-    $('#btnGenerate').prop('disabled', true);
-  });
-
-  // Close dropdown on outside click
-  $(document).off('click.dtrDD').on('click.dtrDD', function (e) {
-    if (!$(e.target).closest('.emp-select-wrap').length) {
-      $('#empDropdown').removeClass('open');
-    }
-  });
-
-  // Select employee from dropdown
-  $(document).off('click', '.emp-opt').on('click', '.emp-opt', function () {
     selectedEmp = {
-      id:          $(this).data('id'),
-      full_name:   $(this).data('name'),
-      designation: $(this).data('desig'),
+      id:          user.employee_id,
+      full_name:   user.name || user.username,
+      designation: user.role || ''
     };
-    $('#empSearchInput').val(selectedEmp.full_name);
-    $('#empDropdown').removeClass('open');
-    $('#btnGenerate').prop('disabled', false);
+
+    const initials = (user.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'EM').toUpperCase();
+    $('#dtrUserAvatar').text(initials);
+    $('#dtrUserName').text(user.name || user.username);
+    $('#dtrUserId').text(`(${user.employee_id})`);
+    $('#btnGenerate').prop('disabled', false).trigger('click');
+  }).fail(function () {
+    $('#btnGenerate').prop('disabled', true);
   });
 
   // ── Generate DTR ──────────────────────────────────────────────────────────

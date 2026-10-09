@@ -927,7 +927,9 @@ def my_payslip():
             cur.execute("SELECT status, is_released, released_at, created_at FROM tblpayroll WHERE period_key=%s", (period_key,))
             pr = cur.fetchone()
             if not pr:
-                return jsonify({'error': 'Payslip for this period has not been generated.'}), 404
+                month_name = calendar.month_name[int(month)] if 1 <= int(month) <= 12 else str(month)
+                half_label = "1st Half (1-15)" if str(half) == "1" else "2nd Half (16-31)"
+                return jsonify({'error': f'Payslip for {month_name} {year} ({half_label}) has not been generated.'}), 404
 
             is_released = bool(
                 pr.get('is_released') in (1, True, '1', 'true', 't') or

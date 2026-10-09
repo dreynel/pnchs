@@ -72,12 +72,17 @@ class CaseInsensitiveMySQLCursor(mysql.connector.cursor.MySQLCursorDict):
         if isinstance(query, str):
             # 1. Translate INTERVAL '30 days' / INTERVAL '1 month'
             if 'INTERVAL' in query.upper():
+                def _norm_interval(m):
+                    num = m.group(1)
+                    unit = m.group(2).rstrip('sS').upper()
+                    return f"INTERVAL {num} {unit}"
                 query = re.sub(
                     r"INTERVAL\s+'(\d+)\s+([A-Za-z]+)'",
-                    r"INTERVAL \1 \2",
+                    _norm_interval,
                     query,
                     flags=re.IGNORECASE
                 )
+
 
             # 2. Translate PostgreSQL ON CONFLICT to MySQL ON DUPLICATE KEY UPDATE
             u_query = query.upper()

@@ -63,24 +63,57 @@
     /* ── Brand ── */
     .brand {
       display: flex; align-items: center; gap: 10px;
-      padding: 22px 16px 18px 18px;
+      padding: 18px 14px 16px 16px;
       border-bottom: 1px solid rgba(255,255,255,0.08);
-      overflow: hidden; white-space: nowrap;
+      overflow: hidden;
     }
     .brand-icon {
-      width: 36px; height: 36px; min-width: 36px;
+      width: 38px; height: 38px; min-width: 38px;
       border-radius: 10px;
       background: linear-gradient(135deg, var(--accent), #a87620);
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 3px 12px rgba(200,151,58,0.45);
+      padding: 3px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .brand-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 7px;
+      display: block;
     }
     .brand-icon svg { width: 18px; height: 18px; color: #fff; }
-    .brand-text { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #fff; }
+    .brand-sub {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .brand-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
     .brand-tag {
-      font-size: 8.5px; text-transform: uppercase; letter-spacing: .12em;
-      color: var(--accent); background: rgba(200,151,58,0.15);
-      border: 1px solid rgba(200,151,58,0.3);
-      padding: 2px 7px; border-radius: 20px; margin-top: 2px;
+      font-size: 8px;
+      font-weight: 500;
+      line-height: 1.25;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+      white-space: normal;
+      margin-top: 3px;
+      word-break: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     .sidebar.collapsed .brand-sub { display: none; }
 
@@ -601,14 +634,13 @@
 
     <div class="brand">
       <div class="brand-icon">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="img-fluid" style="max-height:50px;">
-        
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="img-fluid">
       </div>
-      <div class="brand-sub">
+      <div class="brand-sub" title="Pototan National Comprehensive High School">
         <div class="brand-text">PNCHS</div>
         <div class="brand-tag">Pototan National Comprehensive High School</div>
       </div>
-      <button class="collapse-btn" id="collapseBtn">
+      <button class="collapse-btn" id="collapseBtn" title="Toggle Sidebar">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
         </svg>
