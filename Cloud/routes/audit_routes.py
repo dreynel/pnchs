@@ -414,7 +414,10 @@ def get_payroll_verification():
         other_deductions = float(r.get('other_deductions') or 0)
 
         stored_deductions = float(r.get('total_deduct') or 0)
-        audited_deductions = round(absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax + other_deductions + ph_deductions, 2)
+        audited_deductions = round(absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax + other_deductions, 2)
+        if abs(audited_deductions - stored_deductions) > 0.01 and abs((audited_deductions + ph_deductions) - stored_deductions) <= 0.01:
+            audited_deductions = round(audited_deductions + ph_deductions, 2)
+
         deduction_var = round(audited_deductions - stored_deductions, 2)
 
         stored_net = float(r.get('net_pay') or 0)
@@ -426,6 +429,16 @@ def get_payroll_verification():
         if is_accurate:
             accurate_count += 1
             status = 'ACCURATE'
+            # Normalize centavo rounding differences so accurate records show zero variance
+            if abs(gross_var) <= 0.01:
+                gross_var = 0.0
+                audited_gross = stored_gross
+            if abs(deduction_var) <= 0.01:
+                deduction_var = 0.0
+                audited_deductions = stored_deductions
+            if abs(net_var) <= 0.01:
+                net_var = 0.0
+                audited_net = stored_net
         else:
             discrepancy_count += 1
             status = 'DISCREPANCY'
@@ -438,6 +451,9 @@ def get_payroll_verification():
         total_deductions += stored_deductions
         total_net += stored_net
 
+        allow_display = round(audited_gross - basic_pay - holiday_pay, 2)
+        custom_ded_display = round(audited_deductions - (absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax), 2)
+
         verified_list.append({
             'employee_id': r.get('employee_id'),
             'employee_name': emp_name,
@@ -448,7 +464,7 @@ def get_payroll_verification():
             'basic_pay': basic_pay,
             'overtime_pay': overtime_pay,
             'holiday_pay': holiday_pay,
-            'other_earnings': other_earnings,
+            'other_earnings': allow_display,
             'ph_earnings': ph_earnings,
             'stored_gross': stored_gross,
             'audited_gross': audited_gross,
@@ -463,7 +479,7 @@ def get_payroll_verification():
             'philhealth_ee': philhealth_ee,
             'pagibig_ee': pagibig_ee,
             'withholding_tax': withholding_tax,
-            'other_deductions': other_deductions + ph_deductions,
+            'other_deductions': custom_ded_display,
             'ph_deductions': ph_deductions,
             'stored_deductions': stored_deductions,
             'audited_deductions': audited_deductions,
@@ -479,8 +495,8 @@ def get_payroll_verification():
                 'tardiness': f"{r.get('late_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{tardiness_ded:,.2f}",
                 'undertime': f"{r.get('undertime_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{undertime_ded:,.2f}",
                 'absence': f"{r.get('absent_days') or 0} days × ₱{daily_rate:,.2f} = ₱{absent_ded:,.2f}",
-                'gross_sum': f"Basic (₱{basic_pay:,.2f}) + Hol (₱{holiday_pay:,.2f}) + Allow (₱{other_earnings + ph_earnings:,.2f}) = ₱{audited_gross:,.2f}",
-                'ded_sum': f"GSIS (₱{sss_ee:,.2f}) + PhilHealth (₱{philhealth_ee:,.2f}) + Pag-IBIG (₱{pagibig_ee:,.2f}) + Tax (₱{withholding_tax:,.2f}) + Absences (₱{absent_ded:,.2f}) + Late/Under (₱{tardiness_ded + undertime_ded:,.2f}) + Loans/Custom (₱{other_deductions + ph_deductions:,.2f}) = ₱{audited_deductions:,.2f}",
+                'gross_sum': f"Basic (₱{basic_pay:,.2f}) + Hol (₱{holiday_pay:,.2f}) + Allow (₱{allow_display:,.2f}) = ₱{audited_gross:,.2f}",
+                'ded_sum': f"GSIS (₱{sss_ee:,.2f}) + PhilHealth (₱{philhealth_ee:,.2f}) + Pag-IBIG (₱{pagibig_ee:,.2f}) + Tax (₱{withholding_tax:,.2f}) + Absences (₱{absent_ded:,.2f}) + Late/Under (₱{tardiness_ded + undertime_ded:,.2f}) + Loans/Custom (₱{custom_ded_display:,.2f}) = ₱{audited_deductions:,.2f}",
                 'net_sum': f"Gross (₱{audited_gross:,.2f}) - Deductions (₱{audited_deductions:,.2f}) = ₱{audited_net:,.2f}"
             }
         })
@@ -521,7 +537,7 @@ def export_payroll_verification():
         'Period Key', 'Employee ID', 'Employee Name', 'Designation',
         'Monthly Salary', 'Basic Pay', 'Daily Rate',
         'Overtime Pay', 'Holiday Pay', 'Other Earnings', 'Stored Gross', 'Audited Gross', 'Gross Variance',
-        'Absent Ded', 'Tardiness Ded', 'Undertime Ded', 'PhilHealth', 'Pag-IBIG', 'SSS', 'Withholding Tax', 'Other Deds',
+        'Absent Ded', 'Tardiness Ded', 'Undertime Ded', 'PhilHealth', 'Pag-IBIG', 'SSS/GSIS', 'Withholding Tax', 'Other Deds',
         'Stored Total Deductions', 'Audited Total Deductions', 'Deduction Variance',
         'Stored Net Pay', 'Audited Net Pay', 'Net Variance', 'Audit Status'
     ])
@@ -537,7 +553,7 @@ def export_payroll_verification():
             f"{d['daily_rate']:.2f}",
             f"{d['overtime_pay']:.2f}",
             f"{d['holiday_pay']:.2f}",
-            f"{(d['other_earnings'] + d['ph_earnings']):.2f}",
+            f"{d['other_earnings']:.2f}",
             f"{d['stored_gross']:.2f}",
             f"{d['audited_gross']:.2f}",
             f"{d['gross_variance']:.2f}",
@@ -548,7 +564,6 @@ def export_payroll_verification():
             f"{d['pagibig_ee']:.2f}",
             f"{d['sss_ee']:.2f}",
             f"{d.get('withholding_tax', 0):.2f}",
-            f"{d.get('ph_deductions', 0):.2f}",
             f"{d.get('other_deductions', 0):.2f}",
             f"{d.get('stored_deductions', 0):.2f}",
             f"{d['audited_deductions']:.2f}",

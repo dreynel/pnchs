@@ -375,6 +375,22 @@
     </div>
 
     <div class="audit-header-actions">
+      <!-- Segmented Tab Header -->
+      <div class="audit-tabs">
+        <button class="tab-btn" onclick="if(window.navigate) window.navigate(event, null, 'Audit Trail', '/pages/audit_trail.html', '/audit_trail'); else window.location.href='/audit_trail';">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          System Event Logs
+        </button>
+        <button class="tab-btn active">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Payroll Computation Audit
+        </button>
+        <button class="tab-btn" onclick="if(window.navigate) window.navigate(event, null, 'Payroll Report', '/pages/payroll_report.html', '/payroll_report'); else window.location.href='/payroll_report';">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Payroll Report
+        </button>
+      </div>
+
       <!-- Export Button -->
       <button class="btn btn-primary" onclick="exportPayrollVerificationSheet()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
@@ -479,7 +495,13 @@
 <script>
 (function() {
   let payrollAuditData = [];
-  const fmtCurr = num => '₱' + Number(num || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtCurr = num => {
+    const val = Number(num || 0);
+    if (val < 0) {
+      return '-₱' + Math.abs(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return '₱' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   function togglePayrollAuditRow(id) {
     $('#' + id).toggleClass('open');
@@ -557,9 +579,13 @@
       const badgeClass = isAcc ? 'badge green' : 'badge red';
       const badgeText  = isAcc ? '✓ ACCURATE' : '⚠ DISCREPANCY';
 
-      const grossVarStr = d.gross_variance !== 0 ? ` <span style="color:var(--red); font-size:10px;">(${d.gross_variance > 0 ? '+' : ''}${d.gross_variance})</span>` : '';
-      const dedVarStr   = d.deduction_variance !== 0 ? ` <span style="color:var(--red); font-size:10px;">(${d.deduction_variance > 0 ? '+' : ''}${d.deduction_variance})</span>` : '';
-      const netVarStr   = d.net_variance !== 0 ? ` <span style="color:var(--red); font-size:10px;">(${d.net_variance > 0 ? '+' : ''}${d.net_variance})</span>` : '';
+      const hasGrossVar = Math.abs(d.gross_variance || 0) > 0.01;
+      const hasDedVar   = Math.abs(d.deduction_variance || 0) > 0.01;
+      const hasNetVar   = Math.abs(d.net_variance || 0) > 0.01;
+
+      const grossVarStr = hasGrossVar ? ` <span style="color:var(--red); font-size:10px;">(${d.gross_variance > 0 ? '+' : ''}${fmtCurr(d.gross_variance)})</span>` : '';
+      const dedVarStr   = hasDedVar   ? ` <span style="color:var(--red); font-size:10px;">(${d.deduction_variance > 0 ? '+' : ''}${fmtCurr(d.deduction_variance)})</span>` : '';
+      const netVarStr   = hasNetVar   ? ` <span style="color:var(--red); font-size:10px;">(${d.net_variance > 0 ? '+' : ''}${fmtCurr(d.net_variance)})</span>` : '';
 
       html += `
         <tr class="audit-row" onclick="togglePayrollAuditRow('pdet-${idx}')">
@@ -619,7 +645,7 @@
                 <div class="formula-card">
                   <div class="formula-title">3. Gross Salary Sum</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.gross_sum}</div>
-                  <div style="margin-top:4px; color:var(--muted);">Match Check: ${d.gross_variance === 0 ? '✓ 100% Match' : '⚠ ' + d.gross_variance + ' Variance'}</div>
+                  <div style="margin-top:4px; color:var(--muted);">Match Check: ${!hasGrossVar ? '✓ 100% Match' : '⚠ ' + fmtCurr(d.gross_variance) + ' Variance'}</div>
                 </div>
 
                 <div class="formula-card">
@@ -635,7 +661,7 @@
                 <div class="formula-card">
                   <div class="formula-title">5. Total Deductions Sum</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.ded_sum}</div>
-                  <div style="margin-top:4px; color:var(--muted);">Match Check: ${d.deduction_variance === 0 ? '✓ 100% Match' : '⚠ ' + d.deduction_variance + ' Variance'}</div>
+                  <div style="margin-top:4px; color:var(--muted);">Match Check: ${!hasDedVar ? '✓ 100% Match' : '⚠ ' + fmtCurr(d.deduction_variance) + ' Variance'}</div>
                 </div>
 
                 <div class="formula-card" style="background:#f0fdf4; border-color:#bbf7d0;">

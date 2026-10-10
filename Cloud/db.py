@@ -90,10 +90,10 @@ class CaseInsensitiveMySQLCursor(mysql.connector.cursor.MySQLCursorDict):
                 # Replace EXCLUDED.col with VALUES(col)
                 query = re.sub(r'EXCLUDED\.(\w+)', r'VALUES(\1)', query, flags=re.IGNORECASE)
                 
-                # ON CONFLICT (...) DO NOTHING
+                # ON CONFLICT (...) DO NOTHING or ON CONFLICT DO NOTHING
                 if 'DO NOTHING' in u_query:
                     query = re.sub(
-                        r'ON\s+CONFLICT\s*\([^)]*\)\s*DO\s+NOTHING',
+                        r'ON\s+CONFLICT(?:\s*\([^)]*\))?\s*DO\s+NOTHING',
                         r'ON DUPLICATE KEY UPDATE id=id',
                         query,
                         flags=re.IGNORECASE
