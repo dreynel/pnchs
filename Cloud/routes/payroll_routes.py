@@ -89,16 +89,18 @@ def count_work_days_in_period(start_date, end_date):
     return days
 
 # ── Schedule Definitions ─────────────────────────────────────────────────────
-def _get_schedule(designation):
+def _get_schedule(designation=None):
     """
     Returns schedule times in minutes-since-midnight.
-    Faculty: AM 7:30–11:30  / PM 13:00–17:00
-    Staff:   AM 8:00–12:00  / PM 13:00–17:00
+    Fixed basis of times:
+    AM 7:00–12:00 (420–720) / PM 13:00–17:00 (780–1020)
     """
-    desig = (designation or '').lower()
-    if 'faculty' in desig:
-        return {'am_start': 450, 'am_end': 690,  'pm_start': 780, 'pm_end': 1020}  # 7:30/11:30/13:00/17:00
-    return     {'am_start': 480, 'am_end': 720,  'pm_start': 780, 'pm_end': 1020}  # 8:00/12:00/13:00/17:00
+    return {
+        'am_start': 7 * 60,   # 07:00 (420)
+        'am_end':   12 * 60,  # 12:00 (720)
+        'pm_start': 13 * 60,  # 13:00 (780)
+        'pm_end':   17 * 60   # 17:00 (1020)
+    }
 
 
 def _td_mins(td):
@@ -459,7 +461,13 @@ def process_payroll():
     year = request.args.get('year', '').strip()
     month = request.args.get('month', '').strip()
     half = request.args.get('half', '').strip()
-    period_key = request.args.get('period_key', '').strip()
+    period_key = (request.args.get('period_key') or request.args.get('key') or '').strip()
+
+    # If period_key is provided (e.g. '2026-9-1'), extract year, month, half if not explicitly set
+    if period_key and '-' in period_key and not (year and month and half):
+        parts = period_key.split('-')
+        if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit() and parts[2].isdigit():
+            year, month, half = str(int(parts[0])), str(int(parts[1])), str(int(parts[2]))
 
     today = date.today()
 
@@ -503,6 +511,13 @@ def process_payroll():
                         'summary': {'total_employees': 0, 'grand_total_gross': 0.0, 'grand_total_deduct': 0.0, 'grand_total_net': 0.0, 'runs_count': 0}
                     })
 
+                # Compute normalized key (e.g. 2026-9-1 vs 2026-09-1)
+                norm_key = None
+                if '-' in period_key:
+                    sp = period_key.split('-')
+                    if len(sp) == 3 and sp[0].isdigit() and sp[1].isdigit() and sp[2].isdigit():
+                        norm_key = f"{int(sp[0])}-{int(sp[1])}-{int(sp[2])}"
+
                 cur.execute("""
                     SELECT d.*, e.first_name, e.last_name, e.designation,
                            COALESCE(b.vl_minutes, 4800) AS vl_minutes,
@@ -510,12 +525,12 @@ def process_payroll():
                     FROM tblpayroll_details d
                     JOIN tblemployee e ON d.employee_id = e.employee_id
                     LEFT JOIN tblleave_balances b ON d.employee_id = b.employee_id
-                    WHERE d.period_key = %s
+                    WHERE d.period_key = %s OR d.period_key = %s
                     ORDER BY e.last_name, e.first_name
-                """, (period_key,))
+                """, (period_key, norm_key or period_key))
                 records = cur.fetchall()
 
-                cur.execute("SELECT year, month, half, created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s", (period_key,))
+                cur.execute("SELECT year, month, half, created_at, approved_by, approved_at FROM tblpayroll WHERE period_key=%s OR period_key=%s", (period_key, norm_key or period_key))
                 hdr = cur.fetchone()
                 created_at_str = hdr['created_at'].strftime('%b %d, %Y') if hdr and hdr.get('created_at') else '—'
                 approved_by    = hdr['approved_by'] if hdr else None
@@ -562,6 +577,13 @@ def process_payroll():
                         'philhealth_ee':      f('philhealth_ee'),
                         'pagibig_ee':         f('pagibig_ee'),
                         'withholding_tax':    f('withholding_tax'),
+                        'gsis':                f('sss_ee'),
+                        'philhealth':          f('philhealth_ee'),
+                        'pagibig':             f('pagibig_ee'),
+                        'tax':                 f('withholding_tax'),
+                        'tardiness':           f('tardiness_deduction'),
+                        'undertime':           f('undertime_deduction'),
+                        'absence':             f('absent_deduction'),
                         'statutory_json':      rec.get('statutory_json'),
                         'payheads_json':       rec.get('payheads_json'),
                         'total_gross':        f('total_gross'),
@@ -744,6 +766,13 @@ def process_payroll():
                     'philhealth_ee':      f('philhealth_ee'),
                     'pagibig_ee':         f('pagibig_ee'),
                     'withholding_tax':    f('withholding_tax'),
+                    'gsis':                f('sss_ee'),
+                    'philhealth':          f('philhealth_ee'),
+                    'pagibig':             f('pagibig_ee'),
+                    'tax':                 f('withholding_tax'),
+                    'tardiness':           f('tardiness_deduction'),
+                    'undertime':           f('undertime_deduction'),
+                    'absence':             f('absent_deduction'),
                     'statutory_json':      None,
                     'payheads_json':       None,
                     'total_gross':        f('total_gross'),
@@ -845,6 +874,13 @@ def process_payroll_single_run(cur, period_key, label_override=None):
             'philhealth_ee':      f('philhealth_ee'),
             'pagibig_ee':         f('pagibig_ee'),
             'withholding_tax':    f('withholding_tax'),
+            'gsis':                f('sss_ee'),
+            'philhealth':          f('philhealth_ee'),
+            'pagibig':             f('pagibig_ee'),
+            'tax':                 f('withholding_tax'),
+            'tardiness':           f('tardiness_deduction'),
+            'undertime':           f('undertime_deduction'),
+            'absence':             f('absent_deduction'),
             'statutory_json':      rec.get('statutory_json'),
             'payheads_json':       rec.get('payheads_json'),
             'total_gross':        f('total_gross'),

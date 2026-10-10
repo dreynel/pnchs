@@ -98,7 +98,7 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
         """TEST 1: Non-teaching employee on time -> 0 tardiness, 0 VL deduction, ₱0 salary impact."""
         res = AttendancePolicyService.calculate_tardiness_and_undertime(
             employee_type='NON_TEACHING', designation='Staff',
-            am_in='08:00:00', am_out='12:00:00',
+            am_in='07:00:00', am_out='12:00:00',
             pm_in='13:00:00', pm_out='17:00:00'
         )
         self.assertEqual(res['tardiness_minutes'], 0)
@@ -119,7 +119,7 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
         self.cur.leave_balances['EMP-001']['vl_minutes'] = 4800
         res = AttendancePolicyService.calculate_tardiness_and_undertime(
             employee_type='NON_TEACHING', designation='Staff',
-            am_in='08:10:00', am_out='12:00:00',
+            am_in='07:10:00', am_out='12:00:00',
             pm_in='13:00:00', pm_out='17:00:00'
         )
         self.assertEqual(res['tardiness_minutes'], 10)
@@ -140,7 +140,7 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
         self.cur.leave_balances['EMP-001']['vl_minutes'] = 4800
         res = AttendancePolicyService.calculate_tardiness_and_undertime(
             employee_type='NON_TEACHING', designation='Staff',
-            am_in='08:00:00', am_out='12:00:00',
+            am_in='07:00:00', am_out='12:00:00',
             pm_in='13:00:00', pm_out='16:45:00'
         )
         self.assertEqual(res['undertime_minutes'], 15)

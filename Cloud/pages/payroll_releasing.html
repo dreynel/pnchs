@@ -232,8 +232,32 @@
 
   /* Employee Details Modal */
   .pr-details-modal {
-    width: 800px; max-width: 90vw; max-height: 85vh;
+    width: 860px; max-width: 92vw; max-height: 85vh;
     display: flex; flex-direction: column;
+  }
+  .pr-modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted2);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    transition: all 0.18s ease;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .pr-modal-close:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+    transform: scale(1.05);
   }
   .pr-tbl-wrap { overflow-y: auto; flex: 1; margin-top: 14px; border: 1px solid var(--border); border-radius: 10px; }
   .pr-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -304,7 +328,10 @@
 <!-- Release Confirmation Modal -->
 <div class="pr-modal-overlay" id="releaseModal">
   <div class="pr-modal">
-    <div style="font-size:24px; margin-bottom:10px;">📣</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-size:24px;">📣</div>
+      <button class="pr-modal-close" onclick="closeReleaseModal()" title="Close" aria-label="Close">✕</button>
+    </div>
     <div style="font-family:'Playfair Display', serif; font-size:1.2rem; font-weight:700; color:var(--navy);">Confirm Payroll Release</div>
     <div style="font-size:12.5px; color:var(--muted2); margin-top:6px; line-height:1.5;">
       You are about to release the payroll for <strong id="modalPeriodName" style="color:var(--navy);">--</strong>.
@@ -317,11 +344,11 @@
     </div>
     
     <div style="background:var(--surface2); padding:12px; border-radius:10px; margin-top:16px; font-size:12px; border:1px solid var(--border);">
-      <div style="display:flex; justify-between; margin-bottom:4px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
         <span style="color:var(--muted2);">Employees:</span>
         <strong id="modalEmpCount" style="color:var(--navy);">0</strong>
       </div>
-      <div style="display:flex; justify-between;">
+      <div style="display:flex; justify-content:space-between;">
         <span style="color:var(--muted2);">Total Net Pay:</span>
         <strong id="modalNetPay" style="color:#047857;">₱0.00</strong>
       </div>
@@ -339,12 +366,12 @@
 <!-- Employee Details Table Modal -->
 <div class="pr-modal-overlay" id="detailsModal">
   <div class="pr-modal pr-details-modal">
-    <div style="display:flex; justify-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px;">
       <div>
         <div style="font-family:'Playfair Display', serif; font-size:1.15rem; font-weight:700; color:var(--navy);" id="detailsModalTitle">Payroll Run Details</div>
-        <div style="font-size:11px; color:var(--muted2);" id="detailsModalSub">Breakdown of employees in this run</div>
+        <div style="font-size:11px; color:var(--muted2); margin-top:2px;" id="detailsModalSub">Breakdown of employees in this run</div>
       </div>
-      <button class="btn-view-details" onclick="closeDetailsModal()">Close</button>
+      <button class="pr-modal-close" onclick="closeDetailsModal()" title="Close details modal" aria-label="Close">✕</button>
     </div>
 
     <div class="pr-tbl-wrap">
@@ -363,6 +390,10 @@
           <tr><td colspan="6" style="text-align:center; padding:20px; color:var(--muted2);">Loading details…</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:14px; padding-top:12px; border-top:1px solid var(--border);">
+      <button class="btn-view-details" onclick="closeDetailsModal()">Close</button>
     </div>
   </div>
 </div>
@@ -528,41 +559,75 @@
     $('#detailsTbody').html('<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--muted2);">Loading employee records…</td></tr>');
     $('#detailsModal').addClass('open');
 
-    $.get('/api/payroll/report_data', { key: key }, function(res) {
-      if (!res || !res.employees) {
-        $('#detailsTbody').html('<tr><td colspan="6" style="text-align:center; padding:20px; color:#ef4444;">Failed to load employee records.</td></tr>');
+    let params = { key: key, period_key: key, filter_mode: 'run' };
+    if (key && key.includes('-')) {
+      const parts = key.split('-');
+      if (parts.length === 3) {
+        params.year = parts[0];
+        params.month = parts[1];
+        params.half = parts[2];
+      }
+    }
+
+    $.get('/api/payroll/report_data', params, function(res) {
+      const emps = (res && (res.employees || res.records)) || [];
+      if (!emps || emps.length === 0) {
+        $('#detailsTbody').html('<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--muted2); font-size:12.5px;">No employee records found in this payroll run.</td></tr>');
         return;
       }
       let trs = '';
-      res.employees.forEach(emp => {
-        const statutory = (emp.gsis || 0) + (emp.philhealth || 0) + (emp.pagibig || 0) + (emp.tax || 0);
-        const lwop = (emp.tardiness || 0) + (emp.undertime || 0) + (emp.absence || 0);
+      emps.forEach(emp => {
+        const statutory = (parseFloat(emp.gsis_ee || emp.gsis || 0) + 
+                           parseFloat(emp.philhealth_ee || emp.philhealth || 0) + 
+                           parseFloat(emp.pagibig_ee || emp.pagibig || 0) + 
+                           parseFloat(emp.withholding_tax || emp.tax || 0));
+        const lwop = (parseFloat(emp.tardiness_deduction || emp.tardiness || 0) + 
+                      parseFloat(emp.undertime_deduction || emp.undertime || 0) + 
+                      parseFloat(emp.absent_deduction || emp.absence || 0));
+        const netPay = parseFloat(emp.net_pay || 0);
         trs += `
           <tr>
-            <td><strong>${emp.name}</strong><br><span style="font-size:10px; color:var(--muted2);">${emp.id}</span></td>
+            <td><strong>${emp.name || 'Unknown'}</strong><br><span style="font-size:10px; color:var(--muted2);">${emp.id || ''}</span></td>
             <td>${emp.designation || '-'}</td>
-            <td>₱${(emp.half_basic || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-            <td>₱${statutory.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-            <td style="color:#c2410c;">₱${lwop.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+            <td>₱${(parseFloat(emp.half_basic || 0)).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td>₱${statutory.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td style="color:#c2410c;">₱${lwop.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
             <td>
-              ${(emp.is_lwop || ((emp.net_pay || 0) <= 0 && (emp.absent_days || 0) > 0))
+              ${(emp.is_lwop || (netPay <= 0 && (emp.absent_days || 0) > 0))
                 ? `<strong style="color:#c2410c; background:#ffedd5; padding:2px 8px; border-radius:6px; font-size:10.5px;">LWOP (₱0.00 Payout)</strong>`
-                : ((emp.net_pay || 0) < 0 
-                  ? `<strong style="color:#dc2626;">-₱${Math.abs(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong> <span class="badge bg-danger text-white" style="font-size:8.5px;">Negative</span>` 
-                  : `<strong style="color:#047857;">₱${(emp.net_pay || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong>`)}
+                : (netPay < 0 
+                  ? `<strong style="color:#dc2626;">-₱${Math.abs(netPay).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong> <span class="badge bg-danger text-white" style="font-size:8.5px;">Negative</span>` 
+                  : `<strong style="color:#047857;">₱${netPay.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>`)}
             </td>
           </tr>
         `;
       });
       $('#detailsTbody').html(trs);
-    }).fail(function() {
-      $('#detailsTbody').html('<tr><td colspan="6" style="text-align:center; padding:20px; color:#ef4444;">Error retrieving details.</td></tr>');
+    }).fail(function(xhr) {
+      const err = xhr.responseJSON?.error || 'Error retrieving details.';
+      $('#detailsTbody').html(`<tr><td colspan="6" style="text-align:center; padding:20px; color:#ef4444;">${err}</td></tr>`);
     });
   };
 
   window.closeDetailsModal = function() {
     $('#detailsModal').removeClass('open');
   };
+
+  // Close modals when clicking outside on backdrop overlay
+  $('#releaseModal').on('click', function(e) {
+    if (e.target === this) closeReleaseModal();
+  });
+  $('#detailsModal').on('click', function(e) {
+    if (e.target === this) closeDetailsModal();
+  });
+
+  // Escape key support
+  $(document).on('keydown.prModal', function(e) {
+    if (e.key === 'Escape') {
+      if ($('#detailsModal').hasClass('open')) closeDetailsModal();
+      if ($('#releaseModal').hasClass('open')) closeReleaseModal();
+    }
+  });
 
   // Initial load
   loadReleasingData();

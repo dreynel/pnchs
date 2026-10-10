@@ -36,24 +36,24 @@ class AttendancePolicyService:
         if emp_type == 'TEACHING' or 'faculty' in desig or 'teacher' in desig:
             return {
                 'type': 'TEACHING',
-                'am_start': 7 * 60 + 30,  # 07:30 (450)
-                'am_end':   11 * 60 + 30, # 11:30 (690)
-                'pm_start': 13 * 60,       # 13:00 (780)
-                'pm_end':   17 * 60,       # 17:00 (1020)
+                'am_start': 7 * 60,        # 07:00 AM (420)
+                'am_end':   12 * 60,       # 12:00 PM (720)
+                'pm_start': 13 * 60,       # 01:00 PM (780)
+                'pm_end':   17 * 60,       # 05:00 PM (1020)
                 'required_work_minutes': 480, # 8 hours total required workday
                 'required_classroom_minutes': 360, # 6 hours classroom teaching
-                'label': 'Teaching Schedule (7:30-11:30 / 13:00-17:00)'
+                'label': 'Teaching Schedule (7:00-12:00 / 13:00-17:00)'
             }
         else: # NON_TEACHING
             return {
                 'type': 'NON_TEACHING',
-                'am_start': 8 * 60,        # 08:00 (480)
-                'am_end':   12 * 60,       # 12:00 (720)
-                'pm_start': 13 * 60,       # 13:00 (780)
-                'pm_end':   17 * 60,       # 17:00 (1020)
+                'am_start': 7 * 60,        # 07:00 AM (420)
+                'am_end':   12 * 60,       # 12:00 PM (720)
+                'pm_start': 13 * 60,       # 01:00 PM (780)
+                'pm_end':   17 * 60,       # 05:00 PM (1020)
                 'required_work_minutes': 480, # 8 hours
                 'required_classroom_minutes': 0,
-                'label': 'Non-Teaching Schedule (8:00-12:00 / 13:00-17:00)'
+                'label': 'Non-Teaching Schedule (7:00-12:00 / 13:00-17:00)'
             }
 
     @staticmethod
