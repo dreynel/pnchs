@@ -908,14 +908,20 @@
       if (e.payheads_json) {
         try {
           const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          const seenEarn = new Set();
           (ph.earnings || []).forEach(item => {
-            if (parseFloat(item.amount) > 0) {
+            const nameKey = (item.name || '').trim().toLowerCase();
+            if (nameKey && parseFloat(item.amount) > 0 && !seenEarn.has(nameKey)) {
+              seenEarn.add(nameKey);
               hasCustomEarn = true;
               eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600;">${fmt(item.amount)}</span></div>`;
             }
           });
+          const seenDeduct = new Set();
           (ph.deductions || []).forEach(item => {
-            if (parseFloat(item.amount) > 0) {
+            const nameKey = (item.name || '').trim().toLowerCase();
+            if (nameKey && parseFloat(item.amount) > 0 && !seenDeduct.has(nameKey)) {
+              seenDeduct.add(nameKey);
               hasCustomDeduct = true;
               dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>${item.name}</span><span style="font-weight:600; color:var(--red);">${fmt(item.amount)}</span></div>`;
             }
@@ -924,9 +930,6 @@
       }
       if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
         eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Other Earnings / Allowances</span><span style="font-weight:600;">${fmt(e.other_earnings)}</span></div>`;
-      }
-      if (parseFloat(e.holiday_pay) > 0) {
-        eHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Holiday Pay</span><span style="font-weight:600;">${fmt(e.holiday_pay)}</span></div>`;
       }
       if (!hasCustomDeduct && parseFloat(e.other_deductions) > 0) {
         dHtml += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee; font-size:12px;"><span>Other Deductions / Loans</span><span style="font-weight:600; color:var(--red);">${fmt(e.other_deductions)}</span></div>`;
@@ -1132,8 +1135,11 @@
       if (e.payheads_json) {
         try {
           const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          const seenEarn = new Set();
           (ph.earnings || []).forEach(item => {
-            if (parseFloat(item.amount) > 0) {
+            const nameKey = (item.name || '').trim().toLowerCase();
+            if (nameKey && parseFloat(item.amount) > 0 && !seenEarn.has(nameKey)) {
+              seenEarn.add(nameKey);
               hasCustomEarn = true;
               earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>${item.name}:</span><span>${fmt(item.amount)}</span></div>`;
             }
@@ -1142,9 +1148,6 @@
       }
       if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
         earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>OTHER EARNINGS / ALLOWANCES:</span><span>${fmt(e.other_earnings)}</span></div>`;
-      }
-      if (parseFloat(e.holiday_pay) > 0) {
-        earnHtml += `<div style="display: flex; justify-content: space-between; padding-left: 10px; margin-bottom:2px;"><span>HOLIDAY PAY:</span><span>${fmt(e.holiday_pay)}</span></div>`;
       }
       $('#ps_earnings_list').html(earnHtml);
       $('#ps_gross').text(fmt(e.total_gross));
@@ -1222,8 +1225,11 @@
       if (e.payheads_json) {
         try {
           const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+          const seenDeduct = new Set();
           (ph.deductions || []).forEach(item => {
-            if (parseFloat(item.amount) > 0) {
+            const nameKey = (item.name || '').trim().toLowerCase();
+            if (nameKey && parseFloat(item.amount) > 0 && !seenDeduct.has(nameKey)) {
+              seenDeduct.add(nameKey);
               hasCustom = true;
               addRow(item.name, item.amount);
             }
@@ -1250,8 +1256,11 @@
         if (e.payheads_json) {
           try {
             const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+            const seenLoans = new Set();
             (ph.deductions || []).forEach(item => {
-              if (parseFloat(item.amount) > 0) {
+              const nameKey = (item.name || '').trim().toLowerCase();
+              if (nameKey && parseFloat(item.amount) > 0 && !seenLoans.has(nameKey)) {
+                seenLoans.add(nameKey);
                 hasCustomLoans = true;
                 addUndeducted(`${item.name} (UNPAID)`, item.amount);
               }

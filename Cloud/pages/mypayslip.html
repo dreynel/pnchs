@@ -497,14 +497,20 @@
       if (e.payheads_json) {
           try {
               const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+              const seenEarn = new Set();
               (ph.earnings || []).forEach(item => {
-                  if (parseFloat(item.amount) > 0) {
+                  const nameKey = (item.name || '').trim().toLowerCase();
+                  if (nameKey && parseFloat(item.amount) > 0 && !seenEarn.has(nameKey)) {
+                      seenEarn.add(nameKey);
                       hasCustomEarn = true;
                       addEarning(item.name, item.amount);
                   }
               });
+              const seenDeduct = new Set();
               (ph.deductions || []).forEach(item => {
-                  if (parseFloat(item.amount) > 0) {
+                  const nameKey = (item.name || '').trim().toLowerCase();
+                  if (nameKey && parseFloat(item.amount) > 0 && !seenDeduct.has(nameKey)) {
+                      seenDeduct.add(nameKey);
                       hasCustomDeduct = true;
                       addDeduct(item.name.substring(0, 4), item.name, item.amount);
                   }
@@ -513,9 +519,6 @@
       }
       if (!hasCustomEarn && parseFloat(e.other_earnings) > 0) {
           addEarning('OTHER EARNINGS / ALLOWANCES', e.other_earnings);
-      }
-      if (parseFloat(e.holiday_pay) > 0) {
-          addEarning('HOLIDAY PAY', e.holiday_pay);
       }
       if (!hasCustomDeduct && parseFloat(e.other_deductions) > 0) {
           addDeduct('OTH', 'OTHER DEDUCTIONS / LOANS', e.other_deductions);
@@ -578,8 +581,11 @@
         if (e.payheads_json) {
           try {
             const ph = typeof e.payheads_json === 'string' ? JSON.parse(e.payheads_json) : e.payheads_json;
+            const seenUnd = new Set();
             (ph.deductions || []).forEach(item => {
-              if (parseFloat(item.amount) > 0) {
+              const nameKey = (item.name || '').trim().toLowerCase();
+              if (nameKey && parseFloat(item.amount) > 0 && !seenUnd.has(nameKey)) {
+                seenUnd.add(nameKey);
                 hasCustomLoans = true;
                 addUndeducted('LN', `${item.name} (UNPAID)`, item.amount);
               }

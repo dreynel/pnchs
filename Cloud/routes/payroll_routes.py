@@ -77,6 +77,36 @@ def compute_withholding_tax(taxable_semi_monthly, configs):
     return round(max(tax, 0), 2)
 
 
+def _clean_payheads_json(raw_json):
+    """
+    Deduplicates custom payhead breakdown items by name so identical
+    payheads (like global PERA) are not rendered multiple times on payslips.
+    """
+    if not raw_json:
+        return raw_json
+    try:
+        data = json.loads(raw_json) if isinstance(raw_json, str) else raw_json
+        if isinstance(data, dict):
+            modified = False
+            for cat in ('earnings', 'deductions'):
+                if cat in data and isinstance(data[cat], list):
+                    seen = set()
+                    cleaned = []
+                    for item in data[cat]:
+                        if isinstance(item, dict):
+                            name_key = (item.get('name') or '').strip().lower()
+                            if name_key and name_key not in seen:
+                                seen.add(name_key)
+                                cleaned.append(item)
+                            elif name_key in seen:
+                                modified = True
+                    data[cat] = cleaned
+            return json.dumps(data) if modified or isinstance(raw_json, str) else data
+    except Exception:
+        pass
+    return raw_json
+
+
 # ── Date / Attendance Helpers ────────────────────────────────────────────────
 
 def count_work_days_in_period(start_date, end_date):
@@ -236,9 +266,16 @@ def create_run():
                 other_earnings = other_deductions = 0.0
                 holiday_pay = 0.0
                 payhead_breakdown = {'earnings': [], 'deductions': []}
-                # Process Individual Payheads
+                # Process Individual Payheads (skip any that are globally defined to prevent double counting)
+                global_payhead_names = {g['name'].strip().lower() for g in global_payheads if g.get('name')}
+
                 for ph in payheads:
-                    if 'salary' in ph['pay_head'].lower() or 'basic' in ph['pay_head'].lower():
+                    ph_name = (ph.get('pay_head') or '').strip()
+                    if not ph_name:
+                        continue
+                    if 'salary' in ph_name.lower() or 'basic' in ph_name.lower():
+                        continue
+                    if ph_name.lower() in global_payhead_names:
                         continue
                     
                     amount = float(ph['amount'])
@@ -247,10 +284,10 @@ def create_run():
                     
                     if ph.get('category', 'Earning') == 'Earning':
                         other_earnings += amount
-                        payhead_breakdown['earnings'].append({'name': ph['pay_head'], 'amount': round(amount / 2, 2)})
+                        payhead_breakdown['earnings'].append({'name': ph_name, 'amount': round(amount / 2, 2)})
                     else:
                         other_deductions += amount
-                        payhead_breakdown['deductions'].append({'name': ph['pay_head'], 'amount': round(amount / 2, 2)})
+                        payhead_breakdown['deductions'].append({'name': ph_name, 'amount': round(amount / 2, 2)})
 
                 # Daily & per-minute rate
                 daily_rate   = (basic_salary / month_working_days) if basic_salary and month_working_days else 0
@@ -325,16 +362,22 @@ def create_run():
                 # ── Global Payheads (Applied only if employee has less than 5 absences in a half month) ──
                 if absent_days < 5:
                     for g in global_payheads:
+                        g_name = (g.get('name') or '').strip()
+                        if not g_name:
+                            continue
+                        if any(item['name'].strip().lower() == g_name.lower() for item in payhead_breakdown['earnings'] + payhead_breakdown['deductions']):
+                            continue
+
                         amount = float(g['amount'])
                         if g.get('mode') == 'Percentage' and basic_salary > 0:
                             amount = basic_salary * (float(g.get('percentage_value') or 0) / 100)
                         
                         if g.get('type') == 'Earning':
                             other_earnings += amount
-                            payhead_breakdown['earnings'].append({'name': g['name'], 'amount': round(amount / 2, 2)})
+                            payhead_breakdown['earnings'].append({'name': g_name, 'amount': round(amount / 2, 2)})
                         else:
                             other_deductions += amount
-                            payhead_breakdown['deductions'].append({'name': g['name'], 'amount': round(amount / 2, 2)})
+                            payhead_breakdown['deductions'].append({'name': g_name, 'amount': round(amount / 2, 2)})
 
                 if apply_deped_policy:
                     # ONLY unpaid (LWOP) tardiness and undertime result in salary deduction!
@@ -585,7 +628,7 @@ def process_payroll():
                         'undertime':           f('undertime_deduction'),
                         'absence':             f('absent_deduction'),
                         'statutory_json':      rec.get('statutory_json'),
-                        'payheads_json':       rec.get('payheads_json'),
+                        'payheads_json':       _clean_payheads_json(rec.get('payheads_json')),
                         'total_gross':        f('total_gross'),
                         'total_deduct':       f('total_deduct'),
                         'net_pay':            f('net_pay'),
@@ -882,7 +925,7 @@ def process_payroll_single_run(cur, period_key, label_override=None):
             'undertime':           f('undertime_deduction'),
             'absence':             f('absent_deduction'),
             'statutory_json':      rec.get('statutory_json'),
-            'payheads_json':       rec.get('payheads_json'),
+            'payheads_json':       _clean_payheads_json(rec.get('payheads_json')),
             'total_gross':        f('total_gross'),
             'total_deduct':       f('total_deduct'),
             'net_pay':            f('net_pay'),
@@ -1026,7 +1069,7 @@ def my_payslip():
                 'pagibig_ee':         f('pagibig_ee'),
                 'withholding_tax':    f('withholding_tax'),
                 'statutory_json':      rec.get('statutory_json'),
-                'payheads_json':       rec.get('payheads_json'),
+                'payheads_json':       _clean_payheads_json(rec.get('payheads_json')),
                 'total_gross':        f('total_gross'),
                 'total_deduct':       f('total_deduct'),
                 'net_pay':            f('net_pay'),

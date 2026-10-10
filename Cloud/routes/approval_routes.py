@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, session
 from db import db_cursor
 from services.policy_engine import AuditService, LeavePolicyService
 from services.notification_service import NotificationService
+from routes.payroll_routes import _clean_payheads_json
 from datetime import datetime
 
 approval_bp = Blueprint('approval_bp', __name__)
@@ -199,7 +200,7 @@ def get_approvals():
                             'pagibig_ee':         float(x.get('pagibig_ee') or 0),
                             'withholding_tax':    float(x.get('withholding_tax') or 0),
                             'statutory_json':      x.get('statutory_json'),
-                            'payheads_json':       x.get('payheads_json'),
+                            'payheads_json':       _clean_payheads_json(x.get('payheads_json')),
                             'total_gross':        t_gross,
                             'total_deduct':       t_deduct,
                             'net_pay':            0.0 if is_lwop_flag else n_pay,
