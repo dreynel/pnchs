@@ -599,7 +599,7 @@
           </td>
           <td>
             <strong>${fmtCurr(d.stored_gross)}</strong>${grossVarStr}
-            <div style="font-size:10.5px; color:var(--muted);">Audited: ${fmtCurr(d.audited_gross)}</div>
+            <div style="font-size:10.5px; color:var(--muted);">Audited: ${fmtCurr(d.audited_gross)}${d.earnings_names ? ` <span style="color:var(--navy); font-weight:600;">(${d.earnings_names})</span>` : ''}</div>
           </td>
           <td>
             <strong>${fmtCurr(d.stored_deductions)}</strong>${dedVarStr}
@@ -646,6 +646,11 @@
                   <div class="formula-title">3. Gross Salary Sum</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.gross_sum}</div>
                   <div style="margin-top:4px; color:var(--muted);">Match Check: ${!hasGrossVar ? '✓ 100% Match' : '⚠ ' + fmtCurr(d.gross_variance) + ' Variance'}</div>
+                  ${d.earnings_breakdown && d.earnings_breakdown.length ? `
+                    <div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--border); font-size:10.5px; color:var(--navy);">
+                      ${d.earnings_breakdown.map(e => `<div>• <strong>${e.name}</strong>: ${fmtCurr(e.amount)}</div>`).join('')}
+                    </div>
+                  ` : ''}
                 </div>
 
                 <div class="formula-card">
@@ -655,7 +660,10 @@
                   <div>Pag-IBIG (EE): ${fmtCurr(d.pagibig_ee)}</div>
                   <div>Withholding Tax: ${fmtCurr(d.withholding_tax)}</div>
                   <div>Absences &amp; LWOP: ${fmtCurr((d.absent_deduction || 0) + (d.tardiness_deduction || 0) + (d.undertime_deduction || 0))}</div>
-                  <div>Loans / APDS: ${fmtCurr(d.other_deductions)}</div>
+                  ${d.deductions_breakdown && d.deductions_breakdown.length ? 
+                    d.deductions_breakdown.map(x => `<div>• <strong>${x.name}</strong>: ${fmtCurr(x.amount)}</div>`).join('') :
+                    (d.other_deductions > 0 ? `<div>Loans / APDS: ${fmtCurr(d.other_deductions)}</div>` : '')
+                  }
                 </div>
 
                 <div class="formula-card">

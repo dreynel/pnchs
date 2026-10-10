@@ -58,7 +58,7 @@ class CaseInsensitiveDict(dict):
 
 # ── MySQL Cursor with Query Translation & Case-Insensitive Dict ──────────────
 
-class CaseInsensitiveMySQLCursor(mysql.connector.cursor.MySQLCursorDict):
+class CaseInsensitiveMySQLCursor(mysql.connector.cursor.MySQLCursorBufferedDict):
     """
     Cursor that:
     1. Returns CaseInsensitiveDict instances for dict-like row access.

@@ -351,7 +351,7 @@ def _add_column_if_missing(cur, table, column, alter_sql):
 def init():
     try:
         conn = get_connection()
-        cur  = conn.cursor(dictionary=True)
+        cur  = conn.cursor(dictionary=True, buffered=True)
         cur.execute(DDL)
         cur.execute(DDL2)
         cur.execute(DDL_FINGERPRINTS)

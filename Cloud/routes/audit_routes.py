@@ -359,6 +359,11 @@ def get_payroll_verification():
         """, (period_key,))
         rows = cur.fetchall()
 
+        # Query global payheads to know actual names for fallback
+        cur.execute("SELECT name, amount, type, mode, percentage_value FROM tblglobal_payheads")
+        global_payhead_rows = cur.fetchall()
+        global_earnings_names = [g['name'] for g in global_payhead_rows if g.get('type') == 'Earning']
+
     verified_list = []
     total_gross = 0.0
     total_deductions = 0.0
@@ -373,12 +378,11 @@ def get_payroll_verification():
         daily_rate = float(r.get('daily_rate') or round(monthly_salary / 22.0, 2)) if monthly_salary > 0 else 0.0
         
         overtime_pay = 0.0  # OT if applicable
-        holiday_pay = float(r.get('holiday_pay') or 0)
         other_earnings = float(r.get('other_earnings') or 0)
 
-        # Parse custom payheads
-        ph_earnings = 0.0
-        ph_deductions = 0.0
+        # Parse custom and global payheads
+        earnings_map = {}
+        deductions_map = {}
         payheads_raw = r.get('payheads_json')
         if payheads_raw:
             try:
@@ -387,19 +391,37 @@ def get_payroll_verification():
                     if 'earnings' in ph_data and isinstance(ph_data['earnings'], list):
                         for item in ph_data['earnings']:
                             if isinstance(item, dict):
-                                ph_earnings += float(item.get('amount') or 0)
+                                name = (item.get('name') or '').strip()
+                                amt = float(item.get('amount') or 0)
+                                if name and amt > 0:
+                                    earnings_map[name] = round(earnings_map.get(name, 0.0) + amt, 2)
                     if 'deductions' in ph_data and isinstance(ph_data['deductions'], list):
                         for item in ph_data['deductions']:
                             if isinstance(item, dict):
-                                ph_deductions += float(item.get('amount') or 0)
+                                name = (item.get('name') or '').strip()
+                                amt = float(item.get('amount') or 0)
+                                if name and amt > 0:
+                                    deductions_map[name] = round(deductions_map.get(name, 0.0) + amt, 2)
             except Exception:
                 pass
 
+        # If earnings_map is empty but other_earnings exists, fallback to global payhead names
+        if not earnings_map and other_earnings > 0:
+            if len(global_earnings_names) == 1:
+                earnings_map[global_earnings_names[0]] = round(other_earnings, 2)
+            else:
+                earnings_map['Allowance'] = round(other_earnings, 2)
+
+        ph_earnings_sum = round(sum(earnings_map.values()), 2)
+        ph_deductions_sum = round(sum(deductions_map.values()), 2)
+
         stored_gross = float(r.get('total_gross') or 0)
-        # Gross computation math
-        audited_gross = round(basic_pay + holiday_pay + other_earnings, 2)
-        if abs(audited_gross - stored_gross) > 0.01 and abs((audited_gross + ph_earnings) - stored_gross) <= 0.01:
-            audited_gross = round(audited_gross + ph_earnings, 2)
+        # Gross computation math - strictly NO holiday pay in DepEd plantilla audit
+        audited_gross = round(basic_pay + other_earnings, 2)
+        if abs(audited_gross - stored_gross) > 0.01 and ph_earnings_sum > 0:
+            if abs((basic_pay + ph_earnings_sum) - stored_gross) <= 0.01:
+                audited_gross = stored_gross
+                other_earnings = ph_earnings_sum
 
         gross_var = round(audited_gross - stored_gross, 2)
 
@@ -415,8 +437,9 @@ def get_payroll_verification():
 
         stored_deductions = float(r.get('total_deduct') or 0)
         audited_deductions = round(absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax + other_deductions, 2)
-        if abs(audited_deductions - stored_deductions) > 0.01 and abs((audited_deductions + ph_deductions) - stored_deductions) <= 0.01:
-            audited_deductions = round(audited_deductions + ph_deductions, 2)
+        if abs(audited_deductions - stored_deductions) > 0.01 and ph_deductions_sum > 0:
+            if abs((audited_deductions + ph_deductions_sum) - stored_deductions) <= 0.01:
+                audited_deductions = round(audited_deductions + ph_deductions_sum, 2)
 
         deduction_var = round(audited_deductions - stored_deductions, 2)
 
@@ -451,8 +474,41 @@ def get_payroll_verification():
         total_deductions += stored_deductions
         total_net += stored_net
 
-        allow_display = round(audited_gross - basic_pay - holiday_pay, 2)
+        allow_display = round(audited_gross - basic_pay, 2)
         custom_ded_display = round(audited_deductions - (absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax), 2)
+
+        # Build dynamic gross formula without holiday pay, showing actual global payhead names
+        gross_parts = [f"Basic (₱{basic_pay:,.2f})"]
+        if earnings_map:
+            for ph_name, ph_amt in earnings_map.items():
+                gross_parts.append(f"{ph_name} (₱{ph_amt:,.2f})")
+        elif allow_display > 0:
+            fallback_label = global_earnings_names[0] if len(global_earnings_names) == 1 else "Allow"
+            gross_parts.append(f"{fallback_label} (₱{allow_display:,.2f})")
+
+        gross_formula_str = (" + ".join(gross_parts) + f" = ₱{audited_gross:,.2f}") if len(gross_parts) > 1 else f"Basic (₱{basic_pay:,.2f}) = ₱{audited_gross:,.2f}"
+
+        # Build dynamic deductions formula showing actual payhead loan names if present
+        ded_parts = [
+            f"GSIS (₱{sss_ee:,.2f})",
+            f"PhilHealth (₱{philhealth_ee:,.2f})",
+            f"Pag-IBIG (₱{pagibig_ee:,.2f})",
+            f"Tax (₱{withholding_tax:,.2f})",
+            f"Absences (₱{absent_ded:,.2f})",
+            f"Late/Under (₱{tardiness_ded + undertime_ded:,.2f})"
+        ]
+        if deductions_map:
+            for ph_name, ph_amt in deductions_map.items():
+                ded_parts.append(f"{ph_name} (₱{ph_amt:,.2f})")
+        elif custom_ded_display > 0:
+            ded_parts.append(f"Loans/Custom (₱{custom_ded_display:,.2f})")
+
+        ded_formula_str = " + ".join(ded_parts) + f" = ₱{audited_deductions:,.2f}"
+
+        earnings_breakdown = [{'name': k, 'amount': v} for k, v in earnings_map.items()]
+        deductions_breakdown = [{'name': k, 'amount': v} for k, v in deductions_map.items()]
+        earnings_names_str = ', '.join([f"{k}: ₱{v:,.2f}" for k, v in earnings_map.items()])
+        deductions_names_str = ', '.join([f"{k}: ₱{v:,.2f}" for k, v in deductions_map.items()])
 
         verified_list.append({
             'employee_id': r.get('employee_id'),
@@ -463,9 +519,13 @@ def get_payroll_verification():
             'daily_rate': daily_rate,
             'basic_pay': basic_pay,
             'overtime_pay': overtime_pay,
-            'holiday_pay': holiday_pay,
+            'holiday_pay': 0.0,
             'other_earnings': allow_display,
-            'ph_earnings': ph_earnings,
+            'ph_earnings': ph_earnings_sum,
+            'earnings_breakdown': earnings_breakdown,
+            'deductions_breakdown': deductions_breakdown,
+            'earnings_names': earnings_names_str,
+            'deductions_names': deductions_names_str,
             'stored_gross': stored_gross,
             'audited_gross': audited_gross,
             'gross_variance': gross_var,
@@ -480,7 +540,7 @@ def get_payroll_verification():
             'pagibig_ee': pagibig_ee,
             'withholding_tax': withholding_tax,
             'other_deductions': custom_ded_display,
-            'ph_deductions': ph_deductions,
+            'ph_deductions': ph_deductions_sum,
             'stored_deductions': stored_deductions,
             'audited_deductions': audited_deductions,
             'deduction_variance': deduction_var,
@@ -495,8 +555,8 @@ def get_payroll_verification():
                 'tardiness': f"{r.get('late_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{tardiness_ded:,.2f}",
                 'undertime': f"{r.get('undertime_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{undertime_ded:,.2f}",
                 'absence': f"{r.get('absent_days') or 0} days × ₱{daily_rate:,.2f} = ₱{absent_ded:,.2f}",
-                'gross_sum': f"Basic (₱{basic_pay:,.2f}) + Hol (₱{holiday_pay:,.2f}) + Allow (₱{allow_display:,.2f}) = ₱{audited_gross:,.2f}",
-                'ded_sum': f"GSIS (₱{sss_ee:,.2f}) + PhilHealth (₱{philhealth_ee:,.2f}) + Pag-IBIG (₱{pagibig_ee:,.2f}) + Tax (₱{withholding_tax:,.2f}) + Absences (₱{absent_ded:,.2f}) + Late/Under (₱{tardiness_ded + undertime_ded:,.2f}) + Loans/Custom (₱{custom_ded_display:,.2f}) = ₱{audited_deductions:,.2f}",
+                'gross_sum': gross_formula_str,
+                'ded_sum': ded_formula_str,
                 'net_sum': f"Gross (₱{audited_gross:,.2f}) - Deductions (₱{audited_deductions:,.2f}) = ₱{audited_net:,.2f}"
             }
         })
@@ -536,8 +596,8 @@ def export_payroll_verification():
     cw.writerow([
         'Period Key', 'Employee ID', 'Employee Name', 'Designation',
         'Monthly Salary', 'Basic Pay', 'Daily Rate',
-        'Overtime Pay', 'Holiday Pay', 'Other Earnings', 'Stored Gross', 'Audited Gross', 'Gross Variance',
-        'Absent Ded', 'Tardiness Ded', 'Undertime Ded', 'PhilHealth', 'Pag-IBIG', 'SSS/GSIS', 'Withholding Tax', 'Other Deds',
+        'Overtime Pay', 'Global Payheads / Allowances', 'Stored Gross', 'Audited Gross', 'Gross Variance',
+        'Absent Ded', 'Tardiness Ded', 'Undertime Ded', 'PhilHealth', 'Pag-IBIG', 'SSS/GSIS', 'Withholding Tax', 'Other Deductions / Loans',
         'Stored Total Deductions', 'Audited Total Deductions', 'Deduction Variance',
         'Stored Net Pay', 'Audited Net Pay', 'Net Variance', 'Audit Status'
     ])
@@ -552,8 +612,7 @@ def export_payroll_verification():
             f"{d['basic_pay']:.2f}",
             f"{d['daily_rate']:.2f}",
             f"{d['overtime_pay']:.2f}",
-            f"{d['holiday_pay']:.2f}",
-            f"{d['other_earnings']:.2f}",
+            d.get('earnings_names') or f"{d['other_earnings']:.2f}",
             f"{d['stored_gross']:.2f}",
             f"{d['audited_gross']:.2f}",
             f"{d['gross_variance']:.2f}",
@@ -564,7 +623,7 @@ def export_payroll_verification():
             f"{d['pagibig_ee']:.2f}",
             f"{d['sss_ee']:.2f}",
             f"{d.get('withholding_tax', 0):.2f}",
-            f"{d.get('other_deductions', 0):.2f}",
+            d.get('deductions_names') or f"{d.get('other_deductions', 0):.2f}",
             f"{d.get('stored_deductions', 0):.2f}",
             f"{d['audited_deductions']:.2f}",
             f"{d['deduction_variance']:.2f}",
