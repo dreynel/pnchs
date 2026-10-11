@@ -472,35 +472,28 @@ def get_payroll_verification():
                 is_earn_monthly = True
 
         for n, a in raw_earnings:
-            if is_earn_monthly:
-                cred_a = round(a / 2.0, 2)
-                m_a = round(a, 2)
-            elif n in expected_global_earnings and abs(a - expected_global_earnings[n]['monthly']) <= 0.02 and expected_global_earnings[n]['monthly'] > expected_global_earnings[n]['amount_15d']:
+            if n in expected_global_earnings:
                 cred_a = expected_global_earnings[n]['amount_15d']
                 m_a = expected_global_earnings[n]['monthly']
-            elif n in expected_custom_earnings and abs(a - expected_custom_earnings[n]['monthly']) <= 0.02 and expected_custom_earnings[n]['monthly'] > expected_custom_earnings[n]['amount_15d']:
+            elif n in expected_custom_earnings:
                 cred_a = expected_custom_earnings[n]['amount_15d']
                 m_a = expected_custom_earnings[n]['monthly']
+            elif is_earn_monthly:
+                cred_a = round(a / 2.0, 2)
+                m_a = round(a, 2)
             else:
                 cred_a = round(a, 2)
                 m_a = round(a * 2.0, 2)
             earnings_map[n] = round(earnings_map.get(n, 0.0) + cred_a, 2)
             earnings_monthly_map[n] = m_a
 
-        # If earnings_map is empty, check expected registries or stored_other_earnings
+        # If earnings_map is empty, audit against statutory expected registries
         if not earnings_map:
             expected_total_earn_15d = round(
                 sum(v['amount_15d'] for v in expected_global_earnings.values()) +
                 sum(v['amount_15d'] for v in expected_custom_earnings.values()), 2
             )
-            if stored_other_earnings > 0 and abs(expected_total_earn_15d - stored_other_earnings) <= 0.02:
-                for k, v in expected_global_earnings.items():
-                    earnings_map[k] = v['amount_15d']
-                    earnings_monthly_map[k] = v['monthly']
-                for k, v in expected_custom_earnings.items():
-                    earnings_map[k] = v['amount_15d']
-                    earnings_monthly_map[k] = v['monthly']
-            elif stored_gross > 0 and expected_total_earn_15d > 0 and abs((basic_pay + expected_total_earn_15d) - stored_gross) <= 0.02:
+            if expected_total_earn_15d > 0:
                 for k, v in expected_global_earnings.items():
                     earnings_map[k] = v['amount_15d']
                     earnings_monthly_map[k] = v['monthly']
@@ -520,28 +513,28 @@ def get_payroll_verification():
                 is_ded_monthly = True
 
         for n, a in raw_deductions:
-            if is_ded_monthly:
-                cred_a = round(a / 2.0, 2)
-                m_a = round(a, 2)
-            elif n in expected_global_deductions and abs(a - expected_global_deductions[n]['monthly']) <= 0.02 and expected_global_deductions[n]['monthly'] > expected_global_deductions[n]['amount_15d']:
+            if n in expected_global_deductions:
                 cred_a = expected_global_deductions[n]['amount_15d']
                 m_a = expected_global_deductions[n]['monthly']
-            elif n in expected_custom_deductions and abs(a - expected_custom_deductions[n]['monthly']) <= 0.02 and expected_custom_deductions[n]['monthly'] > expected_custom_deductions[n]['amount_15d']:
+            elif n in expected_custom_deductions:
                 cred_a = expected_custom_deductions[n]['amount_15d']
                 m_a = expected_custom_deductions[n]['monthly']
+            elif is_ded_monthly:
+                cred_a = round(a / 2.0, 2)
+                m_a = round(a, 2)
             else:
                 cred_a = round(a, 2)
                 m_a = round(a * 2.0, 2)
             deductions_map[n] = round(deductions_map.get(n, 0.0) + cred_a, 2)
             deductions_monthly_map[n] = m_a
 
-        # If deductions_map is empty, check expected registries or stored_other_deductions
+        # If deductions_map is empty, audit against statutory expected registries
         if not deductions_map:
             expected_total_ded_15d = round(
                 sum(v['amount_15d'] for v in expected_global_deductions.values()) +
                 sum(v['amount_15d'] for v in expected_custom_deductions.values()), 2
             )
-            if stored_other_deductions > 0 and abs(expected_total_ded_15d - stored_other_deductions) <= 0.02:
+            if expected_total_ded_15d > 0:
                 for k, v in expected_global_deductions.items():
                     deductions_map[k] = v['amount_15d']
                     deductions_monthly_map[k] = v['monthly']
@@ -553,14 +546,9 @@ def get_payroll_verification():
                 deductions_map[fallback_name] = round(stored_other_deductions, 2)
                 deductions_monthly_map[fallback_name] = round(stored_other_deductions * 2.0, 2)
 
-        # Totals for audit - actual credited per 15 days
+        # Totals for audit - statutory actual credited per 15 days
         audited_other_earnings = round(sum(earnings_map.values()), 2)
-        if audited_other_earnings == 0.0 and stored_other_earnings > 0:
-            audited_other_earnings = stored_other_earnings
-
         audited_other_deductions = round(sum(deductions_map.values()), 2)
-        if audited_other_deductions == 0.0 and stored_other_deductions > 0:
-            audited_other_deductions = stored_other_deductions
 
         # Gross computation math - strictly NO holiday pay in DepEd plantilla audit
         audited_gross = round(basic_pay + audited_other_earnings, 2)
@@ -607,6 +595,14 @@ def get_payroll_verification():
         warnings = []
         if stored_net <= 0 or r.get('is_negative'):
             warnings.append("Zero/Negative Net Pay (Deductions exceed gross salary)")
+
+        if audited_other_earnings > 0 and abs(stored_other_earnings - (audited_other_earnings * 2)) <= 0.02:
+            warnings.append(f"Allowance Overcredited: Stored earnings include ₱{stored_other_earnings:,.2f} in this cutoff instead of statutory ₱{audited_other_earnings:,.2f} (full monthly allowance given in a single 15-day cutoff)")
+        elif abs(gross_var) > 0.01:
+            if gross_var < 0:
+                warnings.append(f"Gross Overpayment Variance: Stored gross exceeds statutory 15-day entitlement by ₱{abs(gross_var):,.2f}")
+            else:
+                warnings.append(f"Gross Underpayment Variance: Stored gross is below statutory 15-day entitlement by ₱{abs(gross_var):,.2f}")
 
         total_gross += stored_gross
         total_deductions += stored_deductions
