@@ -116,6 +116,55 @@ class TestAuditRoutes(unittest.TestCase):
             cur.execute("DELETE FROM tblpayroll WHERE period_key='2026-8-2'")
             cur.execute("DELETE FROM tblemployee WHERE employee_id='EMP-TEST-001'")
 
+    def test_payroll_verification_payheads_credited_15_days(self):
+        import json
+        with db_cursor(commit=True) as (conn, cur):
+            cur.execute("""
+                INSERT INTO tblemployee (employee_id, first_name, last_name, designation, email, contact, address)
+                VALUES ('EMP-TEST-PH1', 'Maria', 'Santos', 'Teacher II', 'maria@example.com', '1234', 'Campus')
+                ON CONFLICT (employee_id) DO NOTHING
+            """)
+            cur.execute("""
+                INSERT INTO tblpayroll (period_key, year, month, half, status, is_released)
+                VALUES ('TEST_AUDIT_PH_15D', 2026, 8, 1, 'Approved', 1)
+                ON CONFLICT (period_key) DO NOTHING
+            """)
+            # Payheads with PERA monthly=2000, actual credited 15 days = 1000
+            cur.execute("""
+                INSERT INTO tblpayroll_details (
+                    period_key, employee_id, basic_salary, half_basic, other_earnings,
+                    total_gross, total_deduct, net_pay, payheads_json
+                )
+                VALUES (
+                    'TEST_AUDIT_PH_15D', 'EMP-TEST-PH1', 30000.00, 15000.00, 1000.00,
+                    16000.00, 1000.00, 15000.00, %s
+                )
+                ON CONFLICT DO NOTHING
+            """, (json.dumps({'earnings': [{'name': 'PERA', 'amount': 1000.0}], 'deductions': []}),))
+
+        with self.app.session_transaction() as sess:
+            sess['user'] = {'name': 'Auditor Admin', 'role': 'Principal', 'employee_id': 'PRIN-001'}
+
+        res = self.app.get('/api/audit/payroll-verification?period_key=TEST_AUDIT_PH_15D')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(len(data['details']) > 0)
+        item = [d for d in data['details'] if d['employee_id'] == 'EMP-TEST-PH1'][0]
+        self.assertEqual(item['status'], 'ACCURATE')
+        self.assertEqual(item['other_earnings'], 1000.0)
+        self.assertEqual(item['audited_gross'], 16000.0)
+        self.assertEqual(len(item['earnings_breakdown']), 1)
+        self.assertEqual(item['earnings_breakdown'][0]['name'], 'PERA')
+        self.assertEqual(item['earnings_breakdown'][0]['amount'], 1000.0)
+        self.assertEqual(item['earnings_breakdown'][0]['credited_rate'], '15 days')
+        self.assertIn('PERA', item['formulas']['gross_sum'])
+
+        # Clean up test seed
+        with db_cursor(commit=True) as (conn, cur):
+            cur.execute("DELETE FROM tblpayroll_details WHERE period_key='TEST_AUDIT_PH_15D'")
+            cur.execute("DELETE FROM tblpayroll WHERE period_key='TEST_AUDIT_PH_15D'")
+            cur.execute("DELETE FROM tblemployee WHERE employee_id='EMP-TEST-PH1'")
+
     def test_audit_logs_and_summary_admin(self):
         with self.app.session_transaction() as sess:
             sess['user'] = {'name': 'Auditor Admin', 'role': 'Admin', 'employee_id': 'ADM-001'}

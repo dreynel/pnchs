@@ -359,10 +359,20 @@ def get_payroll_verification():
         """, (period_key,))
         rows = cur.fetchall()
 
-        # Query global payheads to know actual names for fallback
+        # Query global payheads
         cur.execute("SELECT name, amount, type, mode, percentage_value FROM tblglobal_payheads")
         global_payhead_rows = cur.fetchall()
         global_earnings_names = [g['name'] for g in global_payhead_rows if g.get('type') == 'Earning']
+        global_deductions_names = [g['name'] for g in global_payhead_rows if g.get('type') == 'Deduction']
+
+        # Query custom payheads per employee from tblpayhead
+        cur.execute("SELECT employee_id, pay_head, amount, category, mode, percentage_value FROM tblpayhead")
+        emp_payhead_rows = cur.fetchall()
+        emp_payheads_map = {}
+        for eph in emp_payhead_rows:
+            eid = eph.get('employee_id')
+            if eid:
+                emp_payheads_map.setdefault(eid, []).append(eph)
 
     verified_list = []
     total_gross = 0.0
@@ -372,18 +382,65 @@ def get_payroll_verification():
     discrepancy_count = 0
 
     for r in rows:
-        emp_name = f"{r.get('first_name') or ''} {r.get('last_name') or ''}".strip() or r.get('employee_id')
+        emp_id = r.get('employee_id')
+        emp_name = f"{r.get('first_name') or ''} {r.get('last_name') or ''}".strip() or emp_id
         basic_pay = float(r.get('half_basic') or r.get('basic_salary') or 0)
         monthly_salary = float(r.get('basic_salary') or (basic_pay * 2))
         daily_rate = float(r.get('daily_rate') or round(monthly_salary / 22.0, 2)) if monthly_salary > 0 else 0.0
         
         overtime_pay = 0.0  # OT if applicable
-        other_earnings = float(r.get('other_earnings') or 0)
+        stored_other_earnings = float(r.get('other_earnings') or 0)
+        stored_other_deductions = float(r.get('other_deductions') or 0)
+        stored_gross = float(r.get('total_gross') or 0)
+        stored_deductions = float(r.get('total_deduct') or 0)
+        stored_net = float(r.get('net_pay') or 0)
+        absent_days = float(r.get('absent_days') or 0)
 
-        # Parse custom and global payheads
+        # 1. Expected global payheads (actual credited per 15 days = monthly / 2)
+        # Applied if absent_days < 5 (standard DepEd plantilla policy)
+        expected_global_earnings = {}
+        expected_global_deductions = {}
+        if absent_days < 5:
+            for g in global_payhead_rows:
+                g_name = (g.get('name') or '').strip()
+                if not g_name:
+                    continue
+                m_amt = float(g.get('amount') or 0)
+                if g.get('mode') == 'Percentage' and monthly_salary > 0:
+                    m_amt = monthly_salary * (float(g.get('percentage_value') or 0) / 100.0)
+                credited_15d = round(m_amt / 2.0, 2)
+                if g.get('type') == 'Earning':
+                    expected_global_earnings[g_name] = {'amount_15d': credited_15d, 'monthly': round(m_amt, 2)}
+                else:
+                    expected_global_deductions[g_name] = {'amount_15d': credited_15d, 'monthly': round(m_amt, 2)}
+
+        # 2. Expected individual employee payheads from tblpayhead (actual credited per 15 days = monthly / 2)
+        expected_custom_earnings = {}
+        expected_custom_deductions = {}
+        for eph in emp_payheads_map.get(emp_id, []):
+            c_name = (eph.get('pay_head') or '').strip()
+            if not c_name or 'salary' in c_name.lower() or 'basic' in c_name.lower():
+                continue
+            if any(c_name.lower() == g['name'].lower() for g in global_payhead_rows if g.get('name')):
+                continue
+            m_amt = float(eph.get('amount') or 0)
+            if eph.get('mode') == 'Percentage' and monthly_salary > 0:
+                m_amt = monthly_salary * (float(eph.get('percentage_value') or 0) / 100.0)
+            credited_15d = round(m_amt / 2.0, 2)
+            if eph.get('category', 'Earning') == 'Earning':
+                expected_custom_earnings[c_name] = {'amount_15d': credited_15d, 'monthly': round(m_amt, 2)}
+            else:
+                expected_custom_deductions[c_name] = {'amount_15d': credited_15d, 'monthly': round(m_amt, 2)}
+
+        # 3. Parse and validate payheads from payheads_json, ensuring actual credited amounts per 15 days
         earnings_map = {}
         deductions_map = {}
+        earnings_monthly_map = {}
+        deductions_monthly_map = {}
+
         payheads_raw = r.get('payheads_json')
+        raw_earnings = []
+        raw_deductions = []
         if payheads_raw:
             try:
                 ph_data = json.loads(payheads_raw) if isinstance(payheads_raw, str) else payheads_raw
@@ -391,38 +448,122 @@ def get_payroll_verification():
                     if 'earnings' in ph_data and isinstance(ph_data['earnings'], list):
                         for item in ph_data['earnings']:
                             if isinstance(item, dict):
-                                name = (item.get('name') or '').strip()
-                                amt = float(item.get('amount') or 0)
-                                if name and amt > 0:
-                                    earnings_map[name] = round(earnings_map.get(name, 0.0) + amt, 2)
+                                n = (item.get('name') or '').strip()
+                                a = float(item.get('amount') or 0)
+                                if n and a > 0:
+                                    raw_earnings.append((n, a))
                     if 'deductions' in ph_data and isinstance(ph_data['deductions'], list):
                         for item in ph_data['deductions']:
                             if isinstance(item, dict):
-                                name = (item.get('name') or '').strip()
-                                amt = float(item.get('amount') or 0)
-                                if name and amt > 0:
-                                    deductions_map[name] = round(deductions_map.get(name, 0.0) + amt, 2)
+                                n = (item.get('name') or '').strip()
+                                a = float(item.get('amount') or 0)
+                                if n and a > 0:
+                                    raw_deductions.append((n, a))
             except Exception:
                 pass
 
-        # If earnings_map is empty but other_earnings exists, fallback to global payhead names
-        if not earnings_map and other_earnings > 0:
-            if len(global_earnings_names) == 1:
-                earnings_map[global_earnings_names[0]] = round(other_earnings, 2)
+        # Validate Earnings: check if raw amounts were monthly or already per 15 days
+        raw_earn_sum = sum(a for _, a in raw_earnings)
+        is_earn_monthly = False
+        if raw_earn_sum > 0:
+            if stored_other_earnings > 0 and abs((raw_earn_sum / 2.0) - stored_other_earnings) <= 0.02:
+                is_earn_monthly = True
+            elif stored_gross > 0 and abs((basic_pay + raw_earn_sum / 2.0) - stored_gross) <= 0.02:
+                is_earn_monthly = True
+
+        for n, a in raw_earnings:
+            if is_earn_monthly:
+                cred_a = round(a / 2.0, 2)
+                m_a = round(a, 2)
+            elif n in expected_global_earnings and abs(a - expected_global_earnings[n]['monthly']) <= 0.02 and expected_global_earnings[n]['monthly'] > expected_global_earnings[n]['amount_15d']:
+                cred_a = expected_global_earnings[n]['amount_15d']
+                m_a = expected_global_earnings[n]['monthly']
+            elif n in expected_custom_earnings and abs(a - expected_custom_earnings[n]['monthly']) <= 0.02 and expected_custom_earnings[n]['monthly'] > expected_custom_earnings[n]['amount_15d']:
+                cred_a = expected_custom_earnings[n]['amount_15d']
+                m_a = expected_custom_earnings[n]['monthly']
             else:
-                earnings_map['Allowance'] = round(other_earnings, 2)
+                cred_a = round(a, 2)
+                m_a = round(a * 2.0, 2)
+            earnings_map[n] = round(earnings_map.get(n, 0.0) + cred_a, 2)
+            earnings_monthly_map[n] = m_a
 
-        ph_earnings_sum = round(sum(earnings_map.values()), 2)
-        ph_deductions_sum = round(sum(deductions_map.values()), 2)
+        # If earnings_map is empty, check expected registries or stored_other_earnings
+        if not earnings_map:
+            expected_total_earn_15d = round(
+                sum(v['amount_15d'] for v in expected_global_earnings.values()) +
+                sum(v['amount_15d'] for v in expected_custom_earnings.values()), 2
+            )
+            if stored_other_earnings > 0 and abs(expected_total_earn_15d - stored_other_earnings) <= 0.02:
+                for k, v in expected_global_earnings.items():
+                    earnings_map[k] = v['amount_15d']
+                    earnings_monthly_map[k] = v['monthly']
+                for k, v in expected_custom_earnings.items():
+                    earnings_map[k] = v['amount_15d']
+                    earnings_monthly_map[k] = v['monthly']
+            elif stored_gross > 0 and expected_total_earn_15d > 0 and abs((basic_pay + expected_total_earn_15d) - stored_gross) <= 0.02:
+                for k, v in expected_global_earnings.items():
+                    earnings_map[k] = v['amount_15d']
+                    earnings_monthly_map[k] = v['monthly']
+                for k, v in expected_custom_earnings.items():
+                    earnings_map[k] = v['amount_15d']
+                    earnings_monthly_map[k] = v['monthly']
+            elif stored_other_earnings > 0:
+                fallback_name = global_earnings_names[0] if len(global_earnings_names) == 1 else 'Allowance'
+                earnings_map[fallback_name] = round(stored_other_earnings, 2)
+                earnings_monthly_map[fallback_name] = round(stored_other_earnings * 2.0, 2)
 
-        stored_gross = float(r.get('total_gross') or 0)
+        # Validate Deductions: check if raw amounts were monthly or already per 15 days
+        raw_ded_sum = sum(a for _, a in raw_deductions)
+        is_ded_monthly = False
+        if raw_ded_sum > 0:
+            if stored_other_deductions > 0 and abs((raw_ded_sum / 2.0) - stored_other_deductions) <= 0.02:
+                is_ded_monthly = True
+
+        for n, a in raw_deductions:
+            if is_ded_monthly:
+                cred_a = round(a / 2.0, 2)
+                m_a = round(a, 2)
+            elif n in expected_global_deductions and abs(a - expected_global_deductions[n]['monthly']) <= 0.02 and expected_global_deductions[n]['monthly'] > expected_global_deductions[n]['amount_15d']:
+                cred_a = expected_global_deductions[n]['amount_15d']
+                m_a = expected_global_deductions[n]['monthly']
+            elif n in expected_custom_deductions and abs(a - expected_custom_deductions[n]['monthly']) <= 0.02 and expected_custom_deductions[n]['monthly'] > expected_custom_deductions[n]['amount_15d']:
+                cred_a = expected_custom_deductions[n]['amount_15d']
+                m_a = expected_custom_deductions[n]['monthly']
+            else:
+                cred_a = round(a, 2)
+                m_a = round(a * 2.0, 2)
+            deductions_map[n] = round(deductions_map.get(n, 0.0) + cred_a, 2)
+            deductions_monthly_map[n] = m_a
+
+        # If deductions_map is empty, check expected registries or stored_other_deductions
+        if not deductions_map:
+            expected_total_ded_15d = round(
+                sum(v['amount_15d'] for v in expected_global_deductions.values()) +
+                sum(v['amount_15d'] for v in expected_custom_deductions.values()), 2
+            )
+            if stored_other_deductions > 0 and abs(expected_total_ded_15d - stored_other_deductions) <= 0.02:
+                for k, v in expected_global_deductions.items():
+                    deductions_map[k] = v['amount_15d']
+                    deductions_monthly_map[k] = v['monthly']
+                for k, v in expected_custom_deductions.items():
+                    deductions_map[k] = v['amount_15d']
+                    deductions_monthly_map[k] = v['monthly']
+            elif stored_other_deductions > 0:
+                fallback_name = 'Loans / APDS'
+                deductions_map[fallback_name] = round(stored_other_deductions, 2)
+                deductions_monthly_map[fallback_name] = round(stored_other_deductions * 2.0, 2)
+
+        # Totals for audit - actual credited per 15 days
+        audited_other_earnings = round(sum(earnings_map.values()), 2)
+        if audited_other_earnings == 0.0 and stored_other_earnings > 0:
+            audited_other_earnings = stored_other_earnings
+
+        audited_other_deductions = round(sum(deductions_map.values()), 2)
+        if audited_other_deductions == 0.0 and stored_other_deductions > 0:
+            audited_other_deductions = stored_other_deductions
+
         # Gross computation math - strictly NO holiday pay in DepEd plantilla audit
-        audited_gross = round(basic_pay + other_earnings, 2)
-        if abs(audited_gross - stored_gross) > 0.01 and ph_earnings_sum > 0:
-            if abs((basic_pay + ph_earnings_sum) - stored_gross) <= 0.01:
-                audited_gross = stored_gross
-                other_earnings = ph_earnings_sum
-
+        audited_gross = round(basic_pay + audited_other_earnings, 2)
         gross_var = round(audited_gross - stored_gross, 2)
 
         # Deductions computation math
@@ -433,17 +574,14 @@ def get_payroll_verification():
         philhealth_ee = float(r.get('philhealth_ee') or 0)
         pagibig_ee = float(r.get('pagibig_ee') or 0)
         withholding_tax = float(r.get('withholding_tax') or 0)
-        other_deductions = float(r.get('other_deductions') or 0)
 
-        stored_deductions = float(r.get('total_deduct') or 0)
-        audited_deductions = round(absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax + other_deductions, 2)
-        if abs(audited_deductions - stored_deductions) > 0.01 and ph_deductions_sum > 0:
-            if abs((audited_deductions + ph_deductions_sum) - stored_deductions) <= 0.01:
-                audited_deductions = round(audited_deductions + ph_deductions_sum, 2)
-
+        audited_deductions = round(
+            absent_ded + tardiness_ded + undertime_ded +
+            sss_ee + philhealth_ee + pagibig_ee + withholding_tax +
+            audited_other_deductions, 2
+        )
         deduction_var = round(audited_deductions - stored_deductions, 2)
 
-        stored_net = float(r.get('net_pay') or 0)
         audited_net = round(audited_gross - audited_deductions, 2)
         net_var = round(audited_net - stored_net, 2)
 
@@ -474,21 +612,18 @@ def get_payroll_verification():
         total_deductions += stored_deductions
         total_net += stored_net
 
-        allow_display = round(audited_gross - basic_pay, 2)
-        custom_ded_display = round(audited_deductions - (absent_ded + tardiness_ded + undertime_ded + sss_ee + philhealth_ee + pagibig_ee + withholding_tax), 2)
-
-        # Build dynamic gross formula without holiday pay, showing actual global payhead names
+        # Build dynamic gross formula without holiday pay, showing actual credited payheads per 15 days
         gross_parts = [f"Basic (₱{basic_pay:,.2f})"]
         if earnings_map:
             for ph_name, ph_amt in earnings_map.items():
-                gross_parts.append(f"{ph_name} (₱{ph_amt:,.2f})")
-        elif allow_display > 0:
+                gross_parts.append(f"{ph_name} [₱{ph_amt:,.2f} / 15d]")
+        elif audited_other_earnings > 0:
             fallback_label = global_earnings_names[0] if len(global_earnings_names) == 1 else "Allow"
-            gross_parts.append(f"{fallback_label} (₱{allow_display:,.2f})")
+            gross_parts.append(f"{fallback_label} [₱{audited_other_earnings:,.2f} / 15d]")
 
         gross_formula_str = (" + ".join(gross_parts) + f" = ₱{audited_gross:,.2f}") if len(gross_parts) > 1 else f"Basic (₱{basic_pay:,.2f}) = ₱{audited_gross:,.2f}"
 
-        # Build dynamic deductions formula showing actual payhead loan names if present
+        # Build dynamic deductions formula showing actual credited deductions per 15 days
         ded_parts = [
             f"GSIS (₱{sss_ee:,.2f})",
             f"PhilHealth (₱{philhealth_ee:,.2f})",
@@ -499,19 +634,35 @@ def get_payroll_verification():
         ]
         if deductions_map:
             for ph_name, ph_amt in deductions_map.items():
-                ded_parts.append(f"{ph_name} (₱{ph_amt:,.2f})")
-        elif custom_ded_display > 0:
-            ded_parts.append(f"Loans/Custom (₱{custom_ded_display:,.2f})")
+                ded_parts.append(f"{ph_name} [₱{ph_amt:,.2f} / 15d]")
+        elif audited_other_deductions > 0:
+            ded_parts.append(f"Loans/Custom [₱{audited_other_deductions:,.2f} / 15d]")
 
         ded_formula_str = " + ".join(ded_parts) + f" = ₱{audited_deductions:,.2f}"
 
-        earnings_breakdown = [{'name': k, 'amount': v} for k, v in earnings_map.items()]
-        deductions_breakdown = [{'name': k, 'amount': v} for k, v in deductions_map.items()]
-        earnings_names_str = ', '.join([f"{k}: ₱{v:,.2f}" for k, v in earnings_map.items()])
-        deductions_names_str = ', '.join([f"{k}: ₱{v:,.2f}" for k, v in deductions_map.items()])
+        earnings_breakdown = [
+            {
+                'name': k,
+                'amount': v,
+                'monthly_amount': earnings_monthly_map.get(k, round(v * 2.0, 2)),
+                'credited_rate': '15 days'
+            }
+            for k, v in earnings_map.items()
+        ]
+        deductions_breakdown = [
+            {
+                'name': k,
+                'amount': v,
+                'monthly_amount': deductions_monthly_map.get(k, round(v * 2.0, 2)),
+                'credited_rate': '15 days'
+            }
+            for k, v in deductions_map.items()
+        ]
+        earnings_names_str = ', '.join([f"{k}: ₱{v:,.2f} / 15d" for k, v in earnings_map.items()])
+        deductions_names_str = ', '.join([f"{k}: ₱{v:,.2f} / 15d" for k, v in deductions_map.items()])
 
         verified_list.append({
-            'employee_id': r.get('employee_id'),
+            'employee_id': emp_id,
             'employee_name': emp_name,
             'designation': r.get('designation') or 'Staff',
             'employment_status': r.get('employment_status') or 'Permanent',
@@ -520,8 +671,8 @@ def get_payroll_verification():
             'basic_pay': basic_pay,
             'overtime_pay': overtime_pay,
             'holiday_pay': 0.0,
-            'other_earnings': allow_display,
-            'ph_earnings': ph_earnings_sum,
+            'other_earnings': audited_other_earnings,
+            'ph_earnings': audited_other_earnings,
             'earnings_breakdown': earnings_breakdown,
             'deductions_breakdown': deductions_breakdown,
             'earnings_names': earnings_names_str,
@@ -529,7 +680,7 @@ def get_payroll_verification():
             'stored_gross': stored_gross,
             'audited_gross': audited_gross,
             'gross_variance': gross_var,
-            'absent_days': r.get('absent_days') or 0,
+            'absent_days': absent_days,
             'absent_deduction': absent_ded,
             'tardiness_minutes': r.get('late_minutes') or 0,
             'tardiness_deduction': tardiness_ded,
@@ -539,8 +690,8 @@ def get_payroll_verification():
             'philhealth_ee': philhealth_ee,
             'pagibig_ee': pagibig_ee,
             'withholding_tax': withholding_tax,
-            'other_deductions': custom_ded_display,
-            'ph_deductions': ph_deductions_sum,
+            'other_deductions': audited_other_deductions,
+            'ph_deductions': audited_other_deductions,
             'stored_deductions': stored_deductions,
             'audited_deductions': audited_deductions,
             'deduction_variance': deduction_var,
@@ -551,7 +702,7 @@ def get_payroll_verification():
             'warnings': warnings,
             'formulas': {
                 'daily_rate': f"₱{monthly_salary:,.2f} / 22 = ₱{daily_rate:,.2f}/day",
-                'basic_pay': f"Half-month basic rate = ₱{basic_pay:,.2f}",
+                'basic_pay': f"Half-month basic rate (15 days) = ₱{basic_pay:,.2f}",
                 'tardiness': f"{r.get('late_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{tardiness_ded:,.2f}",
                 'undertime': f"{r.get('undertime_minutes') or 0} mins × (₱{daily_rate:,.2f} / 480) = ₱{undertime_ded:,.2f}",
                 'absence': f"{r.get('absent_days') or 0} days × ₱{daily_rate:,.2f} = ₱{absent_ded:,.2f}",

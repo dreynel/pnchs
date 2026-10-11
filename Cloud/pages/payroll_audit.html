@@ -368,10 +368,10 @@
   <div class="audit-header-row">
     <div class="audit-title-block">
       <div style="display:inline-flex; align-items:center; gap:6px; background:var(--green-dim); border:1px solid rgba(22,163,74,0.2); border-radius:20px; padding:3px 10px; font-size:10.5px; font-weight:700; color:var(--green); margin-bottom:6px;">
-        <span>⚖️ COA & DepEd Computation Verification</span>
+        <span>⚖️ COA &amp; DepEd Computation Verification</span>
       </div>
       <h2>Payroll Computation Audit</h2>
-      <p>State Auditor mathematical verification engine, salary computation breakdown, and discrepancy checker</p>
+      <p>State Auditor mathematical verification engine, salary computation breakdown, and discrepancy checker (validating actual credited payheads per 15 days)</p>
     </div>
 
     <div class="audit-header-actions">
@@ -471,10 +471,10 @@
         <thead>
           <tr>
             <th style="width: 17%;">Staff Member</th>
-            <th style="width: 13%;">Monthly / Basic</th>
-            <th style="width: 15%;">Gross Pay (Stored vs Audited)</th>
-            <th style="width: 15%;">Total Deductions</th>
-            <th style="width: 14%;">Net Pay</th>
+            <th style="width: 13%;">Monthly / Basic (15d)</th>
+            <th style="width: 16%;">Gross Pay (Credited / 15d)</th>
+            <th style="width: 15%;">Total Deductions (15d)</th>
+            <th style="width: 13%;">Net Pay (15d)</th>
             <th style="width: 14%;">Audit Verdict</th>
             <th style="width: 12%; text-align:center;">Math Detail</th>
           </tr>
@@ -595,7 +595,7 @@
           </td>
           <td>
             <strong>${fmtCurr(d.monthly_salary)}</strong>
-            <div style="font-size:10.5px; color:var(--muted);">Basic: ${fmtCurr(d.basic_pay)}</div>
+            <div style="font-size:10.5px; color:var(--muted);">Basic: ${fmtCurr(d.basic_pay)} (15d)</div>
           </td>
           <td>
             <strong>${fmtCurr(d.stored_gross)}</strong>${grossVarStr}
@@ -603,7 +603,7 @@
           </td>
           <td>
             <strong>${fmtCurr(d.stored_deductions)}</strong>${dedVarStr}
-            <div style="font-size:10.5px; color:var(--muted);">Audited: ${fmtCurr(d.audited_deductions)}</div>
+            <div style="font-size:10.5px; color:var(--muted);">Audited: ${fmtCurr(d.audited_deductions)}${d.deductions_names ? ` <span style="color:var(--navy); font-weight:600;">(${d.deductions_names})</span>` : ''}</div>
           </td>
           <td>
             <strong style="color:var(--green);">${fmtCurr(d.stored_net)}</strong>${netVarStr}
@@ -630,7 +630,7 @@
               </div>
               <div class="formula-grid">
                 <div class="formula-card">
-                  <div class="formula-title">1. Base &amp; Daily Rate</div>
+                  <div class="formula-title">1. Base &amp; Daily Rate (15-Day Cycle)</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.daily_rate}</div>
                   <div style="margin-top:4px; color:var(--muted);">${d.formulas.basic_pay}</div>
                 </div>
@@ -643,37 +643,37 @@
                 </div>
 
                 <div class="formula-card">
-                  <div class="formula-title">3. Gross Salary Sum</div>
+                  <div class="formula-title">3. Gross Salary Sum (Credited / 15 Days)</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.gross_sum}</div>
                   <div style="margin-top:4px; color:var(--muted);">Match Check: ${!hasGrossVar ? '✓ 100% Match' : '⚠ ' + fmtCurr(d.gross_variance) + ' Variance'}</div>
                   ${d.earnings_breakdown && d.earnings_breakdown.length ? `
                     <div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--border); font-size:10.5px; color:var(--navy);">
-                      ${d.earnings_breakdown.map(e => `<div>• <strong>${e.name}</strong>: ${fmtCurr(e.amount)}</div>`).join('')}
+                      ${d.earnings_breakdown.map(e => `<div>• <strong>${e.name}</strong>: ${fmtCurr(e.amount)} <span style="color:var(--muted); font-size:10px;">(Credited / 15 days ${e.monthly_amount ? `· Monthly: ${fmtCurr(e.monthly_amount)}` : ''})</span></div>`).join('')}
                     </div>
                   ` : ''}
                 </div>
 
                 <div class="formula-card">
-                  <div class="formula-title">4. Deductions Breakdown</div>
+                  <div class="formula-title">4. Deductions Breakdown (Credited / 15 Days)</div>
                   <div>GSIS (EE 9%): ${fmtCurr(d.sss_ee)}</div>
                   <div>PhilHealth (EE): ${fmtCurr(d.philhealth_ee)}</div>
                   <div>Pag-IBIG (EE): ${fmtCurr(d.pagibig_ee)}</div>
                   <div>Withholding Tax: ${fmtCurr(d.withholding_tax)}</div>
                   <div>Absences &amp; LWOP: ${fmtCurr((d.absent_deduction || 0) + (d.tardiness_deduction || 0) + (d.undertime_deduction || 0))}</div>
                   ${d.deductions_breakdown && d.deductions_breakdown.length ? 
-                    d.deductions_breakdown.map(x => `<div>• <strong>${x.name}</strong>: ${fmtCurr(x.amount)}</div>`).join('') :
-                    (d.other_deductions > 0 ? `<div>Loans / APDS: ${fmtCurr(d.other_deductions)}</div>` : '')
+                    d.deductions_breakdown.map(x => `<div>• <strong>${x.name}</strong>: ${fmtCurr(x.amount)} <span style="color:var(--muted); font-size:10px;">(Credited / 15 days ${x.monthly_amount ? `· Monthly: ${fmtCurr(x.monthly_amount)}` : ''})</span></div>`).join('') :
+                    (d.other_deductions > 0 ? `<div>Loans / APDS: ${fmtCurr(d.other_deductions)} <span style="color:var(--muted); font-size:10px;">(Credited / 15 days)</span></div>` : '')
                   }
                 </div>
 
                 <div class="formula-card">
-                  <div class="formula-title">5. Total Deductions Sum</div>
+                  <div class="formula-title">5. Total Deductions Sum (15 Days)</div>
                   <div style="color:var(--navy); font-weight:600;">${d.formulas.ded_sum}</div>
                   <div style="margin-top:4px; color:var(--muted);">Match Check: ${!hasDedVar ? '✓ 100% Match' : '⚠ ' + fmtCurr(d.deduction_variance) + ' Variance'}</div>
                 </div>
 
                 <div class="formula-card" style="background:#f0fdf4; border-color:#bbf7d0;">
-                  <div class="formula-title" style="color:var(--green);">6. Net Salary Verification</div>
+                  <div class="formula-title" style="color:var(--green);">6. Net Salary Verification (15-Day Period)</div>
                   <div style="color:var(--navy); font-weight:700; font-size:12px;">${d.formulas.net_sum}</div>
                   <div style="margin-top:4px; color:var(--green); font-weight:600;">Verdict: ${d.status} (${fmtCurr(d.audited_net)})</div>
                 </div>
