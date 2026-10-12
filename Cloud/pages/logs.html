@@ -180,6 +180,51 @@
   .empty-state-title { font-weight: 700; color: var(--navy); font-size: 14px; margin-bottom: 4px; }
   .empty-state-sub { font-size: 12px; }
 
+  /* Refresh Button & Spin Animation */
+  .bl-refresh-btn {
+    border-radius: 9px;
+    font-weight: 600;
+    padding: 7px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    color: var(--navy);
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+  .bl-refresh-btn:hover:not(:disabled) {
+    background: var(--surface2);
+    border-color: var(--navy-mid);
+    color: var(--navy-mid);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(30,58,95,0.08);
+  }
+  .bl-refresh-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  .bl-refresh-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+  @keyframes blSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .bl-spin {
+    animation: blSpin 0.75s linear infinite;
+  }
+  .stat-card-refreshed {
+    animation: statPulse 0.5s ease-out;
+  }
+  @keyframes statPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+
   @media (max-width: 900px) {
     .bl-stats-grid { grid-template-columns: repeat(2, 1fr); }
     .bl-header-card { flex-direction: column; align-items: stretch; gap: 12px; }
@@ -240,9 +285,9 @@
         <input type="date" id="blDateTo" class="date-input" onchange="loadTodayLogs()">
       </span>
 
-      <button class="btn btn-sm" onclick="loadTodayLogs()" style="border-radius:9px; font-weight:600; padding:7px 14px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:var(--surface); border:1.5px solid var(--border); color:var(--navy);">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        Refresh
+      <button class="btn btn-sm bl-refresh-btn" id="btnRefreshLogs" onclick="handleRefreshLogs(event)" title="Refresh attendance & biometric logs">
+        <svg id="btnRefreshLogsIcon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <span id="btnRefreshLogsText">Refresh</span>
       </button>
     </div>
   </div>
@@ -382,23 +427,24 @@
   let currentTab = 'matrix';
   let activePunchFilter = 'all';
 
-  // Set default dates & populate year dropdowns
-  const today = new Date();
-  const todayIso = today.toISOString().split('T')[0];
+  // Set default dates & populate year dropdowns using local timezone
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   $('#blDateDaily').val(todayIso);
-  $('#blDateMonth').val(today.getMonth() + 1);
+  $('#blDateMonth').val(now.getMonth() + 1);
 
   const $blDateYear = $('#blDateYear');
   const $blDateYearOnly = $('#blDateYearOnly');
   $blDateYear.empty();
   $blDateYearOnly.empty();
-  for (let y = today.getFullYear() + 1; y >= 2020; y--) {
-    const isCur = y === today.getFullYear() ? 'selected' : '';
+  for (let y = now.getFullYear() + 1; y >= 2020; y--) {
+    const isCur = y === now.getFullYear() ? 'selected' : '';
     $blDateYear.append(`<option value="${y}" ${isCur}>${y}</option>`);
     $blDateYearOnly.append(`<option value="${y}" ${isCur}>${y}</option>`);
   }
 
-  const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  const firstOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
   $('#blDateFrom').val(firstOfMonth);
   $('#blDateTo').val(todayIso);
 
@@ -423,7 +469,7 @@
 
   function getBlDateParams() {
     const mode = $('#blDateMode').val();
-    const p = { date_mode: mode };
+    const p = { date_mode: mode, _t: Date.now() };
     if (mode === 'daily') {
       p.date = $('#blDateDaily').val() || todayIso;
     } else if (mode === 'month') {
@@ -452,10 +498,31 @@
     }
   }
 
-  window.loadTodayLogs = function(silent = false) {
+  window.handleRefreshLogs = function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    loadTodayLogs(false, true);
+  };
+
+  window.loadTodayLogs = function(silent = false, isManual = false) {
+    const $btn = $('#btnRefreshLogs');
+    const $icon = $('#btnRefreshLogsIcon');
+    const $text = $('#btnRefreshLogsText');
+
+    if (isManual) {
+      $btn.prop('disabled', true);
+      $icon.addClass('bl-spin');
+      $text.text('Refreshing...');
+    }
+
     const params = getBlDateParams();
     
-    $.getJSON('/api/attendance/today_categorized', params)
+    $.ajax({
+      url: '/api/attendance/today_categorized',
+      data: params,
+      dataType: 'json',
+      cache: false,
+      method: 'GET'
+    })
       .done(function(res) {
         todayData = res || { summary: {}, records: [], raw_punches: [] };
         todayData.records = res.records || res.matrix || [];
@@ -466,8 +533,31 @@
         updateMatrixHeaders(todayData.is_single_day !== false);
         renderMatrixTable();
         renderFeedTable();
+
+        if (isManual) {
+          $icon.removeClass('bl-spin');
+          $text.text('Refreshed!');
+          $('.bl-stat-card').addClass('stat-card-refreshed');
+          setTimeout(() => {
+            $('.bl-stat-card').removeClass('stat-card-refreshed');
+            $text.text('Refresh');
+            $btn.prop('disabled', false);
+          }, 1000);
+
+          if (window.showLiveToast) {
+            window.showLiveToast('Attendance & biometric logs refreshed', '🔄');
+          }
+        }
       })
       .fail(function() {
+        if (isManual) {
+          $icon.removeClass('bl-spin');
+          $text.text('Refresh');
+          $btn.prop('disabled', false);
+          if (window.showLiveToast) {
+            window.showLiveToast('Failed to refresh attendance logs', '⚠️');
+          }
+        }
         if (!silent) {
           $('#matrixTableBody').html(`
             <tr><td colspan="7"><div class="empty-state"><div class="empty-state-title text-danger">Failed to fetch attendance logs</div><div class="empty-state-sub">Ensure the backend database is connected.</div></div></td></tr>

@@ -57,18 +57,20 @@ def _time_str(t):
     return f"{h12}:{m:02d} {suffix}"
 
 def _compute_status(row):
-    """Derive attendance status from a log row."""
-    sessions = sum([
-        row.get('am_time_in')  is not None,
-        row.get('am_time_out') is not None,
-        row.get('pm_time_in')  is not None,
-        row.get('pm_time_out') is not None,
-    ])
-    if sessions == 0:
-        return 'absent'
-    if sessions <= 2:
+    """Derive attendance status from a log row.
+    Rules:
+    - If a session has Time In and no Time Out (or vice versa), it is absent for that half day.
+    - If both AM and PM lack complete punches (missing in or out), it is whole day absent.
+    - If exactly one session is complete, it is half-day.
+    - If both sessions are complete, it is present.
+    """
+    am_valid = row.get('am_time_in') is not None and row.get('am_time_out') is not None
+    pm_valid = row.get('pm_time_in') is not None and row.get('pm_time_out') is not None
+    if am_valid and pm_valid:
+        return 'present'
+    if am_valid or pm_valid:
         return 'half-day'
-    return 'present'
+    return 'absent'
 
 def _compute_hours(row, employee_type, designation):
     sch = AttendancePolicyService.get_schedule(employee_type, designation)
@@ -81,19 +83,15 @@ def _compute_hours(row, employee_type, designation):
     am_duration = sch['am_end'] - sch['am_start']
     pm_duration = sch['pm_end'] - sch['pm_start']
 
+    # AM session: only credit hours if BOTH in and out are present
     if am_in is not None and am_out is not None:
-        worked = am_out - am_in
+        worked = max(0, am_out - max(am_in, sch['am_start']))
         hours += min(worked, am_duration) / 60
-    elif am_in is not None:
-        worked = sch['am_end'] - max(am_in, sch['am_start'])
-        hours += max(worked, 0) / 60
 
+    # PM session: only credit hours if BOTH in and out are present
     if pm_in is not None and pm_out is not None:
-        worked = pm_out - pm_in
+        worked = max(0, pm_out - max(pm_in, sch['pm_start']))
         hours += min(worked, pm_duration) / 60
-    elif pm_in is not None:
-        worked = sch['pm_end'] - max(pm_in, sch['pm_start'])
-        hours += max(worked, 0) / 60
 
     return round(hours, 2)
 
@@ -282,8 +280,6 @@ def get_dtr_report():
 
             if d_key in logs_by_date:
                 r      = logs_by_date[d_key]
-                status = _compute_status(r)
-
                 res = AttendancePolicyService.calculate_tardiness_and_undertime(
                     emp_type, desig,
                     r['am_time_in'], r['am_time_out'],
@@ -292,9 +288,10 @@ def get_dtr_report():
                     teaching_related_minutes=r.get('teaching_related_minutes') or 0,
                     teaching_related_approved=bool(r.get('teaching_related_approved', 1))
                 )
+                status = res.get('status') or _compute_status(r)
                 late  = res['tardiness_minutes']
                 under = res['undertime_minutes']
-                hours_today = _compute_hours(r, emp_type, desig)
+                hours_today = 0.0 if status == 'absent' else _compute_hours(r, emp_type, desig)
 
                 total_deficiency = late + under
                 vl_charged = min(total_deficiency, vl_balance_min)

@@ -444,7 +444,7 @@
 
         const utMins = (d.late_min || 0) + (d.undertime_min || 0);
         const utStr  = utMins > 0 ? fmtMinutesToHHMM(utMins) : '';
-        const absentStr = d.status === 'absent' ? '1' : '';
+        const absentStr = d.status === 'absent' ? '1' : (d.status === 'half-day' ? '0.5' : '');
 
         rowContent = `
           <td class="cs48-td-day">${d.day}</td>

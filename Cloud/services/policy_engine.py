@@ -75,9 +75,12 @@ class AttendancePolicyService:
                                           actual_classroom_minutes=0, teaching_related_minutes=0,
                                           teaching_related_approved=True):
         """
-        Calculates tardiness and undertime in exact minutes.
-        For TEACHING personnel: Does NOT flag undertime simply because non-classroom teaching-related work
-        was performed outside school premises when allowed under applicable DepEd rules.
+        Calculates tardiness, undertime, status, and absent fraction.
+        Rules:
+        - If an employee has Time In and no Time Out (or vice versa), consider that half day as absent (240 mins deficiency).
+        - If both AM and PM lack either Time In or Out, consider whole day absent (480 mins deficiency).
+        - For TEACHING personnel: Does NOT flag undertime simply because non-classroom teaching-related work
+          was performed outside school premises when allowed under applicable DepEd rules.
         """
         sch = cls.get_schedule(employee_type, designation)
         
@@ -86,54 +89,126 @@ class AttendancePolicyService:
         pm_in_m  = cls.td_to_minutes(pm_in)
         pm_out_m = cls.td_to_minutes(pm_out)
 
-        late_min = 0
-        undertime_min = 0
-
-        # Tardiness calculation: physical arrival after start of session
-        if am_in_m is not None and am_in_m > sch['am_start']:
-            late_min += (am_in_m - sch['am_start'])
-        if pm_in_m is not None and pm_in_m > sch['pm_start']:
-            late_min += (pm_in_m - sch['pm_start'])
+        # Session validity: A session requires BOTH Time In and Time Out to be valid
+        am_complete = (am_in_m is not None and am_out_m is not None)
+        pm_complete = (pm_in_m is not None and pm_out_m is not None)
 
         emp_type_clean = sch['type']
+        late_min = 0
+        undertime_min = 0
+        pure_undertime_min = 0
 
-        if emp_type_clean == 'TEACHING':
-            # Calculate physical classroom/school rendered time
-            rendered_school = 0
-            if am_in_m is not None and am_out_m is not None:
-                rendered_school += max(0, am_out_m - max(am_in_m, sch['am_start']))
-            elif am_in_m is not None:
-                rendered_school += max(0, sch['am_end'] - max(am_in_m, sch['am_start']))
+        # Scenario 1: Neither AM nor PM is complete -> WHOLEDAY ABSENT
+        if not am_complete and not pm_complete:
+            return {
+                'tardiness_minutes': 0,
+                'undertime_minutes': sch['required_work_minutes'],  # 480 mins (8 hrs)
+                'pure_undertime_minutes': 0,
+                'absent_day_fraction': 1.0,
+                'status': 'absent'
+            }
 
-            if pm_in_m is not None and pm_out_m is not None:
-                rendered_school += max(0, pm_out_m - max(pm_in_m, sch['pm_start']))
-            elif pm_in_m is not None:
-                rendered_school += max(0, sch['pm_end'] - max(pm_in_m, sch['pm_start']))
+        # Scenario 2: AM is complete, PM is incomplete/missing -> HALF-DAY ABSENT (PM absent)
+        elif am_complete and not pm_complete:
+            # AM Tardiness
+            if am_in_m > sch['am_start']:
+                late_min += (am_in_m - sch['am_start'])
 
-            effective_classroom = max(rendered_school, actual_classroom_minutes)
-
-            # If teaching-related work outside premises is allowed/approved:
-            if teaching_related_approved:
-                # Add off-premise teaching-related work (up to fulfilling required workday)
-                total_fulfilled = effective_classroom + max(teaching_related_minutes, sch['required_work_minutes'] - sch['required_classroom_minutes'])
+            # AM Undertime
+            am_ut = 0
+            if emp_type_clean == 'TEACHING':
+                rendered_am = max(0, am_out_m - max(am_in_m, sch['am_start']))
+                effective_am = max(rendered_am, actual_classroom_minutes)
+                half_required = sch['required_work_minutes'] // 2
+                if teaching_related_approved:
+                    fulfilled_am = effective_am + max(teaching_related_minutes, half_required - (sch['required_classroom_minutes'] // 2))
+                else:
+                    fulfilled_am = effective_am + teaching_related_minutes
+                if fulfilled_am < half_required:
+                    am_ut = half_required - fulfilled_am
             else:
-                total_fulfilled = effective_classroom + teaching_related_minutes
+                if am_out_m < sch['am_end']:
+                    am_ut = (sch['am_end'] - am_out_m)
 
-            if total_fulfilled < sch['required_work_minutes']:
-                undertime_min = sch['required_work_minutes'] - total_fulfilled
+            pure_undertime_min = am_ut
+            undertime_min = am_ut + (sch['required_work_minutes'] // 2)  # +240 mins for PM absence
+
+            return {
+                'tardiness_minutes': int(late_min),
+                'undertime_minutes': int(undertime_min),
+                'pure_undertime_minutes': int(pure_undertime_min),
+                'absent_day_fraction': 0.5,
+                'status': 'half-day'
+            }
+
+        # Scenario 3: AM is incomplete/missing, PM is complete -> HALF-DAY ABSENT (AM absent)
+        elif not am_complete and pm_complete:
+            # PM Tardiness
+            if pm_in_m > sch['pm_start']:
+                late_min += (pm_in_m - sch['pm_start'])
+
+            # PM Undertime
+            pm_ut = 0
+            if emp_type_clean == 'TEACHING':
+                rendered_pm = max(0, pm_out_m - max(pm_in_m, sch['pm_start']))
+                effective_pm = max(rendered_pm, actual_classroom_minutes)
+                half_required = sch['required_work_minutes'] // 2
+                if teaching_related_approved:
+                    fulfilled_pm = effective_pm + max(teaching_related_minutes, half_required - (sch['required_classroom_minutes'] // 2))
+                else:
+                    fulfilled_pm = effective_pm + teaching_related_minutes
+                if fulfilled_pm < half_required:
+                    pm_ut = half_required - fulfilled_pm
             else:
-                undertime_min = 0
+                if pm_out_m < sch['pm_end']:
+                    pm_ut = (sch['pm_end'] - pm_out_m)
+
+            pure_undertime_min = pm_ut
+            undertime_min = (sch['required_work_minutes'] // 2) + pm_ut  # +240 mins for AM absence
+
+            return {
+                'tardiness_minutes': int(late_min),
+                'undertime_minutes': int(undertime_min),
+                'pure_undertime_minutes': int(pure_undertime_min),
+                'absent_day_fraction': 0.5,
+                'status': 'half-day'
+            }
+
+        # Scenario 4: Both AM and PM are complete -> FULL DAY PRESENT
         else:
-            # NON_TEACHING
-            if am_out_m is not None and am_out_m < sch['am_end']:
-                undertime_min += (sch['am_end'] - am_out_m)
-            if pm_out_m is not None and pm_out_m < sch['pm_end']:
-                undertime_min += (sch['pm_end'] - pm_out_m)
+            if am_in_m > sch['am_start']:
+                late_min += (am_in_m - sch['am_start'])
+            if pm_in_m > sch['pm_start']:
+                late_min += (pm_in_m - sch['pm_start'])
 
-        return {
-            'tardiness_minutes': int(late_min),
-            'undertime_minutes': int(undertime_min)
-        }
+            if emp_type_clean == 'TEACHING':
+                rendered_school = max(0, am_out_m - max(am_in_m, sch['am_start'])) + max(0, pm_out_m - max(pm_in_m, sch['pm_start']))
+                effective_classroom = max(rendered_school, actual_classroom_minutes)
+
+                if teaching_related_approved:
+                    total_fulfilled = effective_classroom + max(teaching_related_minutes, sch['required_work_minutes'] - sch['required_classroom_minutes'])
+                else:
+                    total_fulfilled = effective_classroom + teaching_related_minutes
+
+                if total_fulfilled < sch['required_work_minutes']:
+                    undertime_min = sch['required_work_minutes'] - total_fulfilled
+                else:
+                    undertime_min = 0
+            else:
+                if am_out_m < sch['am_end']:
+                    undertime_min += (sch['am_end'] - am_out_m)
+                if pm_out_m < sch['pm_end']:
+                    undertime_min += (sch['pm_end'] - pm_out_m)
+
+            pure_undertime_min = undertime_min
+
+            return {
+                'tardiness_minutes': int(late_min),
+                'undertime_minutes': int(undertime_min),
+                'pure_undertime_minutes': int(pure_undertime_min),
+                'absent_day_fraction': 0.0,
+                'status': 'present'
+            }
 
 class LeavePolicyService:
     @staticmethod

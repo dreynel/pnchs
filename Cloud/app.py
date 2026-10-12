@@ -96,14 +96,26 @@ def login():
             if user_row:
                 stored = user_row.get('stored_password') or ''
                 is_valid = False
-                if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
-                    is_valid = check_password_hash(stored, password)
-                else:
-                    # Plaintext comparison
-                    is_valid = (stored == password)
+                try:
+                    if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
+                        is_valid = check_password_hash(stored, password)
+                    else:
+                        # Plaintext fallback
+                        is_valid = (stored == password)
+                except Exception as val_err:
+                    print(f"[Password Check Error] {val_err}")
+                    is_valid = False
 
                 if is_valid:
                     emp = user_row
+                    # Upgrade legacy plaintext password to secure hash automatically upon successful login
+                    if not stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
+                        try:
+                            upgraded_hash = generate_password_hash(password)
+                            cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (upgraded_hash, emp['id']))
+                            conn.commit()
+                        except Exception as up_err:
+                            print(f"[Password Upgrade Error] {up_err}")
 
             if emp:
                 # Prioritize official HR registry name if mapped, else fallback
@@ -313,6 +325,9 @@ def change_password():
     if new_password != confirm_password:
         return jsonify({'error': 'New password and confirmation password do not match.'}), 400
 
+    if new_password == current_password:
+        return jsonify({'error': 'New password cannot be identical to your current password.'}), 400
+
     user_session = session.get('user', {})
     user_id = user_session.get('id')
     username = user_session.get('email') or user_session.get('username')
@@ -338,15 +353,23 @@ def change_password():
 
         stored = user_row.get('password') or ''
         is_valid = False
-        if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
-            is_valid = check_password_hash(stored, current_password)
-        else:
-            is_valid = (stored == current_password)
+        try:
+            if stored.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
+                is_valid = check_password_hash(stored, current_password)
+            else:
+                is_valid = (stored == current_password)
+        except Exception:
+            is_valid = False
 
         if not is_valid:
             return jsonify({'error': 'Incorrect current password.'}), 400
 
-        cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (new_password, user_row['id']))
+        # Cryptographically hash the new password and validate the hash before persisting
+        hashed_new_password = generate_password_hash(new_password)
+        if not check_password_hash(hashed_new_password, new_password):
+            return jsonify({'error': 'Server validation of encrypted password failed.'}), 500
+
+        cur.execute("UPDATE tblusers SET password = %s WHERE id = %s", (hashed_new_password, user_row['id']))
 
         AuditService.log_action(
             cur, 'PASSWORD_CHANGED',
@@ -357,7 +380,7 @@ def change_password():
             ip_address=request.remote_addr
         )
 
-    return jsonify({'success': True, 'message': 'Password has been updated successfully.'})
+    return jsonify({'success': True, 'message': 'Password has been updated and securely encrypted successfully.'})
 
 @app.route('/logout')
 def logout():

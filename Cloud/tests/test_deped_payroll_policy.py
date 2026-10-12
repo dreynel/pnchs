@@ -327,6 +327,81 @@ class TestDepEdPayrollPolicy(unittest.TestCase):
         is_lwop = bool(absent_days >= working_days and earned_gross <= 0.01)
         self.assertTrue(is_lwop)
 
+    def test_15_incomplete_am_log_halfday_absent(self):
+        """TEST 15: Time In with no Time Out in AM -> consider as absent that half day (240 mins UT, half-day status)."""
+        res = AttendancePolicyService.calculate_tardiness_and_undertime(
+            employee_type='NON_TEACHING', designation='Administrative Assistant',
+            am_in='07:00:00', am_out=None,
+            pm_in='13:00:00', pm_out='17:00:00'
+        )
+        self.assertEqual(res['status'], 'half-day')
+        self.assertEqual(res['absent_day_fraction'], 0.5)
+        self.assertEqual(res['undertime_minutes'], 240) # 240 mins (4 hours) deficiency
+        self.assertEqual(res['tardiness_minutes'], 0)
+        self.assertEqual(res['pure_undertime_minutes'], 0)
+
+        # Same for PM: AM complete, PM In with no Out
+        res_pm = AttendancePolicyService.calculate_tardiness_and_undertime(
+            employee_type='NON_TEACHING', designation='Administrative Assistant',
+            am_in='07:00:00', am_out='12:00:00',
+            pm_in='13:00:00', pm_out=None
+        )
+        self.assertEqual(res_pm['status'], 'half-day')
+        self.assertEqual(res_pm['absent_day_fraction'], 0.5)
+        self.assertEqual(res_pm['undertime_minutes'], 240)
+
+    def test_16_incomplete_both_am_pm_wholeday_absent(self):
+        """TEST 16: Both AM and PM have no either Time In or Out -> consider as wholeday absent (480 mins UT, absent status)."""
+        # Case A: AM In with no Out, and no PM punches
+        res1 = AttendancePolicyService.calculate_tardiness_and_undertime(
+            employee_type='NON_TEACHING', designation='Staff',
+            am_in='07:00:00', am_out=None,
+            pm_in=None, pm_out=None
+        )
+        self.assertEqual(res1['status'], 'absent')
+        self.assertEqual(res1['absent_day_fraction'], 1.0)
+        self.assertEqual(res1['undertime_minutes'], 480) # 480 mins (8 hours) deficiency
+        self.assertEqual(res1['tardiness_minutes'], 0)
+
+        # Case B: AM In with no Out, and PM In with no Out
+        res2 = AttendancePolicyService.calculate_tardiness_and_undertime(
+            employee_type='NON_TEACHING', designation='Staff',
+            am_in='07:05:00', am_out=None,
+            pm_in='13:00:00', pm_out=None
+        )
+        self.assertEqual(res2['status'], 'absent')
+        self.assertEqual(res2['absent_day_fraction'], 1.0)
+        self.assertEqual(res2['undertime_minutes'], 480)
+
+    def test_17_incomplete_punch_payroll_deduction(self):
+        """TEST 17: Payroll deduction validation for half-day and wholeday absences from incomplete punches."""
+        daily_rate = 1200.00 # 26,400 / 22 days
+        per_min_rate = daily_rate / 480 # 2.50 / min
+
+        # 1. Half-day absent (In without Out in AM):
+        res_half = AttendancePolicyService.calculate_tardiness_and_undertime(
+            employee_type='NON_TEACHING', designation='Staff',
+            am_in='07:00:00', am_out=None,
+            pm_in='13:00:00', pm_out='17:00:00'
+        )
+        absent_days_half = res_half['absent_day_fraction'] # 0.5
+        deduction_half = absent_days_half * daily_rate
+        self.assertEqual(deduction_half, 600.00) # Half day deduction = ₱600.00
+        # Check equivalence to 240 mins undertime rate:
+        self.assertEqual(round(res_half['undertime_minutes'] * per_min_rate, 2), 600.00)
+
+        # 2. Whole day absent (both sessions lack out):
+        res_whole = AttendancePolicyService.calculate_tardiness_and_undertime(
+            employee_type='NON_TEACHING', designation='Staff',
+            am_in='07:00:00', am_out=None,
+            pm_in='13:00:00', pm_out=None
+        )
+        absent_days_whole = res_whole['absent_day_fraction'] # 1.0
+        deduction_whole = absent_days_whole * daily_rate
+        self.assertEqual(deduction_whole, 1200.00) # Whole day deduction = ₱1,200.00
+        # Check equivalence to 480 mins undertime rate:
+        self.assertEqual(round(res_whole['undertime_minutes'] * per_min_rate, 2), 1200.00)
+
 
 if __name__ == '__main__':
     unittest.main()

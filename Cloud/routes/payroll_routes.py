@@ -316,6 +316,7 @@ def create_run():
                 emp_type = emp.get('employee_type', 'NON_TEACHING')
                 desig    = emp.get('designation', '')
 
+                daily_log_eval = {}
                 for log in logs:
                     res = AttendancePolicyService.calculate_tardiness_and_undertime(
                         emp_type, desig,
@@ -326,14 +327,19 @@ def create_run():
                         teaching_related_approved=bool(log.get('teaching_related_approved', 1))
                     )
                     l = res['tardiness_minutes']
-                    u = res['undertime_minutes']
+                    u_pure = res.get('pure_undertime_minutes', 0)
+                    absent_frac = res.get('absent_day_fraction', 0.0)
+
+                    w_date = log['work_date']
+                    daily_log_eval[w_date] = absent_frac
+
                     total_late_min  += l
-                    total_under_min += u
+                    total_under_min += u_pure
 
                     if apply_deped_policy:
                         ref_id = f"LOG-{log['log_id']}"
                         proc = LeavePolicyService.process_tardiness_and_undertime(
-                            cur, emp_id, log['work_date'], l, u, reference_id=ref_id, user_name='PayrollEngine'
+                            cur, emp_id, log['work_date'], l, u_pure, reference_id=ref_id, user_name='PayrollEngine'
                         )
                         vl_late_min    += proc['vl_tardiness_minutes']
                         vl_under_min   += proc['vl_undertime_minutes']
@@ -341,23 +347,29 @@ def create_run():
                         lwop_under_min += proc['lwop_undertime_minutes']
                     else:
                         lwop_late_min  += l
-                        lwop_under_min += u
+                        lwop_under_min += u_pure
 
                 # ── Approved leaves & absence evaluation cutoff (only up to yesterday) ───────────────
                 approved_leave_dates = get_approved_leave_dates(cur, emp_id, start_date, end_date)
                 yesterday = date.today() - timedelta(days=1)
                 eval_end_date = min(end_date, yesterday)
 
+                absent_days = 0.0
                 if eval_end_date >= start_date:
-                    eval_work_days = count_work_days_in_period(start_date, eval_end_date)
-                    eval_logged = {d for d in logged_dates if d <= eval_end_date}
-                    eval_leaves = len([d for d in approved_leave_dates if d.weekday() < 5 and d <= eval_end_date])
-                    effective_present = len(eval_logged) + eval_leaves
-                    absent_days = max(0, eval_work_days - effective_present)
+                    curr_d = start_date
+                    while curr_d <= eval_end_date:
+                        if curr_d.weekday() < 5:  # Monday to Friday
+                            if curr_d in approved_leave_dates:
+                                pass
+                            elif curr_d in daily_log_eval:
+                                absent_days += daily_log_eval[curr_d]
+                            else:
+                                absent_days += 1.0
+                        curr_d += timedelta(days=1)
                 else:
-                    absent_days = 0
+                    absent_days = 0.0
 
-                absent_deduction = absent_days * daily_rate
+                absent_deduction = round(absent_days * daily_rate, 2)
 
                 # ── Global Payheads (Applied only if employee has less than 5 absences in a half month) ──
                 if absent_days < 5:
